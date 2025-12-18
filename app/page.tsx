@@ -1,0 +1,218 @@
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Sparkles, BookOpen, Users, Star, Rocket, Zap } from "lucide-react"
+import Link from "next/link"
+
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden border-b border-border">
+        {/* Cosmic background effect */}
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-background to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(127,255,0,0.1),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(255,215,0,0.08),transparent_50%)]" />
+
+        <div className="container relative mx-auto px-4 py-16 md:py-24">
+          {/* Header */}
+          <header className="flex items-center justify-between mb-16">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <span className="font-display text-3xl tracking-wider text-primary">KOMET</span>
+            </div>
+            <nav className="flex items-center gap-6">
+              <Link href="/browse" className="text-sm hover:text-primary transition-colors">
+                Browse
+              </Link>
+              <Link href="/book-club" className="text-sm hover:text-primary transition-colors">
+                Book Club
+              </Link>
+              <Button variant="outline" size="sm">
+                Sign In
+              </Button>
+            </nav>
+          </header>
+
+          {/* Hero Content */}
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <div className="inline-block">
+              <div className="bg-primary/10 text-primary border border-primary/30 px-4 py-2 rounded-full text-sm font-medium">
+                THE FUNKIEST BOOKSTORE IN THE UNIVERSE
+              </div>
+            </div>
+
+            <h1 className="font-display text-6xl md:text-8xl lg:text-9xl tracking-wider leading-none text-balance">
+              <span className="text-primary">READ</span> <span className="text-secondary">COSMIC</span>{" "}
+              <span className="text-foreground">BOOKS</span>
+            </h1>
+
+            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed">
+              Discover mind-bending reads, join our intergalactic book club, and explore stories from across the cosmos.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button size="lg" className="text-lg px-8 animate-pulse-glow">
+                <Rocket className="w-5 h-5 mr-2" />
+                Start Reading
+              </Button>
+              <Button size="lg" variant="outline" className="text-lg px-8 bg-transparent">
+                <Users className="w-5 h-5 mr-2" />
+                Join Book Club
+              </Button>
+            </div>
+          </div>
+
+          {/* Feature Cards */}
+          <div className="grid md:grid-cols-3 gap-6 mt-20">
+            <Card className="p-6 bg-card/50 backdrop-blur border-primary/20 hover:border-primary/50 transition-colors">
+              <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
+                <BookOpen className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="font-display text-2xl tracking-wide mb-2">COSMIC LIBRARY</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Access thousands of books from every genre. Purchase individual titles or subscribe to our book club.
+              </p>
+            </Card>
+
+            <Card className="p-6 bg-card/50 backdrop-blur border-secondary/20 hover:border-secondary/50 transition-colors">
+              <div className="w-12 h-12 bg-secondary/20 rounded-lg flex items-center justify-center mb-4">
+                <Zap className="w-6 h-6 text-secondary" />
+              </div>
+              <h3 className="font-display text-2xl tracking-wide mb-2">POWER READING</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Highlight, bookmark, take notes, and customize your reading experience like never before.
+              </p>
+            </Card>
+
+            <Card className="p-6 bg-card/50 backdrop-blur border-primary/20 hover:border-primary/50 transition-colors">
+              <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
+                <Star className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="font-display text-2xl tracking-wide mb-2">BOOK CLUB</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Get 1 curated book monthly, join discussions, and connect with fellow cosmic readers.
+              </p>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-20 border-b border-border">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="font-display text-5xl md:text-6xl tracking-wider mb-4">
+              <span className="text-secondary">HOW IT</span> <span className="text-primary">WORKS</span>
+            </h2>
+            <p className="text-xl text-muted-foreground">Three simple steps to cosmic enlightenment</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto text-primary-foreground font-display text-3xl">
+                1
+              </div>
+              <h3 className="font-display text-2xl tracking-wide">CHOOSE YOUR PATH</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Browse our library and purchase books individually, or subscribe to our monthly book club for curated
+                selections.
+              </p>
+            </div>
+
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto text-secondary-foreground font-display text-3xl">
+                2
+              </div>
+              <h3 className="font-display text-2xl tracking-wide">READ & EXPLORE</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Use our powerful reader with highlights, bookmarks, notes, and customizable text settings for the
+                perfect experience.
+              </p>
+            </div>
+
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto text-primary-foreground font-display text-3xl">
+                3
+              </div>
+              <h3 className="font-display text-2xl tracking-wide">CONNECT</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Join discussions, share your thoughts, and connect with other readers in our vibrant cosmic community.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Book Club CTA */}
+      <section className="py-20 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(127,255,0,0.15),transparent_70%)]" />
+        <div className="container relative mx-auto px-4">
+          <Card className="max-w-4xl mx-auto p-12 bg-card/80 backdrop-blur border-primary/30">
+            <div className="text-center space-y-6">
+              <div className="inline-flex items-center gap-2 bg-primary/20 text-primary px-4 py-2 rounded-full">
+                <Star className="w-4 h-4" />
+                <span className="text-sm font-medium">PREMIUM MEMBERSHIP</span>
+              </div>
+
+              <h2 className="font-display text-5xl md:text-6xl tracking-wider">
+                <span className="text-secondary">JOIN THE</span>
+                <br />
+                <span className="text-primary">BOOK CLUB</span>
+              </h2>
+
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                Get 1 carefully curated book delivered monthly, exclusive access to author discussions, and unlimited
+                reading of all book club selections.
+              </p>
+
+              <div className="flex items-baseline justify-center gap-2">
+                <span className="font-display text-6xl text-primary">$12</span>
+                <span className="text-xl text-muted-foreground">/month</span>
+              </div>
+
+              <Button size="lg" className="text-lg px-10">
+                <Sparkles className="w-5 h-5 mr-2" />
+                Subscribe Now
+              </Button>
+
+              <p className="text-sm text-muted-foreground">Cancel anytime. First book free!</p>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border py-12">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <span className="font-display text-2xl tracking-wider text-primary">KOMET</span>
+            </div>
+
+            <div className="flex gap-8 text-sm text-muted-foreground">
+              <Link href="/about" className="hover:text-primary transition-colors">
+                About
+              </Link>
+              <Link href="/contact" className="hover:text-primary transition-colors">
+                Contact
+              </Link>
+              <Link href="/terms" className="hover:text-primary transition-colors">
+                Terms
+              </Link>
+              <Link href="/privacy" className="hover:text-primary transition-colors">
+                Privacy
+              </Link>
+            </div>
+
+            <p className="text-sm text-muted-foreground">© 2025 Komet Book Club. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
+}
