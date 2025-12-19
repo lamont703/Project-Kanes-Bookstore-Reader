@@ -33,10 +33,18 @@ export default function BookClubPage() {
               <Link href="/book-club" className="text-sm font-medium text-primary">
                 Book Club
               </Link>
+              <Link href="/book-club/discussions" className="text-sm hover:text-primary transition-colors">
+                Discussions
+              </Link>
+              <Link href="/book-club/events" className="text-sm hover:text-primary transition-colors">
+                Events
+              </Link>
               <Link href="/dashboard" className="text-sm hover:text-primary transition-colors">
                 My Library
               </Link>
-              <Button size="sm">Sign In</Button>
+              <Button size="sm" asChild>
+                <Link href="/login">Sign In</Link>
+              </Button>
             </nav>
           </div>
         </div>

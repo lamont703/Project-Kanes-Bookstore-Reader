@@ -87,3 +87,72 @@ export const bookClubBenefits = [
     description: "No commitment required. Cancel your subscription whenever you want, no questions asked.",
   },
 ]
+
+export const mockDiscussions = [
+  {
+    id: "1",
+    title: "The ending of 'Cosmic Drift' was mind-blowing!",
+    author: { name: "AstroReader" },
+    category: "Current Selection",
+    stats: {
+      replies: 12,
+      likes: 34,
+      views: 1200,
+    },
+    lastReply: {
+      author: "GalaxyExplorer",
+      time: "2h ago",
+    },
+  },
+  {
+    id: "2",
+    title: "Who is your favorite character in 'Mars Biography'?",
+    author: { name: "RocketMan" },
+    category: "Past Selections",
+    stats: {
+      replies: 5,
+      likes: 18,
+      views: 800,
+    },
+    lastReply: {
+      author: "StarHopper",
+      time: "1d ago",
+    },
+  },
+]
+
+export const mockEvents = [
+  {
+    id: 1,
+    title: "Live Q&A with 'Cosmic Drift' Author",
+    date: "February 15, 2025",
+    time: "7:00 PM EST",
+    type: "virtual",
+    location: "Zoom",
+    description: "Join us for an exclusive live Q&A session with the author of our current book club selection, 'Cosmic Drift'.",
+    attendees: 128,
+    status: "upcoming",
+  },
+  {
+    id: 2,
+    title: "Sci-Fi Writing Workshop",
+    date: "March 5, 2025",
+    time: "2:00 PM EST",
+    type: "virtual",
+    location: "Google Meet",
+    description: "Hone your world-building and character development skills in this interactive workshop for aspiring sci-fi writers.",
+    attendees: 45,
+    status: "upcoming",
+  },
+  {
+    id: 3,
+    title: "December Book Club Wrap-up",
+    date: "December 28, 2024",
+    time: "8:00 PM EST",
+    type: "virtual",
+    location: "Zoom",
+    description: "A casual chat to discuss our thoughts on the December book selection and celebrate a year of reading.",
+    attendees: 76,
+    status: "past",
+  },
+]

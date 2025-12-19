@@ -29,8 +29,8 @@ export default function LandingPage() {
               <Link href="/book-club" className="text-sm hover:text-primary transition-colors">
                 Book Club
               </Link>
-              <Button variant="outline" size="sm">
-                Sign In
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/login">Sign In</Link>
               </Button>
             </nav>
           </header>

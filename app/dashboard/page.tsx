@@ -37,10 +37,18 @@ export default function DashboardPage() {
               <Link href="/book-club" className="text-sm hover:text-primary transition-colors">
                 Book Club
               </Link>
+              <Link href="/book-club/discussions" className="text-sm hover:text-primary transition-colors">
+                Discussions
+              </Link>
+              <Link href="/book-club/events" className="text-sm hover:text-primary transition-colors">
+                Events
+              </Link>
               <Link href="/dashboard" className="text-sm font-medium text-primary">
                 My Library
               </Link>
-              <Button size="sm">Sign In</Button>
+              <Button size="sm" asChild>
+                <Link href="/login">Sign In</Link>
+              </Button>
             </nav>
           </div>
         </div>
