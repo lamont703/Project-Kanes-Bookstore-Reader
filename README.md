@@ -1,10 +1,10 @@
-# Kane's Bookstore Reader 📚🚀
+**Kane's Bookstore Reader 📚🚀**
 
-A premium, feature-rich web application designed for a modern reading experience. Built with **Next.js 15**, **React 19**, and **Tailwind CSS**, Kane's Bookstore Reader offers a seamless interface for browsing, reading, and managing your personal library.
+A premium, feature-rich web application designed for a modern reading experience. Built with **Next.js 15**, **React 19**, and **Tailwind CSS**.
 
 ---
 
-## ✨ Key Features
+### ✨ Key Features
 
 - **📖 Immersive Reading Experience**: Focused reader view with customizable settings for a comfortable experience.
 - **🔍 Smart Discovery**: Browse a vast collection of books with advanced filtering and search capabilities.
@@ -16,64 +16,91 @@ A premium, feature-rich web application designed for a modern reading experience
 
 ---
 
-## 🛠️ Tech Stack
+### 🛠️ Tech Stack
 
 - **Framework**: [Next.js 15+](https://nextjs.org/) (App Router)
 - **Library**: [React 19](https://react.dev/)
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
-- **UI Components**: [Radix UI](https://www.radix-ui.com/) + [Shadcn UI](https://ui.shadcn.com/)
+- **UI Components**: [Radix UI](https://www.radix-ui.com/) + [shadcn/ui](https://ui.shadcn.com/)
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **Charts**: [Recharts](https://recharts.org/)
-- **Animations**: [Framer Motion](https://www.framer.com/motion/) & [Tailwind Animate](https://github.com/jamiebuilds/tailwindcss-animate)
+- **Animations**: [Framer Motion](https://www.framer.com/motion/) + [tailwindcss-animate](https://github.com/jamiebuilds/tailwindcss-animate)
 
 ---
 
-## 🚀 Getting Started
+### 🚀 Getting Started
 
-### Prerequisites
+#### Prerequisites
 
 - Node.js (Latest LTS recommended)
-- npm (Standardized package manager for this project)
+- npm (standardized package manager for this project)
 
-### Installation
+#### Installation
 
 1. **Clone the repository**
-   ```bash
-   git clone https://github.com/lamont703/Project-Kanes-Bookstore-Reader.git
-   cd Project-Kanes-Bookstore-Reader
-   ```
-
+    
+    ```bash
+    git clone 
+    ```
+    
 2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
+    
+    ```bash
+    npm install
+    ```
+    
 3. **Set up environment variables**
-   Create a `.env` file in the root directory and add your configuration (see `.env.example` if available).
-
+    - Create a `.env` file in the root directory and add your configuration.
+    - See `.env.example` if available.
 4. **Run the development server**
-   ```bash
-   npm run dev
-   ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
----
-
-## 📂 Project Structure
-
-- `/app`: Next.js App Router pages and layouts.
-- `/components`: Reusable UI components (Sidebar, Cards, Reader Panels).
-- `/lib`: Utility functions and shared logic.
-- `/public`: Static assets like images and fonts.
-- `/styles`: Global styles and Tailwind configurations.
+    
+    ```bash
+    npm run dev
+    ```
+    
+    Open http://localhost:3000/ in your browser.
+    
 
 ---
 
-## 📝 License
+### 🔧 Backend Development
+
+This project uses the **approved backend defaults**:
+
+- **Backend provider**: Supabase
+- **Runtime**: Supabase Edge Functions (Deno)
+- **Language**: TypeScript
+- **Auth**: Supabase Auth
+- **Data layer**: Supabase-managed Postgres
+
+#### Backend API
+
+- Base URL: https://tcbrxygfssdxwfhlpxhk.supabase.co/functions/v1/kanes-bookstore
+
+#### How to work on the backend (high level)
+
+1. Use Supabase for local development (Postgres + Auth) when implementing backend changes.
+2. Develop and test API functionality as **Edge Functions**.
+3. Keep API boundaries explicit and modular.
+
+#### Deviation rule
+
+If you deviate from the defaults (for example AWS or Node.js), document the justification at the project or module level.
+
+---
+
+### 📂 Project Structure
+
+- `/app`: Next.js App Router pages and layouts
+- `/components`: Reusable UI components (Sidebar, Cards, Reader Panels)
+- `/lib`: Utility functions and shared logic
+- `/public`: Static assets like images and fonts
+- `/styles`: Global styles and Tailwind configurations
+
+---
+
+### 📝 License
 
 This project is private and intended for use by authorized users only.
 
----
-
-*Built with passion by the Kane's Komet Team.*
+*Built with passion by the Inner G Complete Agency Team.*
