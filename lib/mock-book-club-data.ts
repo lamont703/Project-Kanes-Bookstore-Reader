@@ -31,6 +31,19 @@ export interface DiscussionTopic {
   createdAt: Date
 }
 
+export interface BookClubEvent {
+  id: string
+  title: string
+  description: string
+  date: Date
+  time: string
+  location: string
+  type: "virtual" | "in-person"
+  coverImage?: string
+  attendees: number
+  status: "upcoming" | "past"
+}
+
 export const mockBookClubSelections: BookClubSelection[] = [
   {
     id: "1",
@@ -187,38 +200,53 @@ export const mockDiscussionTopics: DiscussionTopic[] = [
   },
 ]
 
-export const mockEvents = [
+export const mockEvents: BookClubEvent[] = [
   {
-    id: 1,
+    id: "event-1",
     title: "Live Q&A with 'Cosmic Drift' Author",
-    date: "February 15, 2025",
+    date: new Date("2025-02-15"),
     time: "7:00 PM EST",
     type: "virtual",
-    location: "Zoom",
-    description: "Join us for an exclusive live Q&A session with the author of our current book club selection, 'Cosmic Drift'.",
+    location: "https://zoom.us/j/cosmic-drift",
+    description: "Join us for an exclusive live Q&A session with the author of our current book club selection, 'Cosmic Drift'. We will explore the inspirations behind the Void Walkers and the scientific theories that shaped the ending.",
+    coverImage: "/cosmic-sci-fi-book-cover.jpg",
     attendees: 128,
     status: "upcoming",
   },
   {
-    id: 2,
-    title: "Sci-Fi Writing Workshop",
-    date: "March 5, 2025",
+    id: "event-2",
+    title: "Sci-Fi Writing Workshop: World Building",
+    date: new Date("2025-03-05"),
     time: "2:00 PM EST",
     type: "virtual",
-    location: "Google Meet",
-    description: "Hone your world-building and character development skills in this interactive workshop for aspiring sci-fi writers.",
+    location: "https://meet.google.com/sci-fi-workshop",
+    description: "Hone your world-building and character development skills in this interactive workshop for aspiring sci-fi writers. Learn how to create believable alien ecosystems and complex space-faring societies.",
+    coverImage: "/thriller-heist-book-cover.jpg",
     attendees: 45,
     status: "upcoming",
   },
   {
-    id: 3,
+    id: "event-3",
     title: "December Book Club Wrap-up",
-    date: "December 28, 2024",
+    date: new Date("2024-12-28"),
     time: "8:00 PM EST",
     type: "virtual",
-    location: "Zoom",
-    description: "A casual chat to discuss our thoughts on the December book selection and celebrate a year of reading.",
+    location: "https://zoom.us/j/wrap-up-2024",
+    description: "A casual chat to discuss our thoughts on the December book selection and celebrate a year of reading across the stars. We'll also preview the 2025 reading list.",
+    coverImage: "/dark-mystery-book-cover.jpg",
     attendees: 76,
     status: "past",
+  },
+  {
+    id: "event-4",
+    title: "Cosmic Librarian Meetup",
+    date: new Date("2025-01-25"),
+    time: "6:00 PM EST",
+    type: "in-person",
+    location: "Komet HQ Central Hub",
+    description: "Local readers gather for a night of physical book swapping and synth-wave music. Bring your favorites to share!",
+    coverImage: "/romantic-fantasy-book-cover.jpg",
+    attendees: 32,
+    status: "upcoming",
   },
 ]

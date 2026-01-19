@@ -11,7 +11,7 @@ const STORAGE_KEYS = {
 
 export interface ReadingSettings {
   fontSize: number
-  fontFamily: string
+  fontFamily: "serif" | "sans" | "mono"
   lineHeight: number
   theme: "light" | "dark" | "sepia"
   textAlign: "left" | "justify"
