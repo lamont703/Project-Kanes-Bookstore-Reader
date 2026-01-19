@@ -34,15 +34,15 @@ export default function UploadPage() {
 
   if (isComplete) {
     return (
-      <div className="p-8 text-center">
-        <CheckCircle className="w-24 h-24 text-primary mx-auto mb-6" />
-        <h1 className="font-display text-4xl tracking-wider mb-4">UPLOAD COMPLETE</h1>
-        <p className="text-muted-foreground mb-6">The new book has been added to the cosmic library.</p>
+      <div className="p-4 md:p-8 text-center min-h-[60vh] flex flex-col items-center justify-center">
+        <CheckCircle className="w-20 h-20 md:w-24 md:h-24 text-primary mx-auto mb-6" />
+        <h1 className="font-display text-3xl md:text-4xl tracking-wider mb-4 uppercase">Upload Complete</h1>
+        <p className="text-muted-foreground mb-8">The new book has been added to the cosmic library.</p>
         <Button onClick={() => {
           setIsComplete(false)
           setCoverFile(null)
           setBookFile(null)
-        }}>
+        }} className="w-full sm:w-auto">
           Upload Another Book
         </Button>
       </div>
@@ -50,54 +50,54 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="font-display text-5xl tracking-wider mb-2">
+    <div className="p-4 md:p-8">
+      <div className="mb-8 text-center md:text-left">
+        <h1 className="font-display text-4xl md:text-5xl tracking-wider mb-2 leading-tight">
           <span className="text-primary">ADD NEW</span> <span className="text-secondary">BOOK</span>
         </h1>
-        <p className="text-lg text-muted-foreground">Upload book files and metadata</p>
+        <p className="text-base md:text-lg text-muted-foreground">Upload book files and metadata</p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
         {/* File Upload Section */}
         <div className="space-y-6">
           <Card
-            className="p-6 bg-card/50 backdrop-blur border-border"
+            className="p-5 md:p-6 bg-card/50 backdrop-blur border-border"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleFileDrop(e, "cover")}
           >
-            <h2 className="font-display text-2xl tracking-wide mb-4">BOOK COVER</h2>
-            <div className="flex items-center justify-center w-full h-48 border-2 border-dashed border-primary/30 rounded-lg">
+            <h2 className="font-display text-xl md:text-2xl tracking-wide mb-4">BOOK COVER</h2>
+            <div className="flex items-center justify-center w-full h-40 md:h-48 border-2 border-dashed border-primary/30 rounded-lg">
               {coverFile ? (
-                <div className="text-center">
-                  <ImageIcon className="w-12 h-12 text-primary mx-auto mb-2" />
-                  <p className="font-medium">{coverFile.name}</p>
+                <div className="text-center p-4">
+                  <ImageIcon className="w-10 h-10 text-primary mx-auto mb-2" />
+                  <p className="text-sm font-medium truncate max-w-[200px]">{coverFile.name}</p>
                 </div>
               ) : (
-                <div className="text-center text-muted-foreground">
-                  <UploadCloud className="w-12 h-12 mx-auto mb-2" />
-                  <p>Drag & drop image here, or click to select</p>
+                <div className="text-center text-muted-foreground p-4">
+                  <UploadCloud className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Drag & drop image here</p>
                 </div>
               )}
             </div>
           </Card>
 
           <Card
-            className="p-6 bg-card/50 backdrop-blur border-border"
+            className="p-5 md:p-6 bg-card/50 backdrop-blur border-border"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleFileDrop(e, "book")}
           >
-            <h2 className="font-display text-2xl tracking-wide mb-4">BOOK PDF</h2>
-            <div className="flex items-center justify-center w-full h-48 border-2 border-dashed border-secondary/30 rounded-lg">
+            <h2 className="font-display text-xl md:text-2xl tracking-wide mb-4">BOOK PDF</h2>
+            <div className="flex items-center justify-center w-full h-40 md:h-48 border-2 border-dashed border-secondary/30 rounded-lg">
               {bookFile ? (
-                <div className="text-center">
-                  <FileText className="w-12 h-12 text-secondary mx-auto mb-2" />
-                  <p className="font-medium">{bookFile.name}</p>
+                <div className="text-center p-4">
+                  <FileText className="w-10 h-10 text-secondary mx-auto mb-2" />
+                  <p className="text-sm font-medium truncate max-w-[200px]">{bookFile.name}</p>
                 </div>
               ) : (
-                <div className="text-center text-muted-foreground">
-                  <UploadCloud className="w-12 h-12 mx-auto mb-2" />
-                  <p>Drag & drop PDF here, or click to select</p>
+                <div className="text-center text-muted-foreground p-4">
+                  <UploadCloud className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Drag & drop PDF here</p>
                 </div>
               )}
             </div>
@@ -105,26 +105,26 @@ export default function UploadPage() {
         </div>
 
         {/* Metadata Section */}
-        <Card className="p-8 bg-card/50 backdrop-blur">
-          <h2 className="font-display text-2xl tracking-wide mb-6">METADATA</h2>
+        <Card className="p-5 md:p-8 bg-card/50 backdrop-blur h-fit">
+          <h2 className="font-display text-xl md:text-2xl tracking-wide mb-6 uppercase">Metadata</h2>
           <form className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="title">
                 Book Title
               </label>
-              <Input id="title" placeholder="e.g., Cosmic Drift" />
+              <Input id="title" placeholder="e.g., Cosmic Drift" className="h-10" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="author">
                 Author
               </label>
-              <Input id="author" placeholder="e.g., Jaxson Starborn" />
+              <Input id="author" placeholder="e.g., Jaxson Starborn" className="h-10" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="series">
                 Series (Optional)
               </label>
-              <Input id="series" placeholder="e.g., The Stardust Chronicles" />
+              <Input id="series" placeholder="e.g., The Stardust Chronicles" className="h-10" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="description">
@@ -134,18 +134,18 @@ export default function UploadPage() {
             </div>
 
             <Button
-              className="w-full text-lg py-6 font-display tracking-wider"
+              className="w-full text-lg py-6 font-display tracking-wider mt-4"
               size="lg"
               type="button"
               onClick={handleUpload}
               disabled={isUploading || !coverFile || !bookFile}
             >
               {isUploading ? (
-                <Loader className="w-6 h-6 animate-spin mr-2" />
+                <Loader className="w-5 h-5 animate-spin mr-2" />
               ) : (
-                <UploadCloud className="w-6 h-6 mr-2" />
+                <UploadCloud className="w-5 h-5 mr-2" />
               )}
-              {isUploading ? "Uploading..." : "Upload Book"}
+              {isUploading ? "Uploading Mission..." : "Upload Volume"}
             </Button>
           </form>
         </Card>

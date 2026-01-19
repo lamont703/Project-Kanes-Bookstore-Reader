@@ -53,16 +53,16 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       {/* Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
-          <h1 className="font-display text-5xl tracking-wider mb-2">
+          <h1 className="font-display text-4xl md:text-5xl tracking-wider mb-2 leading-tight text-center md:text-left">
             <span className="text-primary">ADMIN</span> <span className="text-secondary">DASHBOARD</span>
           </h1>
-          <p className="text-lg text-muted-foreground">Manage your cosmic bookstore ecosystem</p>
+          <p className="text-base md:text-lg text-muted-foreground text-center md:text-left">Manage your cosmic bookstore ecosystem</p>
         </div>
-        <Button asChild className="font-display tracking-wider text-lg px-6">
+        <Button asChild className="font-display tracking-wider text-lg px-6 w-full md:w-auto">
           <Link href="/admin/upload">
             <TrendingUp className="w-5 h-5 mr-2" />
             UPLOAD CONTENT
@@ -71,65 +71,65 @@ export default function AdminDashboard() {
       </div>
 
       {/* Analytics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        <Card className="p-6 bg-card/50 backdrop-blur border-primary/30">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-12">
+        <Card className="p-5 md:p-6 bg-card/50 backdrop-blur border-primary/30">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Total Users</p>
-              <p className="font-display text-4xl tracking-wide mb-1">
+              <p className="text-xs md:text-sm text-muted-foreground mb-1">Total Users</p>
+              <p className="font-display text-3xl md:text-4xl tracking-wide mb-1">
                 {mockUserAnalytics.totalUsers.toLocaleString()}
               </p>
-              <p className="text-xs text-primary flex items-center gap-1">
+              <p className="text-[10px] md:text-xs text-primary flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" />+{mockUserAnalytics.newUsersThisMonth} this month
               </p>
             </div>
-            <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-primary" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Users className="w-5 h-5 md:w-6 md:h-6 text-primary" />
             </div>
           </div>
         </Card>
 
-        <Card className="p-6 bg-card/50 backdrop-blur border-secondary/30">
+        <Card className="p-5 md:p-6 bg-card/50 backdrop-blur border-secondary/30">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Active Subscribers</p>
-              <p className="font-display text-4xl tracking-wide mb-1">
+              <p className="text-xs md:text-sm text-muted-foreground mb-1">Active Subscribers</p>
+              <p className="font-display text-3xl md:text-4xl tracking-wide mb-1">
                 {mockUserAnalytics.activeSubscribers.toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] md:text-xs text-muted-foreground">
                 {((mockUserAnalytics.activeSubscribers / mockUserAnalytics.totalUsers) * 100).toFixed(1)}% of users
               </p>
             </div>
-            <div className="w-12 h-12 bg-secondary/20 rounded-lg flex items-center justify-center">
-              <UserPlus className="w-6 h-6 text-secondary" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-secondary/20 rounded-lg flex items-center justify-center flex-shrink-0">
+              <UserPlus className="w-5 h-5 md:w-6 md:h-6 text-secondary" />
             </div>
           </div>
         </Card>
 
-        <Card className="p-6 bg-card/50 backdrop-blur border-primary/30">
+        <Card className="p-5 md:p-6 bg-card/50 backdrop-blur border-primary/30">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Monthly Revenue</p>
-              <p className="font-display text-4xl tracking-wide mb-1">
+              <p className="text-xs md:text-sm text-muted-foreground mb-1">Monthly Revenue</p>
+              <p className="font-display text-3xl md:text-4xl tracking-wide mb-1">
                 ${(mockUserAnalytics.revenueThisMonth / 1000).toFixed(0)}K
               </p>
-              <p className="text-xs text-muted-foreground">${mockUserAnalytics.totalRevenue.toLocaleString()} total</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">${mockUserAnalytics.totalRevenue.toLocaleString()} total</p>
             </div>
-            <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-primary" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
+              <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-primary" />
             </div>
           </div>
         </Card>
 
-        <Card className="p-6 bg-card/50 backdrop-blur border-border">
+        <Card className="p-5 md:p-6 bg-card/50 backdrop-blur border-border">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Churn Rate</p>
-              <p className="font-display text-4xl tracking-wide mb-1">{mockUserAnalytics.churnRate}%</p>
-              <p className="text-xs text-muted-foreground">Below industry average</p>
+              <p className="text-xs md:text-sm text-muted-foreground mb-1">Churn Rate</p>
+              <p className="font-display text-3xl md:text-4xl tracking-wide mb-1">{mockUserAnalytics.churnRate}%</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Below industry average</p>
             </div>
-            <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-              <AlertCircle className="w-6 h-6 text-muted-foreground" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-muted-foreground" />
             </div>
           </div>
         </Card>
@@ -140,7 +140,7 @@ export default function AdminDashboard() {
         <h2 className="font-display text-3xl tracking-wider mb-6">
           <span className="text-primary">MANAGEMENT</span> CONSOLE
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {adminNavCards.map((card) => {
             const Icon = card.icon
             return (
@@ -151,7 +151,7 @@ export default function AdminDashboard() {
                   </div>
                   <h3 className="font-display text-2xl tracking-wide mb-2 group-hover:text-primary transition-colors">{card.title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed mb-4">{card.description}</p>
-                  
+
                   <div className="flex items-center justify-between mt-auto">
                     {card.count !== undefined ? (
                       <span className="text-xs font-medium px-2 py-1 bg-muted rounded-full">
@@ -164,7 +164,7 @@ export default function AdminDashboard() {
                     )}
                     <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </div>
-                  
+
                   {/* Decorative background element */}
                   <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
                     <Icon className="w-24 h-24" />
@@ -176,30 +176,30 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Current Book Club Selection Quick Look */}
         <Card className="p-6 bg-card/50 backdrop-blur border-secondary/20">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="font-display text-2xl tracking-wide text-secondary">ACTIVE SELECTION</h2>
+            <h2 className="font-display text-2xl tracking-wide text-secondary uppercase">Active Selection</h2>
             <Button size="sm" variant="ghost" className="hover:text-secondary" asChild>
               <Link href="/admin/book-club">View All</Link>
             </Button>
           </div>
           {currentBook && currentSelection ? (
-            <div className="flex gap-4">
-              <div className="w-24 h-36 bg-muted rounded overflow-hidden flex-shrink-0 shadow-lg">
+            <div className="flex flex-col sm:flex-row gap-6">
+              <div className="w-full sm:w-24 h-48 sm:h-36 bg-muted rounded overflow-hidden flex-shrink-0 shadow-lg border border-white/5">
                 <img src={currentBook.coverImage} alt={currentBook.title} className="w-full h-full object-cover" />
               </div>
               <div className="flex flex-col justify-between py-1">
                 <div>
                   <p className="text-xl font-medium leading-tight mb-1">{currentBook.title}</p>
                   <p className="text-sm text-muted-foreground mb-3">by {currentBook.author}</p>
-                  <div className="inline-flex items-center gap-2 bg-secondary/10 text-secondary text-xs px-2 py-1 rounded border border-secondary/30">
+                  <div className="inline-flex items-center gap-2 bg-secondary/10 text-secondary text-[10px] md:text-xs px-2 py-1 rounded border border-secondary/30">
                     <div className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
                     {currentSelection.theme}
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] md:text-xs text-muted-foreground mt-4 sm:mt-0">
                   Discussion Live: {currentSelection.discussionDate.toLocaleDateString()}
                 </p>
               </div>
@@ -214,7 +214,7 @@ export default function AdminDashboard() {
         {/* Recent Admin Activity */}
         <Card className="p-6 bg-card/50 backdrop-blur">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="font-display text-2xl tracking-wide">SYSTEM HEALTH</h2>
+            <h2 className="font-display text-2xl tracking-wide uppercase">System Health</h2>
             <LayoutDashboard className="w-5 h-5 text-muted-foreground" />
           </div>
           <div className="space-y-4">
@@ -240,15 +240,15 @@ export default function AdminDashboard() {
       </div>
 
       {/* Recent Users - Reduced height */}
-      <Card className="p-6 bg-card/50 backdrop-blur mt-8 border-border/50">
+      <Card className="p-4 md:p-6 bg-card/50 backdrop-blur mt-8 border-border/50">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="font-display text-2xl tracking-wide">COMMUNITY SNAPSHOT</h2>
+          <h2 className="font-display text-2xl tracking-wide uppercase leading-none">Community Snapshot</h2>
           <Button size="sm" variant="outline" className="bg-transparent" asChild>
             <Link href="/admin/users">All Users</Link>
           </Button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-4 px-4 pb-2">
+          <table className="w-full min-w-[500px]">
             <thead>
               <tr className="border-b border-border text-left">
                 <th className="pb-3 text-sm font-medium text-muted-foreground">User</th>
@@ -262,7 +262,7 @@ export default function AdminDashboard() {
                   <td className="py-4">
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">{user.name}</span>
-                      <span className="text-xs text-muted-foreground">{user.email}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[150px] md:max-w-none">{user.email}</span>
                     </div>
                   </td>
                   <td className="py-4">
