@@ -60,6 +60,9 @@ export default function BrowsePage() {
               <Link href="/dashboard" className="text-sm hover:text-primary transition-colors">
                 My Library
               </Link>
+              <Link href="/admin" className="text-sm hover:text-primary transition-colors">
+                Admin
+              </Link>
               <Button size="sm">Sign In</Button>
             </nav>
           </div>

@@ -46,6 +46,9 @@ export default function DashboardPage() {
               <Link href="/dashboard" className="text-sm font-medium text-primary">
                 My Library
               </Link>
+              <Link href="/admin" className="text-sm hover:text-primary transition-colors text-muted-foreground">
+                Admin
+              </Link>
               <Button size="sm" asChild>
                 <Link href="/login">Sign In</Link>
               </Button>

@@ -42,6 +42,9 @@ export default function BookClubPage() {
               <Link href="/dashboard" className="text-sm hover:text-primary transition-colors">
                 My Library
               </Link>
+              <Link href="/admin" className="text-sm hover:text-primary transition-colors">
+                Admin
+              </Link>
               <Button size="sm" asChild>
                 <Link href="/login">Sign In</Link>
               </Button>

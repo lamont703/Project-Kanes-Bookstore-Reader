@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Home, BookOpen, Users, Calendar, BarChart3, Settings, Sparkles } from "lucide-react"
+import { Home, BookOpen, Users, Calendar, BarChart3, Settings, Sparkles, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -10,9 +10,11 @@ export function AdminSidebar() {
 
   const navItems = [
     { href: "/admin", icon: Home, label: "Dashboard" },
-    { href: "/admin/books", icon: BookOpen, label: "Books" },
+    { href: "/admin/books", icon: BookOpen, label: "Catalog" },
+    { href: "/admin/book-club", icon: Calendar, label: "Monthly Selection" },
+    { href: "/admin/discussions", icon: MessageSquare, label: "Discussions" },
+    { href: "/admin/events", icon: Calendar, label: "Events" },
     { href: "/admin/users", icon: Users, label: "Users" },
-    { href: "/admin/book-club", icon: Calendar, label: "Book Club" },
     { href: "/admin/analytics", icon: BarChart3, label: "Analytics" },
     { href: "/admin/settings", icon: Settings, label: "Settings" },
   ]
