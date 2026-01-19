@@ -26,7 +26,9 @@ export default function EventsPage() {
               className="p-6 bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-colors"
             >
               <div className="mb-4">
-                <p className="text-sm font-medium text-primary">{event.date}</p>
+                <p className="text-sm font-medium text-primary">
+                  {event.date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                </p>
                 <h3 className="font-display text-2xl tracking-wide mt-1">{event.title}</h3>
               </div>
               <p className="text-muted-foreground mb-4 text-sm leading-relaxed">{event.description}</p>
@@ -69,7 +71,9 @@ export default function EventsPage() {
               className="p-4 bg-card/50 backdrop-blur border-border flex flex-col sm:flex-row items-center justify-between"
             >
               <div>
-                <p className="text-sm text-muted-foreground">{event.date}</p>
+                <p className="text-sm text-muted-foreground">
+                  {event.date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                </p>
                 <h3 className="font-display text-xl tracking-wide mt-1">{event.title}</h3>
               </div>
               <Button variant="outline" className="mt-4 sm:mt-0 bg-transparent">
