@@ -94,7 +94,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             <div className="grid lg:grid-cols-3 gap-8">
                 {/* Left Column: Metadata */}
                 <div className="lg:col-span-2 space-y-6">
-                    <Card className="p-8 bg-card/50 backdrop-blur border-border/50">
+                    <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50">
                         <h2 className="font-display text-2xl tracking-wide mb-6">BASIC INFORMATION</h2>
                         <div className="space-y-6">
                             <div className="space-y-2">
@@ -174,7 +174,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                         </div>
                     </Card>
 
-                    <Card className="p-8 bg-card/50 backdrop-blur border-border/50">
+                    <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50">
                         <h2 className="font-display text-2xl tracking-wide mb-6">FILE ASSETS</h2>
                         <div className="grid md:grid-cols-2 gap-6">
                             <div className="space-y-2">
@@ -234,7 +234,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
 
                 {/* Right Column: Settings */}
                 <div className="space-y-6">
-                    <Card className="p-8 bg-card/50 backdrop-blur border-border/50 sticky top-24">
+                    <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50 lg:sticky lg:top-24">
                         <h2 className="font-display text-2xl tracking-wide mb-6">PUBLISHING</h2>
 
                         <div className="space-y-6">

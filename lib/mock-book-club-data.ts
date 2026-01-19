@@ -17,6 +17,20 @@ export interface BookClubSubscription {
   booksReceived: number
 }
 
+export interface DiscussionTopic {
+  id: string
+  title: string
+  description: string
+  category: "General" | "Book Club" | "Sci-Fi" | "Fantasy" | "News"
+  bookId?: string // Link to a specific cosmic volume
+  isPinned: boolean
+  isFeatured: boolean
+  postCount: number
+  memberCount: number
+  lastActivity: Date
+  createdAt: Date
+}
+
 export const mockBookClubSelections: BookClubSelection[] = [
   {
     id: "1",
@@ -118,6 +132,58 @@ export const mockDiscussions = [
       author: "StarHopper",
       time: "1d ago",
     },
+  },
+]
+
+export const mockDiscussionTopics: DiscussionTopic[] = [
+  {
+    id: "topic-1",
+    title: "Official: 'Cosmic Drift' Discussion",
+    description: "The primary forge for all deep-dives into our January selection. Share your theories, favorite quotes, and ending reactions.",
+    category: "Book Club",
+    bookId: "1",
+    isPinned: true,
+    isFeatured: true,
+    postCount: 154,
+    memberCount: 840,
+    lastActivity: new Date("2025-01-18T20:30:00"),
+    createdAt: new Date("2025-01-01T10:00:00"),
+  },
+  {
+    id: "topic-2",
+    title: "The Great Filter: News & Updates",
+    description: "Stay updated with the latest transmissions from Komet HQ. New features, server updates, and galactic announcements.",
+    category: "News",
+    isPinned: true,
+    isFeatured: false,
+    postCount: 42,
+    memberCount: 1200,
+    lastActivity: new Date("2025-01-15T14:20:00"),
+    createdAt: new Date("2024-11-20T09:00:00"),
+  },
+  {
+    id: "topic-3",
+    title: "Quantum Mechanics in Hard Sci-Fi",
+    description: "A specialized room for discussing the scientific accuracy of quantum tropes in our favorite volumes.",
+    category: "Sci-Fi",
+    isPinned: false,
+    isFeatured: true,
+    postCount: 89,
+    memberCount: 320,
+    lastActivity: new Date("2025-01-17T11:45:00"),
+    createdAt: new Date("2024-12-15T15:30:00"),
+  },
+  {
+    id: "topic-4",
+    title: "Member Introductions",
+    description: "New to the sector? Broadcast your arrival here and tell us about your favorite star systems and genres.",
+    category: "General",
+    isPinned: false,
+    isFeatured: false,
+    postCount: 560,
+    memberCount: 2100,
+    lastActivity: new Date("2025-01-18T18:00:00"),
+    createdAt: new Date("2024-01-01T00:00:00"),
   },
 ]
 
