@@ -21,6 +21,16 @@ import {
 import Image from "next/image"
 import Link from "next/link"
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { toast } from "sonner"
+
 // Mocked status mapping since the base interface doesn't have it
 const booksWithStatus = mockBooks.map((book, index) => ({
   ...book,
@@ -34,11 +44,26 @@ export default function AdminBooksPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [sortOrder, setSortOrder] = useState<"title" | "price" | "newest">("title")
 
+  // Delete Modal State
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [bookToDelete, setBookToDelete] = useState<typeof booksWithStatus[0] | null>(null)
+
   useEffect(() => {
     // Simulate initial loading
     const timer = setTimeout(() => setIsLoading(false), 1200)
     return () => clearTimeout(timer)
   }, [])
+
+  const handleDeleteClick = (book: typeof booksWithStatus[0]) => {
+    setBookToDelete(book)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = () => {
+    toast.success(`${bookToDelete?.title} has been purged from reality`)
+    setIsDeleteDialogOpen(false)
+    setBookToDelete(null)
+  }
 
   const filteredBooks = booksWithStatus.filter((book) => {
     const matchesSearch =
@@ -87,7 +112,7 @@ export default function AdminBooksPage() {
             Export
           </Button>
           <Button size="lg" className="font-display tracking-wider text-lg" asChild>
-            <Link href="/admin/upload">
+            <Link href="/admin/books/new">
               <Plus className="w-5 h-5 mr-2" />
               ADD NEW BOOK
             </Link>
@@ -201,13 +226,27 @@ export default function AdminBooksPage() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary hover:bg-primary/10">
-                          <Eye className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary hover:bg-primary/10" asChild>
+                          <Link href={`/book/${book.id}`} target="_blank">
+                            <Eye className="w-4 h-4" />
+                          </Link>
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-secondary hover:bg-secondary/10">
-                          <Edit className="w-4 h-4" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:text-secondary hover:bg-secondary/10"
+                          asChild
+                        >
+                          <Link href={`/admin/books/${book.id}/edit`}>
+                            <Edit className="w-4 h-4" />
+                          </Link>
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive hover:bg-destructive/10">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteClick(book)}
+                        >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -240,6 +279,22 @@ export default function AdminBooksPage() {
         </div>
       </Card>
 
+      {/* Delete Confirmation Modal */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-md border-primary/20 bg-card/95 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-3xl tracking-wider text-primary">DELETION CONFIRMATION</DialogTitle>
+            <DialogDescription className="text-lg">
+              Are you sure you want to purge <span className="text-foreground font-bold italic">"{bookToDelete?.title}"</span> from the cosmic library? This action is irreversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6">
+            <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)}>Abort Mission</Button>
+            <Button variant="destructive" className="font-display tracking-widest" onClick={confirmDelete}>PURGE VOLUME</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Footer Info */}
       <div className="mt-6 flex flex-col sm:flex-row justify-between items-center text-xs text-muted-foreground gap-4">
         <p>Showing {filteredBooks.length} of {booksWithStatus.length} total books</p>
@@ -251,4 +306,3 @@ export default function AdminBooksPage() {
     </div>
   )
 }
-
