@@ -171,15 +171,7 @@ export default function AdminDiscussionsPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" className="bg-transparent border-border/50 h-10">
-                        <BookOpen className="w-4 h-4 mr-2" />
-                        Categories
-                    </Button>
-                    <Button variant="outline" className="bg-transparent border-border/50 h-10">
-                        Moderation
-                    </Button>
-                </div>
+
             </div>
 
             {/* Topics List */}

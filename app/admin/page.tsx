@@ -1,9 +1,9 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { mockUserAnalytics, mockAdminUsers } from "@/lib/mock-admin-data"
+import { mockAdminUsers } from "@/lib/mock-admin-data"
 import { mockBooks } from "@/lib/mock-books"
 import { mockBookClubSelections } from "@/lib/mock-book-club-data"
-import { Users, DollarSign, TrendingUp, BookOpen, UserPlus, AlertCircle, Calendar, MessageSquare, ArrowRight, LayoutDashboard } from "lucide-react"
+import { TrendingUp, BookOpen, Calendar, MessageSquare, ArrowRight, LayoutDashboard } from "lucide-react"
 import Link from "next/link"
 
 export default function AdminDashboard() {
@@ -14,7 +14,7 @@ export default function AdminDashboard() {
   const adminNavCards = [
     {
       title: "Catalog",
-      description: "Manage cosmic book collection, inventory and categories",
+      description: "Manage Komet book collection, inventory and categories",
       href: "/admin/books",
       icon: BookOpen,
       color: "text-primary",
@@ -60,7 +60,7 @@ export default function AdminDashboard() {
           <h1 className="font-display text-4xl md:text-5xl tracking-wider mb-2 leading-tight text-center md:text-left">
             <span className="text-primary">ADMIN</span> <span className="text-secondary">DASHBOARD</span>
           </h1>
-          <p className="text-base md:text-lg text-muted-foreground text-center md:text-left">Manage your cosmic bookstore ecosystem</p>
+          <p className="text-base md:text-lg text-muted-foreground text-center md:text-left">Manage your Komet bookstore ecosystem</p>
         </div>
         <Button asChild className="font-display tracking-wider text-lg px-6 w-full md:w-auto">
           <Link href="/admin/upload">
@@ -70,70 +70,7 @@ export default function AdminDashboard() {
         </Button>
       </div>
 
-      {/* Analytics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-12">
-        <Card className="p-5 md:p-6 bg-card/50 backdrop-blur border-primary/30">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs md:text-sm text-muted-foreground mb-1">Total Users</p>
-              <p className="font-display text-3xl md:text-4xl tracking-wide mb-1">
-                {mockUserAnalytics.totalUsers.toLocaleString()}
-              </p>
-              <p className="text-[10px] md:text-xs text-primary flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />+{mockUserAnalytics.newUsersThisMonth} this month
-              </p>
-            </div>
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Users className="w-5 h-5 md:w-6 md:h-6 text-primary" />
-            </div>
-          </div>
-        </Card>
 
-        <Card className="p-5 md:p-6 bg-card/50 backdrop-blur border-secondary/30">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs md:text-sm text-muted-foreground mb-1">Active Subscribers</p>
-              <p className="font-display text-3xl md:text-4xl tracking-wide mb-1">
-                {mockUserAnalytics.activeSubscribers.toLocaleString()}
-              </p>
-              <p className="text-[10px] md:text-xs text-muted-foreground">
-                {((mockUserAnalytics.activeSubscribers / mockUserAnalytics.totalUsers) * 100).toFixed(1)}% of users
-              </p>
-            </div>
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-secondary/20 rounded-lg flex items-center justify-center flex-shrink-0">
-              <UserPlus className="w-5 h-5 md:w-6 md:h-6 text-secondary" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-5 md:p-6 bg-card/50 backdrop-blur border-primary/30">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs md:text-sm text-muted-foreground mb-1">Monthly Revenue</p>
-              <p className="font-display text-3xl md:text-4xl tracking-wide mb-1">
-                ${(mockUserAnalytics.revenueThisMonth / 1000).toFixed(0)}K
-              </p>
-              <p className="text-[10px] md:text-xs text-muted-foreground">${mockUserAnalytics.totalRevenue.toLocaleString()} total</p>
-            </div>
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
-              <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-primary" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-5 md:p-6 bg-card/50 backdrop-blur border-border">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs md:text-sm text-muted-foreground mb-1">Churn Rate</p>
-              <p className="font-display text-3xl md:text-4xl tracking-wide mb-1">{mockUserAnalytics.churnRate}%</p>
-              <p className="text-[10px] md:text-xs text-muted-foreground">Below industry average</p>
-            </div>
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-              <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-muted-foreground" />
-            </div>
-          </div>
-        </Card>
-      </div>
 
       {/* Navigation Shell Grid */}
       <div className="mb-12">

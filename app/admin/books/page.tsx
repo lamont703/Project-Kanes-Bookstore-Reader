@@ -15,8 +15,7 @@ import {
   MoreHorizontal,
   CheckCircle2,
   XCircle,
-  ArrowUpDown,
-  FileDown
+  ArrowUpDown
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -104,13 +103,10 @@ export default function AdminBooksPage() {
           <h1 className="font-display text-4xl md:text-5xl tracking-wider mb-2 leading-tight">
             <span className="text-primary">CATALOG</span> <span className="text-secondary">MANAGEMENT</span>
           </h1>
-          <p className="text-base md:text-lg text-muted-foreground">{booksWithStatus.length} cosmic volumes in the library</p>
+          <p className="text-base md:text-lg text-muted-foreground">{booksWithStatus.length} Komet volumes in the library</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          <Button variant="outline" className="bg-transparent border-border w-full sm:w-auto order-2 sm:order-1">
-            <FileDown className="w-4 h-4 mr-2" />
-            Export
-          </Button>
+
           <Button size="lg" className="font-display tracking-wider text-lg w-full sm:w-auto order-1 sm:order-2" asChild>
             <Link href="/admin/books/new">
               <Plus className="w-5 h-5 mr-2" />
@@ -273,7 +269,7 @@ export default function AdminBooksPage() {
               </div>
               <h3 className="font-display text-3xl tracking-wide mb-2">NO DATA FOUND</h3>
               <p className="text-muted-foreground max-w-sm">
-                No cosmic volumes match your current search or filter criteria.
+                No Komet volumes match your current search or filter criteria.
               </p>
               <Button
                 variant="outline"
@@ -296,7 +292,7 @@ export default function AdminBooksPage() {
           <DialogHeader>
             <DialogTitle className="font-display text-3xl tracking-wider text-primary">DELETION CONFIRMATION</DialogTitle>
             <DialogDescription className="text-lg">
-              Are you sure you want to purge <span className="text-foreground font-bold italic">"{bookToDelete?.title}"</span> from the cosmic library? This action is irreversible.
+              Are you sure you want to purge <span className="text-foreground font-bold italic">"{bookToDelete?.title}"</span> from the Komet library? This action is irreversible.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-6">

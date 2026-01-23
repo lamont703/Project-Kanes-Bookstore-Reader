@@ -5,13 +5,42 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { mockAdminUsers } from "@/lib/mock-admin-data"
-import { Search, Filter, Mail, MoreVertical } from "lucide-react"
+import { Search, Filter, MoreVertical, Check } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
 
 export default function AdminUsersPage() {
+  const [users, setUsers] = useState(mockAdminUsers)
   const [searchQuery, setSearchQuery] = useState("")
-  const [filterSubscription, setFilterSubscription] = useState<"all" | "free" | "premium">("all")
+  const [filterSubscription, setFilterSubscription] = useState<"all" | "premium">("all")
 
-  const filteredUsers = mockAdminUsers.filter((user) => {
+  // State for subscription management dialog
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<typeof mockAdminUsers[0] | null>(null)
+  const [newSubscription, setNewSubscription] = useState<"free" | "premium">("free")
+
+  const filteredUsers = users.filter((user) => {
     const matchesSearch =
       searchQuery === "" ||
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -19,6 +48,25 @@ export default function AdminUsersPage() {
     const matchesFilter = filterSubscription === "all" || user.subscription === filterSubscription
     return matchesSearch && matchesFilter
   })
+
+  const openManageSubscription = (user: typeof mockAdminUsers[0]) => {
+    setSelectedUser(user)
+    setNewSubscription(user.subscription as "free" | "premium")
+    setIsDialogOpen(true)
+  }
+
+  const handleUpdateSubscription = () => {
+    if (!selectedUser) return
+
+    setUsers(users.map(u =>
+      u.id === selectedUser.id ? { ...u, subscription: newSubscription } : u
+    ))
+
+    setIsDialogOpen(false)
+    toast.success("Subscription updated", {
+      description: `${selectedUser.name} is now a ${newSubscription} user.`
+    })
+  }
 
   return (
     <div className="p-4 md:p-8">
@@ -28,7 +76,7 @@ export default function AdminUsersPage() {
           <h1 className="font-display text-4xl md:text-5xl tracking-wider mb-2 leading-tight">
             <span className="text-primary">MANAGE</span> USERS
           </h1>
-          <p className="text-base md:text-lg text-muted-foreground">{mockAdminUsers.length} total users in orbit</p>
+          <p className="text-base md:text-lg text-muted-foreground">{users.length} total users in orbit</p>
         </div>
       </div>
 
@@ -61,15 +109,7 @@ export default function AdminUsersPage() {
             onClick={() => setFilterSubscription("premium")}
             className={`text-xs h-8 ${filterSubscription === "premium" ? "" : "bg-transparent"}`}
           >
-            Premium
-          </Button>
-          <Button
-            variant={filterSubscription === "free" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilterSubscription("free")}
-            className={`text-xs h-8 ${filterSubscription === "free" ? "" : "bg-transparent"}`}
-          >
-            Free
+            Book Club Users
           </Button>
         </div>
       </div>
@@ -116,12 +156,21 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary hover:bg-primary/10">
-                        <Mail className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openManageSubscription(user)}>
+                            Manage Subscription
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive focus:text-destructive">
+                            Ban User
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </td>
                 </tr>
@@ -130,6 +179,41 @@ export default function AdminUsersPage() {
           </table>
         </div>
       </Card>
+
+      {/* Manage Subscription Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Manage Subscription</DialogTitle>
+            <DialogDescription>
+              Update subscription tier for {selectedUser?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="plan" className="text-right">
+                Plan
+              </Label>
+              <Select
+                value={newSubscription}
+                onValueChange={(value) => setNewSubscription(value as "free" | "premium")}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="premium">Premium (Book Club)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateSubscription}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

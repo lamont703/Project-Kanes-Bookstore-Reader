@@ -148,25 +148,7 @@ export default function AdminEventsPage() {
                 </Button>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <Card className="p-5 bg-card/50 backdrop-blur border-primary/20">
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Upcoming</p>
-                    <p className="font-display text-3xl">{upcomingEvents.length}</p>
-                </Card>
-                <Card className="p-5 bg-card/50 backdrop-blur border-secondary/20">
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Total Attendees</p>
-                    <p className="font-display text-3xl">12.4K</p>
-                </Card>
-                <Card className="p-5 bg-card/50 backdrop-blur border-border">
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Completed</p>
-                    <p className="font-display text-3xl">{events.filter(e => e.status === "past").length}</p>
-                </Card>
-                <Card className="p-5 bg-card/50 backdrop-blur border-border">
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Avg Engagement</p>
-                    <p className="font-display text-3xl">78%</p>
-                </Card>
-            </div>
+
 
             {/* Controls */}
             <div className="mb-8">

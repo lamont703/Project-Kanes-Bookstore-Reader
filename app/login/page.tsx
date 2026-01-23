@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Sparkles } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function AuthPage() {
   return (
@@ -14,13 +14,17 @@ export default function AuthPage() {
       <div className="w-full max-w-md mx-auto relative">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="font-display text-3xl tracking-wider text-primary">KOMET</span>
+            <Image
+              src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+              alt="Kane's Komets Logo"
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-lg object-contain"
+            />
+            <span className="font-display text-3xl tracking-wider text-primary">KANE'S KOMETS</span>
           </Link>
           <h1 className="font-display text-4xl tracking-wider text-balance">
-            <span className="text-primary">WELCOME TO THE</span> <span className="text-secondary">KOMET BOOK APP</span>
+            <span className="text-primary">WELCOME TO THE</span> <span className="text-secondary">KANE'S KOMETS BOOK APP</span>
           </h1>
         </div>
 
@@ -47,7 +51,7 @@ export default function AuthPage() {
                     <label className="text-sm font-medium text-muted-foreground" htmlFor="login-email">
                       EMAIL OR USERNAME
                     </label>
-                    <Input id="login-email" placeholder="you@cosmic.explorer" />
+                    <Input id="login-email" placeholder="you@komet.explorer" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground" htmlFor="login-password">
@@ -56,7 +60,7 @@ export default function AuthPage() {
                     <Input id="login-password" type="password" placeholder="••••••••" />
                   </div>
                   <Button className="w-full text-lg py-6 font-display tracking-wider" size="lg">
-                    LOGIN TO KOMET
+                    LOGIN TO KANE'S KOMETS
                   </Button>
                 </form>
               </TabsContent>
@@ -66,13 +70,13 @@ export default function AuthPage() {
                     <label className="text-sm font-medium text-muted-foreground" htmlFor="register-email">
                       EMAIL
                     </label>
-                    <Input id="register-email" placeholder="you@cosmic.explorer" />
+                    <Input id="register-email" placeholder="you@komet.explorer" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground" htmlFor="register-username">
                       USERNAME
                     </label>
-                    <Input id="register-username" placeholder="cosmic_reader" />
+                    <Input id="register-username" placeholder="komet_reader" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground" htmlFor="register-password">

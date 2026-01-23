@@ -2,10 +2,13 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Sparkles, BookOpen, Users, Star, Rocket, Zap } from "lucide-react"
 import Link from "next/link"
+import { SiteHeader } from "@/components/site-header"
+import Image from "next/image"
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen">
+      <SiteHeader />
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-border">
         {/* Cosmic background effect */}
@@ -14,29 +17,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(255,215,0,0.08),transparent_50%)]" />
 
         <div className="container relative mx-auto px-4 py-16 md:py-24">
-          {/* Header */}
-          <header className="flex items-center justify-between mb-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <span className="font-display text-3xl tracking-wider text-primary">KOMET</span>
-            </div>
-            <nav className="flex items-center gap-6">
-              <Link href="/browse" className="text-sm hover:text-primary transition-colors">
-                Browse
-              </Link>
-              <Link href="/book-club" className="text-sm hover:text-primary transition-colors">
-                Book Club
-              </Link>
-              <Link href="/admin" className="text-sm hover:text-primary transition-colors">
-                Admin
-              </Link>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/login">Sign In</Link>
-              </Button>
-            </nav>
-          </header>
+          {/* Header removed */}
 
           {/* Hero Content */}
           <div className="max-w-4xl mx-auto text-center space-y-8">
@@ -47,7 +28,7 @@ export default function LandingPage() {
             </div>
 
             <h1 className="font-display text-6xl md:text-8xl lg:text-9xl tracking-wider leading-none text-balance">
-              <span className="text-primary">READ</span> <span className="text-secondary">COSMIC</span>{" "}
+              <span className="text-primary">READ</span> <span className="text-secondary">KOMET</span>{" "}
               <span className="text-foreground">BOOKS</span>
             </h1>
 
@@ -56,13 +37,17 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="text-lg px-8 animate-pulse-glow">
-                <Rocket className="w-5 h-5 mr-2" />
-                Start Reading
+              <Button size="lg" className="text-lg px-8 animate-pulse-glow" asChild>
+                <Link href="/browse">
+                  <Rocket className="w-5 h-5 mr-2" />
+                  Start Reading
+                </Link>
               </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 bg-transparent">
-                <Users className="w-5 h-5 mr-2" />
-                Join Book Club
+              <Button size="lg" variant="outline" className="text-lg px-8 bg-transparent" asChild>
+                <Link href="/book-club">
+                  <Users className="w-5 h-5 mr-2" />
+                  Join Book Club
+                </Link>
               </Button>
             </div>
           </div>
@@ -73,7 +58,7 @@ export default function LandingPage() {
               <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
                 <BookOpen className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="font-display text-2xl tracking-wide mb-2">COSMIC LIBRARY</h3>
+              <h3 className="font-display text-2xl tracking-wide mb-2">KOMET LIBRARY</h3>
               <p className="text-muted-foreground leading-relaxed">
                 Access thousands of books from every genre. Purchase individual titles or subscribe to our book club.
               </p>
@@ -95,7 +80,7 @@ export default function LandingPage() {
               </div>
               <h3 className="font-display text-2xl tracking-wide mb-2">BOOK CLUB</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Get 1 curated book monthly, join discussions, and connect with fellow cosmic readers.
+                Get 1 curated book monthly, join discussions, and connect with fellow Komet readers.
               </p>
             </Card>
           </div>
@@ -109,7 +94,7 @@ export default function LandingPage() {
             <h2 className="font-display text-5xl md:text-6xl tracking-wider mb-4">
               <span className="text-secondary">HOW IT</span> <span className="text-primary">WORKS</span>
             </h2>
-            <p className="text-xl text-muted-foreground">Three simple steps to cosmic enlightenment</p>
+            <p className="text-xl text-muted-foreground">Three simple steps to Komet enlightenment</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -141,7 +126,7 @@ export default function LandingPage() {
               </div>
               <h3 className="font-display text-2xl tracking-wide">CONNECT</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Join discussions, share your thoughts, and connect with other readers in our vibrant cosmic community.
+                Join discussions, share your thoughts, and connect with other readers in our vibrant Komet community.
               </p>
             </div>
           </div>
@@ -191,10 +176,14 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-display text-2xl tracking-wider text-primary">KOMET</span>
+              <Image
+                src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+                alt="Kane's Komets Logo"
+                width={32}
+                height={32}
+                className="h-8 w-8 rounded-lg object-contain"
+              />
+              <span className="font-display text-2xl tracking-wider text-primary">KANE'S KOMETS</span>
             </div>
 
             <div className="flex gap-8 text-sm text-muted-foreground">
@@ -212,7 +201,7 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            <p className="text-sm text-muted-foreground">© 2025 Komet Book Club. All rights reserved.</p>
+            <p className="text-sm text-muted-foreground">© 2025 Kane's Komets Book Club. All rights reserved.</p>
           </div>
         </div>
       </footer>

@@ -131,9 +131,6 @@ export default function AdminBookClubPage() {
                     <Edit className="w-4 h-4 mr-2" />
                     Modify Payload
                   </Button>
-                  <Button variant="ghost" className="text-muted-foreground hover:text-white w-full sm:w-auto">
-                    View Discussion Forge
-                  </Button>
                 </div>
               </div>
             </div>

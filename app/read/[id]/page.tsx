@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ChevronLeft, ChevronRight, Settings, BookmarkIcon, Menu, X, Sparkles } from "lucide-react"
+import { ChevronLeft, ChevronRight, Settings, BookmarkIcon, Menu, X } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { mockChapters, type Highlight, type Bookmark } from "@/lib/mock-book-content"
 import {
   saveHighlight,
@@ -159,10 +160,14 @@ export default function ReadPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href="/browse" className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-primary-foreground" />
-                </div>
-                <span className="font-display text-xl tracking-wider text-primary">KOMET</span>
+                <Image
+                  src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+                  alt="Kane's Komets Logo"
+                  width={24}
+                  height={24}
+                  className="w-6 h-6 rounded object-contain"
+                />
+                <span className="font-display text-xl tracking-wider text-primary">KANE'S KOMETS</span>
               </Link>
               <div className="hidden md:block text-sm text-muted-foreground">
                 Chapter {currentChapterIndex + 1} of {mockChapters.length}

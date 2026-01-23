@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Adding custom cosmic/funky theme colors */
+/* Adding custom Komet/funky theme colors */
 :root {
   --background: oklch(0.05 0 0); /* Pure black background */
   --foreground: oklch(0.98 0 0); /* Pure white text */
@@ -126,7 +126,7 @@
   }
 }
 
-/* Adding custom cosmic animations and effects */
+/* Adding custom Komet animations and effects */
 @keyframes float {
   0%,
   100% {

@@ -13,25 +13,12 @@ const _bebasNeue = Bebas_Neue({
 })
 
 export const metadata: Metadata = {
-  title: "Komet Book Club - The Funkiest Bookstore in the Universe",
-  description: "Discover cosmic reads and join our book club. Read, collect, and explore books from across the galaxy.",
+  title: "Kane's Komets Book Club - The Funkiest Bookstore in the Universe",
+  description: "Discover Komet reads and join our book club. Read, collect, and explore books from across the galaxy.",
   generator: "v0.app",
   icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "/apple-icon.png",
+    icon: "/kanes-komets-icon.png",
+    apple: "/kanes-komets-icon.png",
   },
 }
 

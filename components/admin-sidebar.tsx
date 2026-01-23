@@ -1,8 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Home, BookOpen, Users, Calendar, BarChart3, Settings, Sparkles, MessageSquare, X } from "lucide-react"
+import { Home, BookOpen, Users, Calendar, MessageSquare, X } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 
 interface AdminSidebarProps {
@@ -19,8 +20,6 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
     { href: "/admin/discussions", icon: MessageSquare, label: "Discussions" },
     { href: "/admin/events", icon: Calendar, label: "Events" },
     { href: "/admin/users", icon: Users, label: "Users" },
-    { href: "/admin/analytics", icon: BarChart3, label: "Analytics" },
-    { href: "/admin/settings", icon: Settings, label: "Settings" },
   ]
 
   return (
@@ -28,11 +27,15 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
       {/* Logo & Close Button */}
       <div className="p-6 border-b border-border flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-primary-foreground" />
-          </div>
+          <Image
+            src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+            alt="Kane's Komets Logo"
+            width={40}
+            height={40}
+            className="w-10 h-10 rounded-lg object-contain"
+          />
           <div>
-            <span className="font-display text-2xl tracking-wider text-primary block leading-none">KOMET</span>
+            <span className="font-display text-2xl tracking-wider text-primary block leading-none">KANE'S KOMETS</span>
             <span className="text-[10px] text-muted-foreground uppercase tracking-widest leading-none">Admin Panel</span>
           </div>
         </Link>

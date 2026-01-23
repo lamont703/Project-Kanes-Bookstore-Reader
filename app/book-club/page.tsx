@@ -3,8 +3,9 @@ import { Card } from "@/components/ui/card"
 import { BookClubSelectionCard } from "@/components/book-club-selection-card"
 import { mockBooks } from "@/lib/mock-books"
 import { mockBookClubSelections, mockSubscription, bookClubBenefits } from "@/lib/mock-book-club-data"
-import { Sparkles, Star, Check, Users, Calendar, BookOpen, Crown } from "lucide-react"
+import { Star, Check, Users, Calendar, BookOpen, Crown } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function BookClubPage() {
   const currentSelection = mockBookClubSelections.find((s) => s.status === "current")
@@ -20,10 +21,14 @@ export default function BookClubPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-display text-2xl tracking-wider text-primary">KOMET</span>
+              <Image
+                src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+                alt="Kane's Komets Logo"
+                width={32}
+                height={32}
+                className="h-8 w-8 rounded-lg object-contain"
+              />
+              <span className="font-display text-2xl tracking-wider text-primary">KANE'S KOMETS</span>
             </Link>
 
             <nav className="flex items-center gap-6">
@@ -70,7 +75,7 @@ export default function BookClubPage() {
             </h1>
 
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Join thousands of cosmic readers exploring curated selections, exclusive discussions, and unlimited access
+              Join thousands of Komet readers exploring curated selections, exclusive discussions, and unlimited access
               to our entire book club library.
             </p>
 
@@ -213,7 +218,7 @@ export default function BookClubPage() {
               <h2 className="font-display text-5xl md:text-6xl tracking-wider">
                 <span className="text-primary">JOIN THE</span>
                 <br />
-                <span className="text-secondary">COSMIC COMMUNITY</span>
+                <span className="text-secondary">KOMET COMMUNITY</span>
               </h2>
 
               <p className="text-xl text-muted-foreground leading-relaxed">

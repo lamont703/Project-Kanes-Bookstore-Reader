@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { BookCard } from "@/components/book-card"
 import { mockBooks, GENRES } from "@/lib/mock-books"
-import { Search, Sparkles, SlidersHorizontal } from "lucide-react"
+import { Search, SlidersHorizontal } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function BrowsePage() {
   const [selectedGenre, setSelectedGenre] = useState("All")
@@ -44,10 +45,14 @@ export default function BrowsePage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-display text-2xl tracking-wider text-primary">KOMET</span>
+              <Image
+                src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+                alt="Kane's Komets Logo"
+                width={32}
+                height={32}
+                className="h-8 w-8 rounded-lg object-contain"
+              />
+              <span className="font-display text-2xl tracking-wider text-primary">KANE'S KOMETS</span>
             </Link>
 
             <nav className="flex items-center gap-6">
@@ -73,7 +78,7 @@ export default function BrowsePage() {
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-2">
-            <span className="text-primary">COSMIC</span> <span className="text-secondary">LIBRARY</span>
+            <span className="text-primary">KOMET</span> <span className="text-secondary">LIBRARY</span>
           </h1>
           <p className="text-lg text-muted-foreground">Discover your next great read from across the galaxy</p>
         </div>
