@@ -1,13 +1,36 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { BookClubSelectionCard } from "@/components/book-club-selection-card"
 import { mockBooks } from "@/lib/mock-books"
 import { mockBookClubSelections, mockSubscription, bookClubBenefits } from "@/lib/mock-book-club-data"
-import { Star, Check, Users, Calendar, BookOpen, Crown } from "lucide-react"
+import { Star, Check, Crown } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { SiteHeader } from "@/components/site-header"
+import { SubscriptionModal } from "@/components/subscription-modal"
+
+const bundleBooks = [
+  { id: "b1", title: "Somes 3", cover: "/Somes 3 Cover.webp" },
+  { id: "b2", title: "Somes 1", cover: "/Somes 1 Cover.webp" },
+  { id: "b3", title: "Flying With The Chrysiridiarhipheus 1", cover: "/Flying With The Chrysiridiarhipheus 1 Cover.webp" },
+  { id: "b4", title: "Brute Syndicate 5", cover: "/Brute Syndicate 5 Cover.webp" },
+  { id: "b5", title: "Brute Syndicate 1", cover: "/Brute Syndicate 1 Cover.webp" },
+]
 
 export default function BookClubPage() {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isMember, setIsMember] = useState(mockSubscription.isActive)
+
+  useEffect(() => {
+    const localMember = localStorage.getItem("komet_subscription_active")
+    if (localMember === "true") {
+      setIsMember(true)
+    }
+  }, [])
+
   const currentSelection = mockBookClubSelections.find((s) => s.status === "current")
   const upcomingSelections = mockBookClubSelections.filter((s) => s.status === "upcoming")
   const pastSelections = mockBookClubSelections.filter((s) => s.status === "past")
@@ -17,46 +40,7 @@ export default function BookClubPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <Image
-                src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
-                alt="Kane's Komets Logo"
-                width={32}
-                height={32}
-                className="h-8 w-8 rounded-lg object-contain"
-              />
-              <span className="font-display text-2xl tracking-wider text-primary">KANE'S KOMETS</span>
-            </Link>
-
-            <nav className="flex items-center gap-6">
-              <Link href="/browse" className="text-sm hover:text-primary transition-colors">
-                Browse
-              </Link>
-              <Link href="/book-club" className="text-sm font-medium text-primary">
-                Book Club
-              </Link>
-              <Link href="/book-club/discussions" className="text-sm hover:text-primary transition-colors">
-                Discussions
-              </Link>
-              <Link href="/book-club/events" className="text-sm hover:text-primary transition-colors">
-                Events
-              </Link>
-              <Link href="/dashboard" className="text-sm hover:text-primary transition-colors">
-                My Library
-              </Link>
-              <Link href="/admin" className="text-sm hover:text-primary transition-colors">
-                Admin
-              </Link>
-              <Button size="sm" asChild>
-                <Link href="/login">Sign In</Link>
-              </Button>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-border">
@@ -86,8 +70,8 @@ export default function BookClubPage() {
               </div>
             </div>
 
-            {!mockSubscription.isActive ? (
-              <Button size="lg" className="text-lg px-10 animate-pulse-glow">
+            {!isMember ? (
+              <Button size="lg" className="text-lg px-10 animate-pulse-glow" onClick={() => setIsModalOpen(true)}>
                 <Star className="w-5 h-5 mr-2" />
                 Subscribe Now
               </Button>
@@ -146,35 +130,33 @@ export default function BookClubPage() {
           </div>
         </section>
 
-        {/* Stats */}
+
+        {/* Collection Display */}
         <section className="mb-16">
-          <div className="grid md:grid-cols-3 gap-6">
-            <Card className="p-8 text-center bg-card/50 backdrop-blur border-primary/30">
-              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-primary" />
+          <div className="mb-8 text-center">
+            <h2 className="font-display text-4xl md:text-5xl tracking-wider mb-2">
+              <span className="text-secondary">THE</span> COLLECTION
+            </h2>
+            <p className="text-lg text-muted-foreground">Select any 2 from these exclusive titles to start your journey</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+            {bundleBooks.map((book) => (
+              <div key={book.id} className="group relative">
+                <div className="aspect-[2/3] relative rounded-lg overflow-hidden shadow-lg transition-transform duration-300 group-hover:scale-105 group-hover:shadow-primary/20 bg-secondary/10">
+                  <Image
+                    src={book.cover}
+                    alt={book.title}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                    <p className="text-white text-xs font-bold text-center w-full">{book.title}</p>
+                  </div>
+                </div>
               </div>
-              <p className="font-display text-5xl tracking-wide mb-2">12K+</p>
-              <p className="text-muted-foreground">Active Members</p>
-            </Card>
-
-            <Card className="p-8 text-center bg-card/50 backdrop-blur border-secondary/30">
-              <div className="w-16 h-16 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8 text-secondary" />
-              </div>
-              <p className="font-display text-5xl tracking-wide mb-2">150+</p>
-              <p className="text-muted-foreground">Books Curated</p>
-            </Card>
-
-            <Card className="p-8 text-center bg-card/50 backdrop-blur border-primary/30">
-              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Calendar className="w-8 h-8 text-primary" />
-              </div>
-              <p className="font-display text-5xl tracking-wide mb-2">3 Years</p>
-              <p className="text-muted-foreground">Running Strong</p>
-            </Card>
+            ))}
           </div>
         </section>
-
         {/* Upcoming Selections */}
         {upcomingSelections.length > 0 && (
           <section className="mb-16">
@@ -212,48 +194,52 @@ export default function BookClubPage() {
         )}
 
         {/* Final CTA */}
-        <section>
-          <Card className="p-12 bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/30">
-            <div className="text-center space-y-6 max-w-3xl mx-auto">
-              <h2 className="font-display text-5xl md:text-6xl tracking-wider">
-                <span className="text-primary">JOIN THE</span>
-                <br />
-                <span className="text-secondary">KOMET COMMUNITY</span>
-              </h2>
+        {/* Final CTA - Hide if member */}
+        {!isMember && (
+          <section>
+            <Card className="p-12 bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/30">
+              <div className="text-center space-y-6 max-w-3xl mx-auto">
+                <h2 className="font-display text-5xl md:text-6xl tracking-wider">
+                  <span className="text-primary">JOIN THE</span>
+                  <br />
+                  <span className="text-secondary">KOMET COMMUNITY</span>
+                </h2>
 
-              <p className="text-xl text-muted-foreground leading-relaxed">
-                Start your literary journey across the galaxy today. Cancel anytime, no commitments, just great books
-                and amazing discussions.
-              </p>
+                <p className="text-xl text-muted-foreground leading-relaxed">
+                  Start your literary journey across the galaxy today. Cancel anytime, no commitments, just great books
+                  and amazing discussions.
+                </p>
 
-              <div className="flex items-baseline justify-center gap-2 mb-4">
-                <span className="font-display text-6xl text-primary">$12</span>
-                <span className="text-xl text-muted-foreground">/month</span>
+                <div className="flex items-baseline justify-center gap-2 mb-4">
+                  <span className="font-display text-6xl text-primary">$12</span>
+                  <span className="text-xl text-muted-foreground">/month</span>
+                </div>
+
+                <Button size="lg" className="text-lg px-10" onClick={() => setIsModalOpen(true)}>
+                  <Star className="w-5 h-5 mr-2" />
+                  Start Your Membership
+                </Button>
+
+                <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground pt-4">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span>First book free</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span>Cancel anytime</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span>Instant access</span>
+                  </div>
+                </div>
               </div>
-
-              <Button size="lg" className="text-lg px-10">
-                <Star className="w-5 h-5 mr-2" />
-                Start Your Membership
-              </Button>
-
-              <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground pt-4">
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span>First book free</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span>Cancel anytime</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span>Instant access</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </section>
+            </Card>
+          </section>
+        )}
       </div>
+      <SubscriptionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   )
 }

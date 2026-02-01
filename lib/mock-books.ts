@@ -14,15 +14,14 @@ export interface Book {
 
 export const GENRES = [
   "All",
-  "Science Fiction",
-  "Fantasy",
-  "Mystery",
-  "Thriller",
-  "Romance",
-  "Horror",
-  "Non-Fiction",
-  "Biography",
-  "History",
+  "Crime",
+  "Children",
+  "PTP",
+  "Spiritual",
+  "Adult",
+  "Sports",
+  "Self-Help",
+  "Cooking",
 ]
 
 export const mockBooks: Book[] = [

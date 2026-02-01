@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Sparkles, BookOpen, Users, Star, Rocket, Zap } from "lucide-react"
+import { BookOpen, Star, Rocket, Zap } from "lucide-react"
 import Link from "next/link"
 import { SiteHeader } from "@/components/site-header"
 import Image from "next/image"
@@ -43,12 +43,7 @@ export default function LandingPage() {
                   Start Reading
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 bg-transparent" asChild>
-                <Link href="/book-club">
-                  <Users className="w-5 h-5 mr-2" />
-                  Join Book Club
-                </Link>
-              </Button>
+
             </div>
           </div>
 
@@ -133,43 +128,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Book Club CTA */}
-      <section className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(127,255,0,0.15),transparent_70%)]" />
-        <div className="container relative mx-auto px-4">
-          <Card className="max-w-4xl mx-auto p-12 bg-card/80 backdrop-blur border-primary/30">
-            <div className="text-center space-y-6">
-              <div className="inline-flex items-center gap-2 bg-primary/20 text-primary px-4 py-2 rounded-full">
-                <Star className="w-4 h-4" />
-                <span className="text-sm font-medium">PREMIUM MEMBERSHIP</span>
-              </div>
 
-              <h2 className="font-display text-5xl md:text-6xl tracking-wider">
-                <span className="text-secondary">JOIN THE</span>
-                <br />
-                <span className="text-primary">BOOK CLUB</span>
-              </h2>
-
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                Get 1 carefully curated book delivered monthly, exclusive access to author discussions, and unlimited
-                reading of all book club selections.
-              </p>
-
-              <div className="flex items-baseline justify-center gap-2">
-                <span className="font-display text-6xl text-primary">$12</span>
-                <span className="text-xl text-muted-foreground">/month</span>
-              </div>
-
-              <Button size="lg" className="text-lg px-10">
-                <Sparkles className="w-5 h-5 mr-2" />
-                Subscribe Now
-              </Button>
-
-              <p className="text-sm text-muted-foreground">Cancel anytime. First book free!</p>
-            </div>
-          </Card>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="border-t border-border py-12">

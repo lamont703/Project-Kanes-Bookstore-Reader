@@ -11,7 +11,26 @@ import { Button } from "@/components/ui/button"
 
 export function SiteHeader() {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false)
+    const [isLoggedIn, setIsLoggedIn] = React.useState(false)
     const pathname = usePathname()
+
+    // Check login status
+    React.useEffect(() => {
+        const checkLogin = () => {
+            const active = localStorage.getItem("komet_subscription_active") === "true"
+            setIsLoggedIn(active)
+        }
+        checkLogin()
+        // Listen for storage events (optional, but good for multi-tab)
+        window.addEventListener("storage", checkLogin)
+        return () => window.removeEventListener("storage", checkLogin)
+    }, [])
+
+    const handleLogout = () => {
+        localStorage.removeItem("komet_subscription_active")
+        setIsLoggedIn(false)
+        window.location.reload()
+    }
 
     // Close menu when route changes
     React.useEffect(() => {
@@ -83,12 +102,18 @@ export function SiteHeader() {
                         >
                             Admin
                         </Link>
-                        <Button variant="default" size="sm" asChild className="animate-pulse-glow">
-                            <Link href="/login">
-                                <Rocket className="mr-2 h-4 w-4" />
-                                Sign In
-                            </Link>
-                        </Button>
+                        {isLoggedIn ? (
+                            <Button variant="outline" size="sm" onClick={handleLogout}>
+                                Sign Out
+                            </Button>
+                        ) : (
+                            <Button variant="default" size="sm" asChild className="animate-pulse-glow">
+                                <Link href="/login">
+                                    <Rocket className="mr-2 h-4 w-4" />
+                                    Sign In
+                                </Link>
+                            </Button>
+                        )}
                     </nav>
 
                     {/* Mobile Menu Toggle */}
@@ -145,15 +170,23 @@ export function SiteHeader() {
                             </Link>
                         </nav>
                         <div className="flex flex-col gap-4 pt-4 border-t border-border">
-                            <Button size="lg" className="w-full" asChild>
-                                <Link href="/login">
-                                    <Rocket className="mr-2 h-4 w-4" />
-                                    Sign In
-                                </Link>
-                            </Button>
-                            <Button variant="outline" size="lg" className="w-full" asChild>
-                                <Link href="/book-club">View Plans</Link>
-                            </Button>
+                            {isLoggedIn ? (
+                                <Button size="lg" className="w-full" onClick={handleLogout}>
+                                    Sign Out
+                                </Button>
+                            ) : (
+                                <Button size="lg" className="w-full" asChild>
+                                    <Link href="/login">
+                                        <Rocket className="mr-2 h-4 w-4" />
+                                        Sign In
+                                    </Link>
+                                </Button>
+                            )}
+                            {!isLoggedIn && (
+                                <Button variant="outline" size="lg" className="w-full" asChild>
+                                    <Link href="/book-club">View Plans</Link>
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>

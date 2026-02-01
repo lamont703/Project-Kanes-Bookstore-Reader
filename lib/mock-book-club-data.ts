@@ -90,28 +90,28 @@ export const mockSubscription: BookClubSubscription = {
 
 export const bookClubBenefits = [
   {
-    title: "1 Curated Book Monthly",
-    description: "Receive a carefully selected book delivered to your digital library on the 1st of each month.",
+    title: "Official Komet T-Shirt",
+    description: "Receive an exclusive Kane's Komet Book Club Membership T-Shirt as part of your welcome package.",
   },
   {
-    title: "Access to All Past Selections",
-    description: "Read any book from our entire book club history at no additional cost.",
+    title: "2 Free E-Books",
+    description: "Select any 2 titles from the Komet Book Club Collection to instantly kickstart your digital library.",
   },
   {
-    title: "Exclusive Author Q&As",
-    description: "Join live discussions with authors and connect with fellow readers in our community.",
+    title: "Surprise Gift Item",
+    description: "Unbox a mystery item like a bookmark, wristband, or tile piece in your initial membership kit.",
   },
   {
-    title: "Member-Only Discounts",
-    description: "Get 20% off all additional book purchases from our cosmic library.",
+    title: "Kane Dealer Code (35% OFF)",
+    description: "Get a special code that grants you 35% off all future purchases when used at checkout.",
   },
   {
-    title: "Early Access to New Releases",
-    description: "Be the first to read upcoming releases before they hit the general market.",
+    title: "$3.99/mo E-Book Access",
+    description: "Enjoy ongoing access to 1 E-Komet Book per month for just $3.99/month. Cancel anytime.",
   },
   {
-    title: "Cancel Anytime",
-    description: "No commitment required. Cancel your subscription whenever you want, no questions asked.",
+    title: "Community Access",
+    description: "Join exclusive book club discussions and member-only events with authors and fellow readers.",
   },
 ]
 
