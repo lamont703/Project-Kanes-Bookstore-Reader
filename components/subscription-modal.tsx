@@ -51,7 +51,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     const handleNext = () => {
         if (step === 1) {
             // Basic validation
-            if (!formData.name || !formData.email || !formData.address || !formData.tshirtSize) {
+            if (!formData.name || !formData.email || !formData.address || !formData.tshirtSize || !formData.dob) {
                 // In a real app, use better validation feedback
                 return
             }
@@ -189,35 +189,50 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                {bundleBooks.map((book) => {
-                                    const isSelected = selectedBooks.includes(book.id)
-                                    return (
-                                        <div
-                                            key={book.id}
-                                            className={`relative cursor-pointer group transition-all transform ${isSelected ? "ring-2 ring-primary scale-105" : "hover:scale-105 opacity-80 hover:opacity-100"
-                                                }`}
-                                            onClick={() => toggleBookSelection(book.id)}
-                                        >
-                                            <div className="aspect-[2/3] relative rounded-lg overflow-hidden bg-secondary/10">
-                                                <Image
-                                                    src={book.cover}
-                                                    alt={book.title}
-                                                    fill
-                                                    className="object-cover"
-                                                />
-                                            </div>
-
-                                            {isSelected && (
-                                                <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1 z-10">
-                                                    <Check className="w-4 h-4" />
+                                {bundleBooks
+                                    .filter((book) => {
+                                        // Adult content check for "Flying With The Chrysiridiarhipheus"
+                                        if (book.id === "b3") {
+                                            const dob = new Date(formData.dob)
+                                            const today = new Date()
+                                            let age = today.getFullYear() - dob.getFullYear()
+                                            const m = today.getMonth() - dob.getMonth()
+                                            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+                                                age--
+                                            }
+                                            return age >= 18
+                                        }
+                                        return true
+                                    })
+                                    .map((book) => {
+                                        const isSelected = selectedBooks.includes(book.id)
+                                        return (
+                                            <div
+                                                key={book.id}
+                                                className={`relative cursor-pointer group transition-all transform ${isSelected ? "ring-2 ring-primary scale-105" : "hover:scale-105 opacity-80 hover:opacity-100"
+                                                    }`}
+                                                onClick={() => toggleBookSelection(book.id)}
+                                            >
+                                                <div className="aspect-[2/3] relative rounded-lg overflow-hidden bg-secondary/10">
+                                                    <Image
+                                                        src={book.cover}
+                                                        alt={book.title}
+                                                        fill
+                                                        className="object-cover"
+                                                    />
                                                 </div>
-                                            )}
-                                            <div className="mt-2 text-center">
-                                                <p className="text-xs font-medium truncate px-1" title={book.title}>{book.title}</p>
+
+                                                {isSelected && (
+                                                    <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1 z-10">
+                                                        <Check className="w-4 h-4" />
+                                                    </div>
+                                                )}
+                                                <div className="mt-2 text-center">
+                                                    <p className="text-xs font-medium truncate px-1" title={book.title}>{book.title}</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )
-                                })}
+                                        )
+                                    })}
                             </div>
                         </div>
                     )}

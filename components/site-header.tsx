@@ -9,10 +9,14 @@ import { Menu, X, Rocket } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
+import { ShoppingCart } from "lucide-react"
+import { useCart } from "@/context/cart-context"
+
 export function SiteHeader() {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false)
     const [isLoggedIn, setIsLoggedIn] = React.useState(false)
     const pathname = usePathname()
+    const { cartCount } = useCart()
 
     // Check login status
     React.useEffect(() => {
@@ -102,6 +106,19 @@ export function SiteHeader() {
                         >
                             Admin
                         </Link>
+
+                        {/* Cart Icon */}
+                        <Link href="/cart" className="relative group">
+                            <Button variant="ghost" size="icon" className="relative">
+                                <ShoppingCart className="h-5 w-5" />
+                                {cartCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground animate-in zoom-in">
+                                        {cartCount}
+                                    </span>
+                                )}
+                            </Button>
+                        </Link>
+
                         {isLoggedIn ? (
                             <Button variant="outline" size="sm" onClick={handleLogout}>
                                 Sign Out
@@ -158,6 +175,20 @@ export function SiteHeader() {
                                 )}
                             >
                                 Book Club
+                            </Link>
+                            <Link
+                                href="/cart"
+                                className={cn(
+                                    "text-lg font-medium transition-colors hover:text-primary flex items-center justify-between",
+                                    pathname === "/cart" ? "text-primary" : "text-muted-foreground",
+                                )}
+                            >
+                                Cart
+                                {cartCount > 0 && (
+                                    <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                                        {cartCount} items
+                                    </span>
+                                )}
                             </Link>
                             <Link
                                 href="/admin"

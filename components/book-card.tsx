@@ -4,12 +4,15 @@ import { Star, ShoppingCart } from "lucide-react"
 import type { Book } from "@/lib/mock-books"
 import Link from "next/link"
 import Image from "next/image"
+import { useCart } from "@/context/cart-context"
 
 interface BookCardProps {
   book: Book
 }
 
 export function BookCard({ book }: BookCardProps) {
+  const { addToCart } = useCart()
+
   return (
     <Card className="overflow-hidden bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-all group">
       <Link href={`/book/${book.id}`} className="block">
@@ -48,7 +51,16 @@ export function BookCard({ book }: BookCardProps) {
           <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">{book.genre}</span>
         </div>
 
-        <Button className="w-full" size="sm">
+        <Button
+          className="w-full"
+          size="sm"
+          onClick={() => addToCart({
+            id: book.id,
+            title: book.title,
+            price: book.price,
+            coverImage: book.coverImage
+          })}
+        >
           <ShoppingCart className="w-4 h-4 mr-2" />
           Add to Cart
         </Button>
