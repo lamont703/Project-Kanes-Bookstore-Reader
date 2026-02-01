@@ -9,9 +9,10 @@ import Image from "next/image"
 interface BookClubSelectionCardProps {
   selection: BookClubSelection
   book: Book
+  isMember?: boolean
 }
 
-export function BookClubSelectionCard({ selection, book }: BookClubSelectionCardProps) {
+export function BookClubSelectionCard({ selection, book, isMember = false }: BookClubSelectionCardProps) {
   const statusConfig = {
     current: {
       label: "CURRENT SELECTION",
@@ -64,20 +65,22 @@ export function BookClubSelectionCard({ selection, book }: BookClubSelectionCard
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-3 pt-2">
-            {selection.status !== "upcoming" && (
-              <Button variant="default" size="sm" asChild>
-                <Link href={`/read/${book.id}`}>
-                  <BookOpen className="w-4 h-4 mr-2" />
-                  Read Now
-                </Link>
+          {isMember && (
+            <div className="flex flex-wrap gap-3 pt-2">
+              {selection.status !== "upcoming" && (
+                <Button variant="default" size="sm" asChild>
+                  <Link href={`/read/${book.id}`}>
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    Read Now
+                  </Link>
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="bg-transparent">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Join Discussion
               </Button>
-            )}
-            <Button variant="outline" size="sm" className="bg-transparent">
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Join Discussion
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </Card>

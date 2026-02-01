@@ -63,11 +63,12 @@ export default function BookClubPage() {
               to our entire book club library.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col items-center justify-center gap-2">
               <div className="flex items-baseline gap-2">
-                <span className="font-display text-6xl text-primary">$12</span>
-                <span className="text-xl text-muted-foreground">/month</span>
+                <span className="font-display text-6xl text-primary">$49.99</span>
+                <span className="text-xl text-muted-foreground">initial</span>
               </div>
+              <p className="text-lg text-muted-foreground">then $3.99/month • Cancel anytime</p>
             </div>
 
             {!isMember ? (
@@ -82,7 +83,7 @@ export default function BookClubPage() {
               </div>
             )}
 
-            <p className="text-sm text-muted-foreground">Cancel anytime. First book free!</p>
+            <p className="text-sm text-muted-foreground">Cancel anytime.</p>
           </div>
         </div>
       </section>
@@ -97,7 +98,7 @@ export default function BookClubPage() {
               </h2>
               <p className="text-lg text-muted-foreground">Start reading and join the discussion</p>
             </div>
-            <BookClubSelectionCard selection={currentSelection} book={currentBook} />
+            <BookClubSelectionCard selection={currentSelection} book={currentBook} isMember={isMember} />
           </section>
         )}
 
@@ -169,7 +170,7 @@ export default function BookClubPage() {
             <div className="space-y-6">
               {upcomingSelections.map((selection) => {
                 const book = mockBooks.find((b) => b.id === selection.bookId)
-                return book ? <BookClubSelectionCard key={selection.id} selection={selection} book={book} /> : null
+                return book ? <BookClubSelectionCard key={selection.id} selection={selection} book={book} isMember={isMember} /> : null
               })}
             </div>
           </section>
@@ -187,7 +188,7 @@ export default function BookClubPage() {
             <div className="space-y-6">
               {pastSelections.map((selection) => {
                 const book = mockBooks.find((b) => b.id === selection.bookId)
-                return book ? <BookClubSelectionCard key={selection.id} selection={selection} book={book} /> : null
+                return book ? <BookClubSelectionCard key={selection.id} selection={selection} book={book} isMember={isMember} /> : null
               })}
             </div>
           </section>
@@ -210,9 +211,12 @@ export default function BookClubPage() {
                   and amazing discussions.
                 </p>
 
-                <div className="flex items-baseline justify-center gap-2 mb-4">
-                  <span className="font-display text-6xl text-primary">$12</span>
-                  <span className="text-xl text-muted-foreground">/month</span>
+                <div className="flex flex-col items-center justify-center gap-2 mb-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-display text-6xl text-primary">$49.99</span>
+                    <span className="text-xl text-muted-foreground">initial</span>
+                  </div>
+                  <p className="text-lg text-muted-foreground">then $3.99/month</p>
                 </div>
 
                 <Button size="lg" className="text-lg px-10" onClick={() => setIsModalOpen(true)}>
@@ -221,10 +225,7 @@ export default function BookClubPage() {
                 </Button>
 
                 <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground pt-4">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-primary" />
-                    <span>First book free</span>
-                  </div>
+
                   <div className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
                     <span>Cancel anytime</span>
