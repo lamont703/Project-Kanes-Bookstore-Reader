@@ -62,12 +62,7 @@ export default function AdminDashboard() {
           </h1>
           <p className="text-base md:text-lg text-muted-foreground text-center md:text-left">Manage your Komet bookstore ecosystem</p>
         </div>
-        <Button asChild className="font-display tracking-wider text-lg px-6 w-full md:w-auto">
-          <Link href="/admin/upload">
-            <TrendingUp className="w-5 h-5 mr-2" />
-            UPLOAD CONTENT
-          </Link>
-        </Button>
+
       </div>
 
 
@@ -113,68 +108,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Current Book Club Selection Quick Look */}
-        <Card className="p-6 bg-card/50 backdrop-blur border-secondary/20">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-display text-2xl tracking-wide text-secondary uppercase">Active Selection</h2>
-            <Button size="sm" variant="ghost" className="hover:text-secondary" asChild>
-              <Link href="/admin/book-club">View All</Link>
-            </Button>
-          </div>
-          {currentBook && currentSelection ? (
-            <div className="flex flex-col sm:flex-row gap-6">
-              <div className="w-full sm:w-24 h-48 sm:h-36 bg-muted rounded overflow-hidden flex-shrink-0 shadow-lg border border-white/5">
-                <img src={currentBook.coverImage} alt={currentBook.title} className="w-full h-full object-cover" />
-              </div>
-              <div className="flex flex-col justify-between py-1">
-                <div>
-                  <p className="text-xl font-medium leading-tight mb-1">{currentBook.title}</p>
-                  <p className="text-sm text-muted-foreground mb-3">by {currentBook.author}</p>
-                  <div className="inline-flex items-center gap-2 bg-secondary/10 text-secondary text-[10px] md:text-xs px-2 py-1 rounded border border-secondary/30">
-                    <div className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
-                    {currentSelection.theme}
-                  </div>
-                </div>
-                <p className="text-[10px] md:text-xs text-muted-foreground mt-4 sm:mt-0">
-                  Discussion Live: {currentSelection.discussionDate.toLocaleDateString()}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="h-36 flex items-center justify-center border border-dashed border-border rounded">
-              <p className="text-sm text-muted-foreground">No current selection</p>
-            </div>
-          )}
-        </Card>
 
-        {/* Recent Admin Activity */}
-        <Card className="p-6 bg-card/50 backdrop-blur">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-display text-2xl tracking-wide uppercase">System Health</h2>
-            <LayoutDashboard className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">API Status</span>
-              <span className="text-green-500 font-medium">Operational</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Storage Usage</span>
-              <span className="font-medium">24.5 GB / 100 GB</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Last Catalog Update</span>
-              <span className="font-medium">2 hours ago</span>
-            </div>
-            <div className="pt-2">
-              <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
-                <div className="bg-primary h-full w-[24.5%]" />
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
 
       {/* Recent Users - Reduced height */}
       <Card className="p-4 md:p-6 bg-card/50 backdrop-blur mt-8 border-border/50">
