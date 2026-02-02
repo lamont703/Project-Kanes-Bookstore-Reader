@@ -97,15 +97,50 @@ export function SiteHeader() {
                         >
                             Book Club
                         </Link>
-                        <Link
-                            href="/admin"
-                            className={cn(
-                                "text-sm font-medium transition-colors hover:text-primary",
-                                pathname === "/admin" ? "text-primary" : "text-muted-foreground",
-                            )}
-                        >
-                            Admin
-                        </Link>
+                        {isLoggedIn && (
+                            <>
+                                <Link
+                                    href="/book-club/discussions"
+                                    className={cn(
+                                        "text-sm font-medium transition-colors hover:text-primary",
+                                        pathname.startsWith("/book-club/discussions") ? "text-primary" : "text-muted-foreground",
+                                    )}
+                                >
+                                    Discussions
+                                </Link>
+                                <Link
+                                    href="/book-club/events"
+                                    className={cn(
+                                        "text-sm font-medium transition-colors hover:text-primary",
+                                        pathname.startsWith("/book-club/events") ? "text-primary" : "text-muted-foreground",
+                                    )}
+                                >
+                                    Events
+                                </Link>
+                            </>
+                        )}
+                        {isLoggedIn && (
+                            <Link
+                                href="/dashboard"
+                                className={cn(
+                                    "text-sm font-medium transition-colors hover:text-primary",
+                                    pathname === "/dashboard" ? "text-primary" : "text-muted-foreground",
+                                )}
+                            >
+                                My Library
+                            </Link>
+                        )}
+                        {isLoggedIn && (
+                            <Link
+                                href="/admin"
+                                className={cn(
+                                    "text-sm font-medium transition-colors hover:text-primary",
+                                    pathname === "/admin" ? "text-primary" : "text-muted-foreground",
+                                )}
+                            >
+                                Admin
+                            </Link>
+                        )}
 
                         {/* Cart Icon */}
                         <Link href="/cart" className="relative group">
@@ -176,6 +211,39 @@ export function SiteHeader() {
                             >
                                 Book Club
                             </Link>
+                            {isLoggedIn && (
+                                <>
+                                    <Link
+                                        href="/book-club/discussions"
+                                        className={cn(
+                                            "text-lg font-medium transition-colors hover:text-primary",
+                                            pathname.startsWith("/book-club/discussions") ? "text-primary" : "text-muted-foreground",
+                                        )}
+                                    >
+                                        Discussions
+                                    </Link>
+                                    <Link
+                                        href="/book-club/events"
+                                        className={cn(
+                                            "text-lg font-medium transition-colors hover:text-primary",
+                                            pathname.startsWith("/book-club/events") ? "text-primary" : "text-muted-foreground",
+                                        )}
+                                    >
+                                        Events
+                                    </Link>
+                                </>
+                            )}
+                            {isLoggedIn && (
+                                <Link
+                                    href="/dashboard"
+                                    className={cn(
+                                        "text-lg font-medium transition-colors hover:text-primary",
+                                        pathname === "/dashboard" ? "text-primary" : "text-muted-foreground",
+                                    )}
+                                >
+                                    My Library
+                                </Link>
+                            )}
                             <Link
                                 href="/cart"
                                 className={cn(
@@ -190,15 +258,17 @@ export function SiteHeader() {
                                     </span>
                                 )}
                             </Link>
-                            <Link
-                                href="/admin"
-                                className={cn(
-                                    "text-lg font-medium transition-colors hover:text-primary",
-                                    pathname === "/admin" ? "text-primary" : "text-muted-foreground",
-                                )}
-                            >
-                                Admin Dashboard
-                            </Link>
+                            {isLoggedIn && (
+                                <Link
+                                    href="/admin"
+                                    className={cn(
+                                        "text-lg font-medium transition-colors hover:text-primary",
+                                        pathname === "/admin" ? "text-primary" : "text-muted-foreground",
+                                    )}
+                                >
+                                    Admin Dashboard
+                                </Link>
+                            )}
                         </nav>
                         <div className="flex flex-col gap-4 pt-4 border-t border-border">
                             {isLoggedIn ? (

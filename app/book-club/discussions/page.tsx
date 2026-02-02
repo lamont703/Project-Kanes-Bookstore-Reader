@@ -17,40 +17,10 @@ export default function DiscussionListPage() {
           <p className="text-lg text-muted-foreground">Join the conversation with fellow Komet readers</p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="w-full lg:w-1/4">
-            <Card className="p-4 bg-card/50 backdrop-blur border-border">
-              <h2 className="font-display text-2xl tracking-wide mb-4">CATEGORIES</h2>
-              <div className="space-y-2">
-                <Button variant="ghost" className="w-full justify-start text-primary">
-                  All Discussions
-                </Button>
-                <Button variant="ghost" className="w-full justify-start">
-                  Current Selection
-                </Button>
-                <Button variant="ghost" className="w-full justify-start">
-                  Past Selections
-                </Button>
-                <Button variant="ghost" className="w-full justify-start">
-                  Sci-Fi
-                </Button>
-                <Button variant="ghost" className="w-full justify-start">
-                  Fantasy
-                </Button>
-                <Button variant="ghost" className="w-full justify-start">
-                  General Chat
-                </Button>
-              </div>
-            </Card>
-          </div>
-
-          <div className="w-full lg:w-3/4">
+        <div className="flex flex-col gap-8">
+          <div className="w-full">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-display text-3xl tracking-wider">ALL DISCUSSIONS</h2>
-              <Button>
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Start New Topic
-              </Button>
             </div>
 
             <div className="space-y-4">

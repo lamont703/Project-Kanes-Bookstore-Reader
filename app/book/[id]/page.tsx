@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card"
 import { Star, ShoppingCart, BookOpen, Sparkles } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { AddToCartButton } from "@/components/add-to-cart-button"
+import { SiteHeader } from "@/components/site-header"
 
 export function generateStaticParams() {
   return mockBooks.map((book) => ({
@@ -23,31 +25,8 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-display text-2xl tracking-wider text-primary">KOMET</span>
-            </Link>
-
-            <nav className="flex items-center gap-6">
-              <Link href="/browse" className="text-sm hover:text-primary transition-colors">
-                Browse
-              </Link>
-              <Link href="/book-club" className="text-sm hover:text-primary transition-colors">
-                Book Club
-              </Link>
-              <Link href="/dashboard" className="text-sm hover:text-primary transition-colors">
-                My Library
-              </Link>
-              <Button size="sm">Sign In</Button>
-            </nav>
-          </div>
-        </div>
-      </header>
+      {/* Header */}
+      <SiteHeader />
 
       <div className="container mx-auto px-4 py-12">
         <div className="grid md:grid-cols-[300px_1fr] lg:grid-cols-[400px_1fr] gap-12 max-w-6xl">
@@ -86,14 +65,12 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="flex-1">
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  Add to Cart
-                </Button>
-                <Button size="lg" variant="outline" className="flex-1 bg-transparent">
-                  <BookOpen className="w-5 h-5 mr-2" />
-                  Preview
-                </Button>
+                <AddToCartButton book={{
+                  id: book.id,
+                  title: book.title,
+                  price: book.price,
+                  coverImage: book.coverImage || "/placeholder.svg"
+                }} />
               </div>
             </div>
 

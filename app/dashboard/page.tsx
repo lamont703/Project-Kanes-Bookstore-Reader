@@ -1,3 +1,4 @@
+import { SiteHeader } from "@/components/site-header"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { LibraryBookCard } from "@/components/library-book-card"
@@ -20,46 +21,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <Image
-                src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
-                alt="Kane's Komets Logo"
-                width={32}
-                height={32}
-                className="h-8 w-8 rounded-lg object-contain"
-              />
-              <span className="font-display text-2xl tracking-wider text-primary">KANE'S KOMETS</span>
-            </Link>
-
-            <nav className="flex items-center gap-6">
-              <Link href="/browse" className="text-sm hover:text-primary transition-colors">
-                Browse
-              </Link>
-              <Link href="/book-club" className="text-sm hover:text-primary transition-colors">
-                Book Club
-              </Link>
-              <Link href="/book-club/discussions" className="text-sm hover:text-primary transition-colors">
-                Discussions
-              </Link>
-              <Link href="/book-club/events" className="text-sm hover:text-primary transition-colors">
-                Events
-              </Link>
-              <Link href="/dashboard" className="text-sm font-medium text-primary">
-                My Library
-              </Link>
-              <Link href="/admin" className="text-sm hover:text-primary transition-colors text-muted-foreground">
-                Admin
-              </Link>
-              <Button size="sm" asChild>
-                <Link href="/login">Sign In</Link>
-              </Button>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
