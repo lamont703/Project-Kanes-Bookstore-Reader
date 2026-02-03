@@ -1,6 +1,7 @@
+import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Star, ShoppingCart } from "lucide-react"
+import { Star, ShoppingCart, Check } from "lucide-react"
 import type { Book } from "@/lib/mock-books"
 import Link from "next/link"
 import Image from "next/image"
@@ -12,6 +13,18 @@ interface BookCardProps {
 
 export function BookCard({ book }: BookCardProps) {
   const { addToCart } = useCart()
+  const [isAdded, setIsAdded] = useState(false)
+
+  const handleAddToCart = () => {
+    addToCart({
+      id: book.id,
+      title: book.title,
+      price: book.price,
+      coverImage: book.coverImage
+    })
+    setIsAdded(true)
+    setTimeout(() => setIsAdded(false), 2000)
+  }
 
   return (
     <Card className="overflow-hidden bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-all group">
@@ -52,17 +65,22 @@ export function BookCard({ book }: BookCardProps) {
         </div>
 
         <Button
-          className="w-full"
+          className={`w-full transition-all ${isAdded ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
           size="sm"
-          onClick={() => addToCart({
-            id: book.id,
-            title: book.title,
-            price: book.price,
-            coverImage: book.coverImage
-          })}
+          onClick={handleAddToCart}
+          disabled={isAdded}
         >
-          <ShoppingCart className="w-4 h-4 mr-2" />
-          Add to Cart
+          {isAdded ? (
+            <>
+              <Check className="w-4 h-4 mr-2" />
+              Added to Cart
+            </>
+          ) : (
+            <>
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Add to Cart
+            </>
+          )}
         </Button>
       </div>
     </Card>

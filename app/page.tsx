@@ -145,20 +145,7 @@ export default function LandingPage() {
               <span className="font-display text-2xl tracking-wider text-primary">KANE'S KOMETS</span>
             </div>
 
-            <div className="flex gap-8 text-sm text-muted-foreground">
-              <Link href="/about" className="hover:text-primary transition-colors">
-                About
-              </Link>
-              <Link href="/contact" className="hover:text-primary transition-colors">
-                Contact
-              </Link>
-              <Link href="/terms" className="hover:text-primary transition-colors">
-                Terms
-              </Link>
-              <Link href="/privacy" className="hover:text-primary transition-colors">
-                Privacy
-              </Link>
-            </div>
+
 
             <p className="text-sm text-muted-foreground">© 2025 Kane's Komets Book Club. All rights reserved.</p>
           </div>
