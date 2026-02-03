@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Geist, Geist_Mono, Bebas_Neue } from "next/font/google"
+import { Geist, Geist_Mono, Bebas_Neue, Montserrat } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
@@ -10,6 +10,11 @@ const _bebasNeue = Bebas_Neue({
   weight: "400",
   subsets: ["latin"],
   variable: "--font-display",
+})
+const _montserrat = Montserrat({
+  subsets: ["latin"],
+  variable: "--font-hero",
+  weight: ["800", "900"],
 })
 
 export const metadata: Metadata = {
@@ -31,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`font-sans antialiased ${_bebasNeue.variable}`} suppressHydrationWarning>
+      <body className={`font-sans antialiased ${_bebasNeue.variable} ${_montserrat.variable}`} suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>

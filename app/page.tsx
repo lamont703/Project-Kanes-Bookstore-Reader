@@ -27,9 +27,9 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <h1 className="font-display text-6xl md:text-8xl lg:text-9xl tracking-wider leading-none text-balance">
-              <span className="text-primary">READ</span> <span className="text-secondary">KOMET</span>{" "}
-              <span className="text-foreground">BOOKS</span>
+            <h1 className="font-[family-name:var(--font-hero)] text-5xl md:text-7xl lg:text-8xl tracking-wider leading-none text-balance">
+              <span className="text-primary [text-shadow:0_0_12px_currentColor]">READ</span> <span className="text-secondary [text-shadow:0_0_12px_currentColor]">KOMET</span>{" "}
+              <span className="text-foreground [text-shadow:0_0_12px_currentColor]">BOOKS</span>
             </h1>
 
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed">

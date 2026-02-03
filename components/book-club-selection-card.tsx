@@ -31,7 +31,7 @@ export function BookClubSelectionCard({ selection, book, isMember = false }: Boo
   const status = statusConfig[selection.status]
 
   return (
-    <Card className="overflow-hidden bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-all">
+    <Card className="h-full overflow-hidden bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-all">
       <div className="grid md:grid-cols-[200px_1fr] gap-6 p-6">
         {/* Book Cover */}
         <div className="relative aspect-[3/4] md:w-[200px] mx-auto md:mx-0">
@@ -78,6 +78,14 @@ export function BookClubSelectionCard({ selection, book, isMember = false }: Boo
               <Button variant="outline" size="sm" className="bg-transparent">
                 <MessageCircle className="w-4 h-4 mr-2" />
                 Join Discussion
+              </Button>
+            </div>
+          )}
+
+          {!isMember && selection.status === "past" && (
+            <div className="pt-2">
+              <Button variant="default" size="sm" asChild>
+                <Link href={`/book/${book.id}`}>Purchase Now</Link>
               </Button>
             </div>
           )}

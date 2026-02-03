@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { BookClubSelectionCard } from "@/components/book-club-selection-card"
 import { mockBooks } from "@/lib/mock-books"
-import { mockBookClubSelections, mockSubscription, bookClubBenefits } from "@/lib/mock-book-club-data"
-import { Star, Check, Crown } from "lucide-react"
+import { mockBookClubSelections, mockSubscription, bookClubBenefits, mockEvents } from "@/lib/mock-book-club-data"
+import { Star, Check, Crown, Clock, Video, MapPin, Users } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { SiteHeader } from "@/components/site-header"
@@ -23,6 +23,8 @@ const bundleBooks = [
 export default function BookClubPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isMember, setIsMember] = useState(mockSubscription.isActive)
+  const [activeScrollIndex, setActiveScrollIndex] = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const localMember = localStorage.getItem("komet_subscription_active")
@@ -36,6 +38,53 @@ export default function BookClubPage() {
   const pastSelections = mockBookClubSelections.filter((s) => s.status === "past")
 
   const currentBook = currentSelection ? mockBooks.find((b) => b.id === currentSelection.bookId) : null
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const scrollLeft = scrollRef.current.scrollLeft
+      const clientWidth = scrollRef.current.clientWidth
+      // We calculate index based on center of view
+      const index = Math.round(scrollLeft / (clientWidth * 0.8)) // adjusted for item width approx
+
+      // More robust calculation based on children
+      const children = scrollRef.current.children
+      let minDistance = Infinity
+      let activeIdx = 0
+
+      const containerCenter = scrollRef.current.getBoundingClientRect().width / 2
+
+      for (let i = 0; i < children.length; i++) {
+        const rect = children[i].getBoundingClientRect()
+        const childCenter = rect.left + rect.width / 2
+        // Find distance to container center (since parent is scrolling, we need relative pos)
+        // Actually, rect.left is relative to viewport. 
+        // We can just check which one is closest to the window center or container center.
+        // Let's use simpler logic: element's left position relative to container
+        const childLeft = (children[i] as HTMLElement).offsetLeft
+        const distance = Math.abs(childLeft - scrollLeft - (scrollRef.current.clientWidth - (children[i] as HTMLElement).clientWidth) / 2)
+
+        if (distance < minDistance) {
+          minDistance = distance
+          activeIdx = i
+        }
+      }
+      setActiveScrollIndex(activeIdx)
+    }
+  }
+
+  const scrollToIndex = (index: number) => {
+    if (scrollRef.current) {
+      const child = scrollRef.current.children[index] as HTMLElement
+      if (child) {
+        // align to center
+        const scrollLeft = child.offsetLeft - (scrollRef.current.clientWidth - child.clientWidth) / 2
+        scrollRef.current.scrollTo({
+          left: scrollLeft,
+          behavior: 'smooth'
+        })
+      }
+    }
+  }
 
   return (
     <div className="min-h-screen">
@@ -185,14 +234,96 @@ export default function BookClubPage() {
               </h2>
               <p className="text-lg text-muted-foreground">Members have unlimited access to all past picks</p>
             </div>
-            <div className="space-y-6">
-              {pastSelections.map((selection) => {
+            {/* Horizontal Scroll List */}
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              className="flex overflow-x-auto gap-6 pb-6 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide"
+            >
+              {pastSelections.slice(0, 5).map((selection) => {
                 const book = mockBooks.find((b) => b.id === selection.bookId)
-                return book ? <BookClubSelectionCard key={selection.id} selection={selection} book={book} isMember={isMember} /> : null
+                return book ? (
+                  <div key={selection.id} className="min-w-[85vw] md:min-w-[600px] snap-center">
+                    <BookClubSelectionCard selection={selection} book={book} isMember={isMember} />
+                  </div>
+                ) : null
               })}
+            </div>
+
+            {/* Scroll Navigation Dots */}
+            <div className="flex justify-center gap-2 mt-4">
+              {pastSelections.slice(0, 5).map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => scrollToIndex(index)}
+                  className={`w-3 h-3 rounded-full transition-colors ${activeScrollIndex === index ? "bg-primary" : "bg-muted hover:bg-primary/50"
+                    }`}
+                  aria-label={`Go to slide ${index + 1}`}
+                />
+              ))}
             </div>
           </section>
         )}
+
+        {/* Public Events Section */}
+        <section className="mb-16">
+          <div className="mb-8">
+            <h2 className="font-display text-4xl md:text-5xl tracking-wider mb-2">
+              <span className="text-secondary">PUBLIC</span> EVENTS
+            </h2>
+            <p className="text-lg text-muted-foreground">Join our open community meetups and author talks</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            {mockEvents
+              .filter((e) => e.status === "upcoming")
+              .slice(0, 2)
+              .map((event) => (
+                <Card
+                  key={event.id}
+                  className="p-6 bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-colors h-full flex flex-col"
+                >
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-primary">
+                      {event.date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                    </p>
+                    <h3 className="font-display text-2xl tracking-wide mt-1">{event.title}</h3>
+                  </div>
+                  <p className="text-muted-foreground mb-4 text-sm leading-relaxed line-clamp-2">
+                    {event.description}
+                  </p>
+                  <div className="space-y-3 text-sm border-t border-border pt-4 mt-auto">
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <Clock className="w-4 h-4 text-secondary" />
+                      <span>{event.time}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      {event.type === "virtual" ? (
+                        <Video className="w-4 h-4 text-secondary" />
+                      ) : (
+                        <MapPin className="w-4 h-4 text-secondary" />
+                      )}
+                      <span>{event.location}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <Users className="w-4 h-4 text-secondary" />
+                      <span>{event.attendees} going</span>
+                    </div>
+                  </div>
+                  <div className="mt-6">
+                    {isMember ? (
+                      <Button className="w-full" asChild>
+                        <Link href="/book-club/events">View Details & RSVP</Link>
+                      </Button>
+                    ) : (
+                      <Button className="w-full" asChild>
+                        <Link href="/login">Register/Login to RSVP</Link>
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              ))}
+          </div>
+        </section>
 
         {/* Final CTA */}
         {/* Final CTA - Hide if member */}

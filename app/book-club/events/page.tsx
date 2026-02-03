@@ -28,7 +28,7 @@ export default function EventsPage() {
             {upcomingEvents.map((event) => (
               <Card
                 key={event.id}
-                className="p-6 bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-colors"
+                className="p-6 bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-colors h-full flex flex-col"
               >
                 <div className="mb-4">
                   <p className="text-sm font-medium text-primary">
@@ -37,7 +37,7 @@ export default function EventsPage() {
                   <h3 className="font-display text-2xl tracking-wide mt-1">{event.title}</h3>
                 </div>
                 <p className="text-muted-foreground mb-4 text-sm leading-relaxed">{event.description}</p>
-                <div className="space-y-3 text-sm border-t border-border pt-4">
+                <div className="space-y-3 text-sm border-t border-border pt-4 mt-auto">
                   <div className="flex items-center gap-3 text-muted-foreground">
                     <Clock className="w-4 h-4 text-secondary" />
                     <span>{event.time}</span>

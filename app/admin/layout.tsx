@@ -7,6 +7,7 @@ import { Toaster } from "sonner"
 import { Menu, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -33,10 +34,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Mobile Header */}
         <header className="lg:hidden h-16 border-b border-border bg-card/30 backdrop-blur flex items-center justify-between px-4 flex-shrink-0">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-display text-xl tracking-wider text-primary">KOMET</span>
+            <Image
+              src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+              alt="Kane's Komets Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-lg object-contain"
+            />
+            <span className="font-display text-xl tracking-wider text-primary">KANE'S KOMETS</span>
           </Link>
           <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
             <Menu className="w-6 h-6" />

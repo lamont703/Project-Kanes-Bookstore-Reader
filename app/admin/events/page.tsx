@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
+
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -17,7 +19,7 @@ import {
 import {
     Calendar,
     Plus,
-    Search,
+
     MapPin,
     Video,
     Users,
@@ -28,7 +30,9 @@ import {
     ArrowRight,
     ImageIcon,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
+    Eye,
+    EyeOff
 } from "lucide-react"
 import { mockEvents, type BookClubEvent } from "@/lib/mock-book-club-data"
 import { toast } from "sonner"
@@ -37,7 +41,7 @@ import Image from "next/image"
 export default function AdminEventsPage() {
     const [events, setEvents] = useState<BookClubEvent[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [searchQuery, setSearchQuery] = useState("")
+
 
     // Dialog States
     const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -52,7 +56,8 @@ export default function AdminEventsPage() {
         time: "",
         location: "",
         type: "virtual",
-        coverImage: ""
+        coverImage: "",
+        isPublic: true
     })
 
     useEffect(() => {
@@ -64,13 +69,10 @@ export default function AdminEventsPage() {
         return () => clearTimeout(timer)
     }, [])
 
-    const filteredEvents = events.filter(e =>
-        e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.description.toLowerCase().includes(searchQuery.toLowerCase())
-    )
 
-    const upcomingEvents = filteredEvents.filter(e => e.status === "upcoming")
-    const pastEvents = filteredEvents.filter(e => e.status === "past")
+
+    const upcomingEvents = events.filter(e => e.status === "upcoming")
+    const pastEvents = events.filter(e => e.status === "past")
 
     const handleOpenCreate = () => {
         setCurrentEvent(null)
@@ -81,7 +83,8 @@ export default function AdminEventsPage() {
             time: "",
             location: "",
             type: "virtual",
-            coverImage: ""
+            coverImage: "",
+            isPublic: true
         })
         setIsDialogOpen(true)
     }
@@ -115,6 +118,7 @@ export default function AdminEventsPage() {
                 location: formData.location!,
                 type: formData.type as any,
                 coverImage: formData.coverImage,
+                isPublic: formData.isPublic,
                 attendees: 0,
                 status: new Date(formData.date!) > new Date() ? "upcoming" : "past"
             }
@@ -151,16 +155,7 @@ export default function AdminEventsPage() {
 
 
             {/* Controls */}
-            <div className="mb-8">
-                <div className="relative max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search events by title..."
-                        className="pl-10 bg-card/50 border-border/50 h-10 w-full"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
+            <div className="mb-0">
             </div>
 
             {/* Events List */}
@@ -178,7 +173,7 @@ export default function AdminEventsPage() {
                         </Card>
                     ))}
                 </div>
-            ) : filteredEvents.length > 0 ? (
+            ) : events.length > 0 ? (
                 <div className="space-y-12">
                     {/* Upcoming Section */}
                     {upcomingEvents.length > 0 && (
@@ -217,7 +212,7 @@ export default function AdminEventsPage() {
                     <Calendar className="w-16 h-16 text-muted-foreground opacity-20 mb-4" />
                     <h3 className="font-display text-3xl tracking-wide uppercase mb-2">Clear Galactic Skies</h3>
                     <p className="text-muted-foreground max-w-sm mb-6">No event signals detected in this sector. Time to schedule a new mission.</p>
-                    <Button variant="outline" onClick={() => setSearchQuery("")}>Clear Search</Button>
+
                 </Card>
             )}
 
@@ -313,6 +308,19 @@ export default function AdminEventsPage() {
                                 <Button variant="outline" size="icon" className="shrink-0"><ImageIcon className="w-4 h-4" /></Button>
                             </div>
                         </div>
+
+                        <div className="flex items-center justify-between border border-border p-4 rounded-lg">
+                            <div className="space-y-0.5">
+                                <Label className="text-base">Public Transmission</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Broadcast this event to all Komet users, including non-members.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={formData.isPublic}
+                                onCheckedChange={(checked) => setFormData({ ...formData, isPublic: checked })}
+                            />
+                        </div>
                     </div>
 
                     <DialogFooter className="gap-2 sm:gap-0">
@@ -395,6 +403,10 @@ function EventListItem({ event, onEdit, onDelete }: { event: BookClubEvent, onEd
                         <div className="flex items-center gap-1.5 text-muted-foreground max-w-[200px] truncate">
                             {event.type === "virtual" ? <ExternalLink className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
                             <span>{event.location}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-muted-foreground mr-4">
+                            {event.isPublic ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                            <span>{event.isPublic ? "Public" : "Private"}</span>
                         </div>
                         {isPast && (
                             <span className="ml-auto text-[10px] font-bold uppercase text-muted-foreground bg-muted px-2 py-0.5 rounded">Completed</span>

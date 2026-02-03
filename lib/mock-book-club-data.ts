@@ -42,6 +42,7 @@ export interface BookClubEvent {
   coverImage?: string
   attendees: number
   status: "upcoming" | "past"
+  isPublic?: boolean
 }
 
 export const mockBookClubSelections: BookClubSelection[] = [
@@ -76,6 +77,46 @@ export const mockBookClubSelections: BookClubSelection[] = [
     description:
       "We wrapped up the year with the explosive finale of the Somes trilogy. A discussion on power, corruption, and redemption.",
     discussionDate: new Date("2024-12-20"),
+    status: "past",
+  },
+  {
+    id: "4",
+    month: "November",
+    year: 2024,
+    bookId: "4",
+    theme: "Dark Justice",
+    description: "A deep dive into vigilante justice in the dark corners of the galaxy. This pick challenged our morals.",
+    discussionDate: new Date("2024-11-20"),
+    status: "past",
+  },
+  {
+    id: "5",
+    month: "October",
+    year: 2024,
+    bookId: "4",
+    theme: "Spooky Space",
+    description: "Our annual horror selection featured ghost ships and ancient curses floating in the void.",
+    discussionDate: new Date("2024-10-31"),
+    status: "past",
+  },
+  {
+    id: "6",
+    month: "September",
+    year: 2024,
+    bookId: "4",
+    theme: "Harvest Moon",
+    description: "We explored terraforming and the struggle for resources on newly colonized planets.",
+    discussionDate: new Date("2024-09-25"),
+    status: "past",
+  },
+  {
+    id: "7",
+    month: "August",
+    year: 2024,
+    bookId: "4",
+    theme: "Summer Heat",
+    description: "A sweltering adventure on a sun-scorched desert planet. Survival was the only option.",
+    discussionDate: new Date("2024-08-20"),
     status: "past",
   },
 ]
