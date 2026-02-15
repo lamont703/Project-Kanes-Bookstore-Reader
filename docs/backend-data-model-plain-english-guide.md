@@ -1,101 +1,308 @@
-# Kane's Komet: The Data Model Explained in Plain English
+# Kane's Komet: The Data Model Explained in Plain English (Final)
 
-Hello! If you're a developer or a team member looking at the technical data model for the **Kane's Komet Book Reader**, this guide is for you. We've taken the complex PostgreSQL database design and translated it into plain English to explain *what* it does and *why* it matters.
+> This guide translates the finalized technical database design into plain English. Every decision below is based on the owner's direct answers to our clarifying questions.
 
 ---
 
 ## 1. Executive Summary: The "Big Picture"
-Think of the data model as the skeleton of the application. This section identifies the five main neighborhoods in our app:
-*   **The Store:** Books, prices, and shopping carts.
-*   **The People:** Readers and their subscription levels.
-*   **The Book Club:** Monthly picks, events (virtual or real), and RSVPs.
-*   **The Community:** Where people chat, thread comments, and vote on posts.
-*   **The Reader:** The heart of the app. It tracks how far you’ve read, your highlights, and even your favorite font settings.
 
-**The Goal:** Right now, the app saves things on your computer only (localStorage). This data model maps out how to move that to a real server so your reading progress follows you from your phone to your laptop.
+Kane's Komet Book Reader is a **digital bookstore combined with a members-only book club**. The database has **20 tables** spread across six areas:
 
----
+| Area | What It Does |
+|---|---|
+| **The People** | Stores who's using the app — their name, email, and whether they're a free reader or a premium book club member. |
+| **The Bookshelf** | Stores every book, broken into chapters and illustrations, so the reader app can load them fast. |
+| **The Store** | Handles shopping carts, orders, payments (via Stripe), and dealer discount codes. |
+| **The Book Club** | Manages monthly book picks, community events, and RSVPs. |
+| **The Community** | Powers the discussion forum where premium members can chat, reply, and vote on posts. |
+| **The Reader** | Remembers exactly where you left off reading, your highlights, bookmarks, and even your font preferences — across all your devices. |
 
-## 2. Entity Definitions: The "Things" We Track
-In database-speak, an "Entity" is just a category of information. Here is a breakdown of the important ones:
+### The Big Migration
 
-*   **Users & Subscriptions:** We don't just store an email; we store their T-shirt size (for the club merch!), their birthday (to make sure they're old enough for certain books), and whether they are a "Premium" member.
-*   **Books & Chapters:** We break a book down into chapters. This lets the app load one chapter at a time so it's lightning-fast, rather than trying to download a 50MB PDF all at once.
-*   **Reading Progress:** This is the most important "thing." It remembers exactly what page you were on and when you last looked at it.
-*   **Highlights & Bookmarks:** These are the digital equivalent of using a yellow marker or folding a page corner. We save the exact paragraph and even the color you chose.
-*   **Discussion Topics & Posts:** This creates a Reddit-style community. You have "Topics" (the main rooms) and "Posts" (the individual messages and their replies).
-
----
-
-## 3. Enums: Fixed Choices
-An **Enum** is just a "fixed list." Instead of letting a user type in "crimme" (a typo), we give the database a specific list of choices like `Crime`, `Adult`, or `Self-Help`.
-*   **Why?** It prevents typos and makes it really easy for the "Filter" buttons on the Browse page to work every single time.
+Right now, the app saves everything on the user's computer (in something called **localStorage**). The new backend moves all of that to a real server so that:
+- Your reading progress follows you from phone to laptop.
+- Your cart doesn't disappear when you clear your browser.
+- Your purchase history is permanent and secure.
 
 ---
 
-## 4. Relationships: The "Digital Web"
-Nothing in the app exists in a vacuum. This section explains how everything is connected:
-*   An **Order** is "linked" to a **User**.
-*   A **Highlight** is "linked" to both a **User** and a **Book**.
-*   **Why?** This is how the database knows that when *you* log in, it should show *your* highlights on *this specific* book, not someone else's.
+## 2. The People: Users & Subscriptions
+
+### Who Can Sign Up?
+Anyone with an email and password. No Google or Apple login — just email.
+
+### Two Types of People
+1. **Free Readers** — They can browse the store, buy books, and read them in the app. That's it.
+2. **Premium Members** (Book Club) — They pay **$49.99 for the first month**, then **$3.99/month** after that. They get everything free readers get, **plus**:
+   - Access to the monthly book club pick (automatically added to their library)
+   - Community discussions (the chat forum)
+   - Book club events and RSVP
+   - A personal **dealer code** to share for 35% off (more on that later)
+   - 2 free books picked at signup that **they keep forever**
+
+### What About Admins?
+There are only two roles: `reader` and `admin`. Right now, the admin team is the project owner and the developer. In the future, more team admins may be added. Admins can see and change everything.
+
+### What Happens If Someone Gets Banned?
+- They **can still read** any books they've already purchased.
+- They **cannot** access discussions, events, or any community features.
+- Their premium subscription is **automatically cancelled** — they stop being charged.
+
+### Privacy
+Other users can **only** see a person's **display name** in discussions. No profile pictures, emails, phone numbers, or any other personal data is visible to other users.
 
 ---
 
-## 5. Indexes: The "Speed Booster"
-Imagine trying to find a specific word in a 1,000-page book without an index. You'd have to read every page. An **Index** in a database is the same thing. 
-*   We create "shortcuts" for things people do often—like searching for an author name or sorting books from "Cheapest to Most Expensive." 
-*   **Plain English:** Without these, the app would get slower and slower as you add more books. With them, it stays instant.
+## 3. The Bookshelf: Books & Content
+
+### How Books Get Into the System
+1. An admin uploads a **PDF** of the book.
+2. A **text extraction tool** pulls out the words and breaks them into chapters.
+3. **Illustrations** are extracted from the PDF and stored as separate images.
+4. The reader app shows the text chapter by chapter, with illustrations displayed as **full-page images between chapters or sections** — just like flipping to a picture page in a real book.
+
+### Key Fields Per Book
+- **One author** and **one illustrator** per book. The illustrator's name is stored for internal record-keeping but is **not shown on the frontend**.
+- **Series support**: Some books are part of a series (e.g., "Brute Syndicate #3"). The series name and order number are stored so they can be displayed as a label on the book card. There is **no dedicated "Series" page** — users can simply filter or search by series name.
+- **Genres are fixed**: Crime, Children, PTP (Prayers, Thoughts, and Poetry), Spiritual, Adult, Sports, Self-Help, Cooking. Only a developer can add new genres.
+- **In-stock status**: A simple yes/no flag. When a book is "out of stock," it **still appears** on the Browse page with a "Coming Soon" or "Out of Stock" label, but the "Add to Cart" button is hidden.
+- **No user reviews or ratings**: The rating feature has been removed. Books do not have star ratings.
 
 ---
 
-## 6. Derived Fields: The "Automatic Counters"
-These are fields where the database does the math for us.
-*   Instead of the app counting every single "Like" every time you load a page, the database keeps a running total.
-*   **Example:** When you RSVP to an event, the database automatically bumps the "Attendee Count" up by one.
+## 4. The Store: Shopping & Payments
+
+### Payment Processor: Stripe
+Stripe handles all money:
+- **Book purchases**: One-time payments via Stripe PaymentIntents.
+- **Subscriptions**: Stripe manages the recurring $3.99/month billing automatically.
+
+### Tax
+A flat **5% GST** is applied to every order. No variation by state or country.
+
+### All Sales Are Final
+No refunds, no cancellations. Once you buy a book, it's yours.
+
+### No Duplicate Purchases
+The system prevents a user from buying a book they already own. If it's already in their library (from a purchase, a signup freebie, or a monthly pick), they can't buy it again.
+
+### Dealer Codes (The Affiliate System)
+Every premium member gets a unique **dealer code** formatted like: `KANE-EVANS-4821` (KANE prefix + part of their name + last 4 of phone number).
+
+Here's how it works:
+- The code gives **35% off** any book purchase at checkout (not subscription fees).
+- It can be shared with anyone and used **unlimited times** by **multiple people**.
+- **Every use is tracked**: the system records who used the code, which order it was applied to, and how much the discount was worth. This lets the business know which "dealer" (premium member) is driving sales.
+- When a premium member cancels their subscription or gets banned, their code is **automatically deactivated**.
+
+### Email Confirmations
+When a purchase is completed, **GoHighLevel** (an external email marketing tool) sends the confirmation email — not the app itself.
 
 ---
 
-## 7. Validation: The "Rulebook"
-This is the "security guard" of our data. It prevents bad information from getting in.
-*   **The Rules:** A book price can't be a negative number. A font size can't be so small you can't read it. You can't have "0" copies of a book in your cart.
-*   **Why?** It keeps the app from crashing by ensuring the data always makes sense.
+## 5. The Book Club: Selections, Events & RSVPs
+
+### Monthly Book Picks
+Each month, the admin selects a featured book. When a book becomes the "current" pick, it is **automatically added to every active premium member's library**. These monthly books are **not permanent** — if a member cancels, the monthly picks are removed from their library (but purchased books and the 2 signup freebies stay forever).
+
+### Events
+- Can be **virtual** (with a meeting link) or **in-person** (with a physical address).
+- **No max capacity** — unlimited RSVPs.
+- **Account required** to RSVP — no guest RSVPs.
+- **No calendar invites** are sent.
+- GoHighLevel handles event reminder emails.
 
 ---
 
-## 8. Permission Boundaries (RLS): "Who Sees What"
-This is the most critical part of **Privacy**. We use a system called Row-Level Security (RLS).
-*   **Readers:** Can only see their *own* cart, their *own* highlights, and their *own* settings. They can read "Published" books but not "Draft" books.
-*   **Admins:** Can see and change everything to keep the store running.
-*   **Guests:** Can browse the catalog but can't see private community discussions.
+## 6. The Community: Discussions
+
+### Who Can Participate?
+Discussions are for **premium members only**. Free readers can see the topics and posts (read-only), but they cannot create posts or vote.
+
+### Who Creates Topics?
+**Only admins** can create, pin, feature, or delete discussion topics.
+
+### Posting Rules
+- Premium members can post comments and replies.
+- You can **edit** your own comment within **15 minutes** of posting it. After that, it's locked.
+- You can **delete** your own comment at **any time**.
+- Admins can delete any comment (manual moderation — no automated word filters).
+- Other users see only your **display name** next to your posts — no other personal info.
+
+### Voting
+Users can upvote or downvote posts. Each user gets one vote per post.
 
 ---
 
-## 9. Audit & Soft Delete: Memory and Safety
-*   **Audit:** Every single row remembers when it was created and when it was last changed. 
-*   **Soft Delete:** When an admin "deletes" a book, we don't actually erase it from the hard drive immediately. We just mark it as "hidden" (deleted_at). 
-*   **Why?** This lets us "un-delete" things if someone makes a mistake.
+## 7. The Reader: Reading Experience
+
+### Cross-Device Sync
+If you read to Chapter 5 on your phone, you'll see Chapter 5 when you open the app on your laptop. Reading progress, highlights, bookmarks, and display settings all sync to the server.
+
+### Highlights
+- You can highlight text in **four colors**: yellow, green, blue, pink.
+- You can add an optional note to any highlight.
+- **Cap: 10 highlights per book** (for all users — free and premium).
+- Highlights are **always private** — no one else can see them.
+
+### Bookmarks
+- You can bookmark a specific paragraph and add an optional label.
+- **Cap: 10 bookmarks per book** (for all users).
+
+### Reader Settings
+Your preferred **font size**, **font family**, **theme** (dark, light, sepia), and **line height** are saved server-side so they follow you across devices.
 
 ---
 
-## 10. Scalability: Thinking Ahead
-We designed this for growth. 
-*   The model assumes you might eventually have 10,000 books and 50,000 users. 
-*   It suggests things like "Full-text search" (so searching for "Space" finds "Deep Space" instantly) and "Lazy Loading" (don't load the whole book club history at once).
+## 8. Enums: The Fixed Lists
+
+An "enum" is a fixed list of allowed options. Instead of free-text that could have typos, the database only accepts values from these lists:
+
+| Enum | Options | Notes |
+|---|---|---|
+| **User role** | reader, admin | |
+| **T-shirt size** | xs, s, m, l, xl, xxl, xxxl | For merch |
+| **Subscription plan** | free, premium | |
+| **Subscription status** | active, cancelled, expired, past_due | No "paused" — cancel only |
+| **Genre** | Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking | PTP = Prayers, Thoughts, and Poetry |
+| **Book status** | draft, published | |
+| **Order status** | pending, confirmed, fulfilled | No "cancelled" — all sales are final |
+| **Library source** | purchase, subscription_signup, book_club_monthly | Tracks *how* a book entered the library |
+| **Highlight color** | yellow, green, blue, pink | |
+| **Reading theme** | dark, light, sepia | |
+| **Selection status** | current, upcoming, past | For monthly book club picks |
+| **Event type** | virtual, in_person | |
+| **Event status** | upcoming, past, cancelled | |
+| **RSVP status** | confirmed, cancelled | |
+| **Discussion category** | General, Book Club, Sci-Fi, Fantasy, News | |
+| **Vote type** | up, down | |
 
 ---
 
-## 11. Open Questions: The "TBDs"
-This section lists the things the developers still need to decide:
-*   **Payments:** Which credit card processor are we using?
-*   **Emails:** Do we want the app to send you a real email when someone replies to your comment?
-*   **Files:** Are we purely text-based, or are we showing high-res PDF pages?
+## 9. Relationships: The Digital Web
+
+Nothing in the app exists in a vacuum. Here's how the major pieces connect:
+
+- A **User** has one **Subscription**, one set of **Reading Settings**, and one **Promo Code** (if premium).
+- A **User** can have many **Cart Items**, **Orders**, **Library Books**, **Highlights**, **Bookmarks**, **RSVPs**, **Discussion Posts**, and **Votes**.
+- A **Book** has many **Chapters** and many **Illustrations**.
+- A **Book** can appear in many users' **Libraries**, **Carts**, and **Orders**.
+- An **Order** has many **Order Items** (line items) and optionally uses one **Promo Code**.
+- Each **Promo Code** has a history of **Usages** that tracks who used it and on which order.
+- A **Discussion Topic** has many **Posts**, and posts can have **Replies** (nested comments).
+- Each **Post** can have many **Votes** (one per user).
 
 ---
 
-## 12. ER Diagram: The Map
-This is a visual representation of the "Digital Web" we talked about earlier. It’s a map for developers to look at when they need to know which code "talks" to which part of the database.
+## 10. Indexes: Speed Boosters
+
+We create "shortcuts" in the database so common actions are instant:
+- **Searching for a book** by title or author → full-text search index.
+- **Filtering by genre** on the Browse page → genre + status index.
+- **Looking up your cart or library** → user ID index.
+- **Checking a dealer code at checkout** → unique code index.
+- **Loading a discussion thread** → topic ID + timestamp index.
+
+Without these, the app would get slower as data grows. With them, everything stays fast.
+
+---
+
+## 11. Validation: The Rulebook
+
+These rules prevent bad data from ever entering the system:
+
+| Rule | Why |
+|---|---|
+| Book price must be greater than $0 | Free access is handled through subscriptions, not zero-price books |
+| Cart quantity must be at least 1 | Can't have 0 items in your cart |
+| Font size must be between 12–32px | Prevents unreadable text |
+| Max 10 highlights per book | Keeps the reader usable and the database lean |
+| Max 10 bookmarks per book | Same as above |
+| One RSVP per user per event | Prevents duplicate signups |
+| Comments editable for 15 minutes only | Encourages thoughtful posting, prevents rewriting history |
+| Can't buy a book you already own | Prevents accidental duplicate purchases |
+| Only premium members can post in discussions | Community is a paid perk |
+
+---
+
+## 12. Permissions: Who Sees What
+
+### Guests (not logged in)
+Can browse the book catalog, see book club selections, view public events, and read discussion topics/posts (read-only). Cannot buy, RSVP, post, or do anything else.
+
+### Free Readers (logged in, no subscription)
+Everything guests can do, **plus**: add to cart, purchase books, read owned books, use the reader with highlights/bookmarks/settings, view their order history.
+
+### Premium Members (active book club subscription)
+Everything free readers can do, **plus**: access monthly book picks, RSVP to events, post in discussions, vote on posts, use their dealer code.
+
+### Banned Users
+Can **only** read their purchased books with full reader features (progress, highlights, bookmarks, settings). Everything else is locked out. Subscription is auto-cancelled.
+
+### Admins
+Full control over everything: manage users, books, events, discussions, selections, and view all data.
+
+---
+
+## 13. Audit & Safety
+
+### Timestamps
+Every single row in every table remembers **when it was created** and **when it was last changed**.
+
+### Soft Delete
+When an admin "deletes" a book, discussion topic, or user — it's not actually erased. It's marked as "hidden" with a timestamp. This means:
+- Mistakes can be **undone**.
+- Data integrity is preserved (you won't have orphaned orders pointing to deleted books).
+
+### Admin Audit Log
+When an admin takes a sensitive action (banning a user, deleting a book, cancelling a subscription), the system records **who did it, what they did, and when**. This creates an accountability trail.
+
+---
+
+## 14. Scalability: Thinking Ahead
+
+| Design Choice | Why It Matters |
+|---|---|
+| **Chapters stored separately** | Instead of loading an entire book at once, the reader loads one chapter at a time — much faster. |
+| **Illustrations as separate records** | Images are loaded on-demand as the reader reaches them. |
+| **Debounced reading progress** | The app waits 30 seconds between saving your scroll position to the server, instead of saving on every pixel of scrolling. This avoids overwhelming the database. |
+| **Denormalized counters** | Instead of counting "likes" or "attendees" every time a page loads, the database keeps a running total that updates automatically via triggers. |
+| **Stripe + GoHighLevel** | Payments and emails are handled by specialized services, not our own code. This means less can go wrong. |
+
+---
+
+## 15. What's NOT Being Built
+
+Based on the owner's decisions, these features are **explicitly excluded**:
+
+- ❌ Social login (Google, Apple)
+- ❌ User reviews or ratings
+- ❌ Wishlists
+- ❌ Audiobooks
+- ❌ Multiple languages
+- ❌ Reading streaks / gamification
+- ❌ In-app notifications
+- ❌ Calendar invites for events
+- ❌ Data export for admins
+- ❌ Analytics dashboard
+- ❌ Membership pause option
+- ❌ Refunds
+- ❌ Gift purchases (duplicate book buying)
+- ❌ Dedicated series page
+- ❌ Mobile app
+
+---
+
+## 16. Key Integrations Summary
+
+| Service | What It Does | How We Connect |
+|---|---|---|
+| **Supabase** | Database (PostgreSQL), authentication, file storage, Edge Functions (API) | Core platform |
+| **Stripe** | Processes book payments and manages monthly subscription billing | Stripe Customer ID + Subscription ID stored in our database. Webhooks notify us of payment events. |
+| **GoHighLevel** | Sends all outbound emails (order confirmations, subscription welcome, event reminders, reply notifications, payment failures, ban notices) | GHL Contact ID stored in our user table. Integration via webhook and/or API (TBD). |
 
 ---
 
 ### Final Thought
-This data model ensures that **Kane's Komet** isn't just a pretty website, but a robust, professional-grade platform where a reader can highlight a quote on their phone in the morning and find it waiting for them on their tablet in the evening.
+
+This data model ensures that **Kane's Komet** is not just a pretty website, but a robust, professional-grade platform. A reader can highlight a quote on their phone in the morning and find it waiting on their tablet in the evening. A premium member can share their dealer code with friends and see their referral impact. And the admin can manage the entire bookstore and community from a single dashboard — all backed by enterprise-grade infrastructure.
