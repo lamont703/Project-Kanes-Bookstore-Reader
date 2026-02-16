@@ -47,7 +47,7 @@ The Kane's Komet Book Reader is a **digital bookstore + book club platform** wit
 - **Stripe payments**: $49.99 first month, then $3.99/month recurring. Book purchases are separate one-time charges. Physical perks (T-shirt/gift) are exclusive to premium and not sold individually.
 - **No refunds**: All sales are final.
 - **GoHighLevel**: Handles all outbound email notifications (order confirmations, subscription emails, event reminders, etc.).
-- **No user reviews**: Ratings are editorial-only, set by admin. The `rating` field will be removed from the frontend.
+- **No Ratings or Reviews**: The rating and review feature has been completely eliminated from the platform. The `rating` field has been removed from the data model and all UI components.
 - **PDF → Text extraction**: Admin uploads PDFs and a standard-sized book cover; a tool extracts text into chapters. Illustrations are stored separately and shown as full-page images between chapters.
 - **Book Variants**: Each book can be purchased as an **ebook** (digital), **Paper Book** (physical), or **Komet Card** (physical). 
 - **Digital vs Physical**: Only the ebook version is readable within the application. Paper Books and Komet Cards are physical items that require a shipping address and will be shipped to the user.
@@ -94,23 +94,20 @@ Extends Supabase `auth.users`. This is the application profile table.
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
 | `title` | `TEXT` | No | — | |
 | `author` | `TEXT` | No | — | Single author per book |
-| `illustrator` | `TEXT` | Yes | — | Internal record-keeping only — not displayed on frontend |
-| `isbn` | `TEXT` | Yes | — | Displayed in admin catalog |
+| `illustrator` | `TEXT` | Yes | — | Internal record-keeping only |
 | `description` | `TEXT` | Yes | — | |
 | `genre` | `genre_enum` | No | — | Fixed list, developer-managed |
-| `cover_image_url` | `TEXT` | Yes | — | Supabase Storage URL (Standard sized cover uploaded by admin) |
-| `book_file_url` | `TEXT` | Yes | — | Original PDF storage path (for ebook version) |
-| `page_count` | `INTEGER` | No | `0` | |
-| `published_year` | `INTEGER` | Yes | — | |
-| `series_name` | `TEXT` | Yes | — | e.g., "Brute Syndicate" (NULL for standalone books) |
-| `series_order` | `INTEGER` | Yes | — | e.g., 3 (for "Brute Syndicate #3"). NULL for standalone books |
+| `cover_image_url` | `TEXT` | Yes | — | Supabase Storage URL |
+| `book_file_url` | `TEXT` | Yes | — | Original PDF storage path |
+| `series_name` | `TEXT` | Yes | — | e.g., "Brute Syndicate" |
+| `series_order` | `INTEGER` | Yes | — | e.g., 3 |
 | `status` | `book_status_enum` | No | `'draft'` | draft, published |
-| `is_age_restricted` | `BOOLEAN` | No | `false` | Requires DOB check (≥18) |
+| `is_age_restricted` | `BOOLEAN` | No | `false` | Requires DOB check |
 | `created_at` | `TIMESTAMPTZ` | No | `now()` | |
 | `updated_at` | `TIMESTAMPTZ` | No | `now()` | |
 | `deleted_at` | `TIMESTAMPTZ` | Yes | — | Soft delete |
 
-**Removed**: `rating` field — no user reviews; no editorial rating needed per owner decision.
+**Removed**: `rating`, `page_count`, `published_year`, and `isbn` fields—per owner decision to simplify the catalog and focus exclusively on the core reading experience.
 
 ---
 

@@ -28,7 +28,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
         description: initialData?.description || "",
         genre: initialData?.genre || "Science Fiction",
         price: initialData?.price || 0,
-        isbn: initialData?.isbn || "",
+
         status: initialData?.status || "Published",
         variants: initialData?.variants || [
             { format: "ebook" as const, price: 0, available: true },
@@ -131,15 +131,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                     />
                                     {errors.author && <p className="text-xs text-destructive">{errors.author}</p>}
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="isbn">ISBN (Optional)</Label>
-                                    <Input
-                                        id="isbn"
-                                        placeholder="978-0-..."
-                                        value={formData.isbn}
-                                        onChange={e => setFormData({ ...formData, isbn: e.target.value })}
-                                    />
-                                </div>
+
                             </div>
 
                             <div className="grid md:grid-cols-2 gap-4">

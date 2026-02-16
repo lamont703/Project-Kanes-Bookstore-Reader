@@ -41,7 +41,7 @@ export default function AdminBooksPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedGenre, setSelectedGenre] = useState("All")
   const [isLoading, setIsLoading] = useState(true)
-  const [sortOrder, setSortOrder] = useState<"title" | "price" | "newest">("title")
+  const [sortOrder, setSortOrder] = useState<"title" | "price">("title")
 
   // Delete Modal State
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -121,7 +121,7 @@ export default function AdminBooksPage() {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by title, author or ISBN..."
+            placeholder="Search by title or author..."
             className="pl-10 bg-background/50 border-border/50 w-full"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -151,7 +151,7 @@ export default function AdminBooksPage() {
             >
               <option value="title">Sort by Title</option>
               <option value="price">Sort by Price</option>
-              <option value="newest">Sort by Newest</option>
+
             </select>
             <ArrowUpDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
           </div>
@@ -194,7 +194,7 @@ export default function AdminBooksPage() {
                     <td className="p-4">
                       <p className="font-display text-lg md:text-xl tracking-wide group-hover:text-primary transition-colors leading-tight">{book.title}</p>
                       <p className="text-xs text-muted-foreground">By {book.author}</p>
-                      <p className="text-[10px] text-muted-foreground font-mono mt-1 opacity-50 uppercase hidden sm:block">{book.isbn}</p>
+
 
                       {/* Mobile-only badges */}
                       <div className="flex flex-wrap gap-2 mt-2 md:hidden">

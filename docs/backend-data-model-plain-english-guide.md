@@ -75,7 +75,8 @@ Other users can **only** see a person's **display name** in discussions. No prof
    - If a physical version (like a **Paper Book**) is marked "Out of Stock," it remains visible with a label, but the purchase option for that specific format is disabled.
    - The admin dashboard allows management of these stock levels at the individual variant level.
 - **Genres are fixed**: Crime, Children, PTP (Prayers, Thoughts, and Poetry), Spiritual, Adult, Sports, Self-Help, Cooking. Only a developer can add new genres.
-- **No user reviews or ratings**: The rating feature has been removed. Books do not have star ratings.
+- **Simplified Catalog**: To focus exclusively on the core reading experience, we have removed secondary metadata like **page counts**, **published years**, and **ISBNs** from the public display.
+- **No user reviews or ratings**: The rating feature has been completely eliminated. Books do not have star ratings or review sections.
 
 ---
 

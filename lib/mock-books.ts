@@ -8,10 +8,6 @@ export interface Book {
   price: number // Default price (usually ebook)
   genre: string
   description: string
-  rating: number
-  pageCount: number
-  publishedYear: number
-  isbn: string
   variants: {
     format: BookFormat
     price: number
@@ -41,10 +37,6 @@ export const mockBooks: Book[] = [
     genre: "Science Fiction",
     description:
       "In a world ruled by corporate syndicates, one brute fights for the little guy. A hard-hitting, neon-soaked adventure.",
-    rating: 4.7,
-    pageCount: 412,
-    publishedYear: 2024,
-    isbn: "978-0-123456-78-9",
     variants: [
       { format: "ebook", price: 14.99, available: true },
       { format: "paper_book", price: 29.99, available: true },
@@ -59,10 +51,6 @@ export const mockBooks: Book[] = [
     price: 12.99,
     genre: "Mystery",
     description: "A gripping tale of murder and intrigue set in the depths of space, where no one can hear you scream.",
-    rating: 4.5,
-    pageCount: 356,
-    publishedYear: 2023,
-    isbn: "978-0-123456-78-8",
     variants: [
       { format: "ebook", price: 12.99, available: true },
       { format: "paper_book", price: 24.99, available: true },
@@ -78,10 +66,6 @@ export const mockBooks: Book[] = [
     genre: "Fantasy",
     description:
       "A young pilot bonds with a legendary Chrysiridiarhipheus to save their floating world from plummeting into the abyss.",
-    rating: 4.8,
-    pageCount: 384,
-    publishedYear: 2024,
-    isbn: "978-0-123456-78-7",
     variants: [
       { format: "ebook", price: 15.99, available: true },
       { format: "paper_book", price: 34.99, available: true },
@@ -97,10 +81,6 @@ export const mockBooks: Book[] = [
     genre: "Science Fiction",
     description:
       "The thrilling conclusion to the Somes trilogy. Boundaries dissolve as the syndicate faces its final, most devastating threat.",
-    rating: 4.6,
-    pageCount: 502,
-    publishedYear: 2023,
-    isbn: "978-0-123456-78-6",
     variants: [
       { format: "ebook", price: 18.99, available: true },
       { format: "paper_book", price: 39.99, available: true },
@@ -115,10 +95,6 @@ export const mockBooks: Book[] = [
     price: 11.99,
     genre: "Horror",
     description: "Terror lurks in the nebula's shadows as a crew discovers they're not alone in the cosmic void.",
-    rating: 4.4,
-    pageCount: 298,
-    publishedYear: 2024,
-    isbn: "978-0-123456-78-5",
     variants: [
       { format: "ebook", price: 11.99, available: true },
       { format: "paper_book", price: 21.99, available: true },
@@ -133,10 +109,6 @@ export const mockBooks: Book[] = [
     price: 15.99,
     genre: "Thriller",
     description: "A high-stakes heist across multiple dimensions where reality itself is the ultimate prize.",
-    rating: 4.9,
-    pageCount: 445,
-    publishedYear: 2024,
-    isbn: "978-0-123456-78-4",
     variants: [
       { format: "ebook", price: 15.99, available: true },
       { format: "paper_book", price: 32.99, available: true },
@@ -151,10 +123,6 @@ export const mockBooks: Book[] = [
     price: 16.99,
     genre: "Fantasy",
     description: "An epic fantasy saga where magic and technology collide in a world suspended between dimensions.",
-    rating: 4.7,
-    pageCount: 628,
-    publishedYear: 2023,
-    isbn: "978-0-123456-78-3",
     variants: [
       { format: "ebook", price: 16.99, available: true },
       { format: "paper_book", price: 36.99, available: true },
@@ -169,10 +137,6 @@ export const mockBooks: Book[] = [
     price: 17.99,
     genre: "Biography",
     description: "The incredible true story of humanity's first Mars colony and the pioneers who made it possible.",
-    rating: 4.8,
-    pageCount: 512,
-    publishedYear: 2024,
-    isbn: "978-0-123456-78-2",
     variants: [
       { format: "ebook", price: 17.99, available: true },
       { format: "paper_book", price: 38.99, available: true },

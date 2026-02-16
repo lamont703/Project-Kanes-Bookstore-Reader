@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Star, ShoppingCart, Check } from "lucide-react"
+import { ShoppingCart, Check } from "lucide-react"
 import type { Book } from "@/lib/mock-books"
 import Link from "next/link"
 import Image from "next/image"
@@ -60,13 +60,6 @@ export function BookCard({ book }: BookCardProps) {
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 fill-secondary text-secondary" />
-              <span className="text-sm font-medium">{book.rating}</span>
-            </div>
-            <span className="text-xs text-muted-foreground">• {book.pageCount} pgs</span>
-          </div>
           <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">{book.genre}</span>
         </div>
 

@@ -13,7 +13,7 @@ import { SiteHeader } from "@/components/site-header"
 export default function BrowsePage() {
   const [selectedGenre, setSelectedGenre] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState<"newest" | "rating" | "price-low" | "price-high">("newest")
+  const [sortBy, setSortBy] = useState<"title" | "price-low" | "price-high">("title")
 
   const filteredBooks = mockBooks
     .filter((book) => {
@@ -26,10 +26,9 @@ export default function BrowsePage() {
     })
     .sort((a, b) => {
       switch (sortBy) {
-        case "newest":
-          return b.publishedYear - a.publishedYear
-        case "rating":
-          return b.rating - a.rating
+        case "title":
+          return a.title.localeCompare(b.title)
+
         case "price-low":
           return a.price - b.price
         case "price-high":
@@ -74,8 +73,8 @@ export default function BrowsePage() {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
               >
-                <option value="newest">Newest First</option>
-                <option value="rating">Highest Rated</option>
+                <option value="title">Title: A-Z</option>
+
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
               </select>

@@ -310,24 +310,18 @@ Should there be a notification bell in the header that shows things like "New re
 no
 ---
 
-## Section I: Reviews & Ratings
-
 ### I1. User reviews — yes or no?
-Books have a `rating` field, but there's currently no way for users to leave reviews. Do you want:
-- (a) **No user reviews** — the rating is an editorial score set by the admin.
-- (b) **User reviews with star ratings** — users can rate and write a text review.
-- (c) **Star ratings only** — users can rate but not write a review.
+The rating and review feature has been completely removed from the system. Books no longer have star ratings or review sections.
 
 **Your answer:**
-no user reviews. we will remove the reviews from the book pages. 
+No user reviews or ratings. Both features have been eliminated from the UI and data model.
 ---
 
 ### I2. If yes to reviews — can they be anonymous?
-Should a review show the user's display name, or should it be anonymous?
+Not applicable as reviews have been removed.
 
 **Your answer:**
-reviews are not needed. 
----
+Ratings and reviews are not needed and have been removed.---
 
 ## Section J: Admin & Operations
 
