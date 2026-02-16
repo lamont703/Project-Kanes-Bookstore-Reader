@@ -43,12 +43,14 @@ The Kane's Komet Book Reader is a **digital bookstore + book club platform** wit
 ### Key Business Decisions (from owner Q&A)
 
 - **Open registration**: Anyone can sign up with email + password. No social login.
-- **Two user tiers**: Free readers (buy & read books) and Premium members (book club — access to discussions, events, monthly picks, dealer codes).
-- **Stripe payments**: $49.99 first month, then $3.99/month recurring. Book purchases are separate one-time charges.
+- **Two user tiers**: Free readers (buy & read books) and Premium members (book club — access to discussions, events, monthly picks, dealer codes, plus a KANE's T-shirt and special gift).
+- **Stripe payments**: $49.99 first month, then $3.99/month recurring. Book purchases are separate one-time charges. Physical perks (T-shirt/gift) are exclusive to premium and not sold individually.
 - **No refunds**: All sales are final.
 - **GoHighLevel**: Handles all outbound email notifications (order confirmations, subscription emails, event reminders, etc.).
 - **No user reviews**: Ratings are editorial-only, set by admin. The `rating` field will be removed from the frontend.
-- **PDF → Text extraction**: Admin uploads PDFs; a tool extracts text into chapters. Illustrations are stored separately and shown as full-page images between chapters.
+- **PDF → Text extraction**: Admin uploads PDFs and a standard-sized book cover; a tool extracts text into chapters. Illustrations are stored separately and shown as full-page images between chapters.
+- **Book Variants**: Each book can be purchased as an **ebook** (digital), **Paper Book** (physical), or **Komet Card** (physical). 
+- **Digital vs Physical**: Only the ebook version is readable within the application. Paper Books and Komet Cards are physical items that require a shipping address and will be shipped to the user.
 - **Dealer codes**: Every premium member receives a unique code (`KANE-NAME-PHONE` format) worth 35% off at checkout. Usage is tracked for dealer credit.
 - **Cross-device sync**: Reading progress, highlights, bookmarks, and settings persist server-side.
 - **Caps**: 10 highlights per book, 10 bookmarks per book (all users).
@@ -69,8 +71,8 @@ Extends Supabase `auth.users`. This is the application profile table.
 | `full_name` | `TEXT` | No | — | Private — not shown to other users |
 | `phone` | `TEXT` | Yes | — | From subscription signup |
 | `date_of_birth` | `DATE` | Yes | — | Used for age-gating adult content |
-| `mailing_address` | `TEXT` | Yes | — | For physical merch shipment |
-| `tshirt_size` | `tshirt_size_enum` | Yes | — | xs, s, m, l, xl, xxl, xxxl |
+| `mailing_address` | `TEXT` | Yes | — | For physical merch shipment (Premium perk) |
+| `tshirt_size` | `tshirt_size_enum` | Yes | — | xs, s, m, l, xl, xxl, xxxl (Premium perk) |
 | `avatar_url` | `TEXT` | Yes | — | Profile image (internal use only — not shown to other users) |
 | `role` | `user_role_enum` | No | `'reader'` | reader, admin |
 | `is_banned` | `BOOLEAN` | No | `false` | Banning removes community access; auto-cancels subscription |
@@ -95,16 +97,14 @@ Extends Supabase `auth.users`. This is the application profile table.
 | `illustrator` | `TEXT` | Yes | — | Internal record-keeping only — not displayed on frontend |
 | `isbn` | `TEXT` | Yes | — | Displayed in admin catalog |
 | `description` | `TEXT` | Yes | — | |
-| `price` | `NUMERIC(10,2)` | No | — | Always > 0 (free books are handled via subscription, not $0 price) |
 | `genre` | `genre_enum` | No | — | Fixed list, developer-managed |
-| `cover_image_url` | `TEXT` | Yes | — | Supabase Storage URL |
-| `book_file_url` | `TEXT` | Yes | — | Original PDF storage path |
+| `cover_image_url` | `TEXT` | Yes | — | Supabase Storage URL (Standard sized cover uploaded by admin) |
+| `book_file_url` | `TEXT` | Yes | — | Original PDF storage path (for ebook version) |
 | `page_count` | `INTEGER` | No | `0` | |
 | `published_year` | `INTEGER` | Yes | — | |
 | `series_name` | `TEXT` | Yes | — | e.g., "Brute Syndicate" (NULL for standalone books) |
 | `series_order` | `INTEGER` | Yes | — | e.g., 3 (for "Brute Syndicate #3"). NULL for standalone books |
 | `status` | `book_status_enum` | No | `'draft'` | draft, published |
-| `is_in_stock` | `BOOLEAN` | No | `true` | When false: shows "Out of Stock" label, hides "Add to Cart" button |
 | `is_age_restricted` | `BOOLEAN` | No | `false` | Requires DOB check (≥18) |
 | `created_at` | `TIMESTAMPTZ` | No | `now()` | |
 | `updated_at` | `TIMESTAMPTZ` | No | `now()` | |
@@ -114,7 +114,25 @@ Extends Supabase `auth.users`. This is the application profile table.
 
 ---
 
-### 2.3 `book_chapters`
+### 2.3 `book_variants`
+
+Stores the different purchase options for each book.
+
+| Column | Type | Nullable | Default | Notes |
+|---|---|---|---|---|
+| `id` | `UUID` PK | No | `gen_random_uuid()` | |
+| `book_id` | `UUID` FK | No | — | → `books.id` |
+| `format` | `book_format_enum` | No | — | ebook, paper_book, komet_card |
+| `price` | `NUMERIC(10,2)` | No | — | Price varies by format |
+| `is_in_stock` | `BOOLEAN` | No | `true` | When false, shows "Out of Stock" for this variant |
+| `created_at` | `TIMESTAMPTZ` | No | `now()` | |
+| `updated_at` | `TIMESTAMPTZ` | No | `now()` | |
+
+**Note**: One book record can have up to 3 variants (one of each format).
+
+---
+
+### 2.4 `book_chapters`
 
 Stores extracted text from PDF uploads, one row per chapter.
 
@@ -129,7 +147,7 @@ Stores extracted text from PDF uploads, one row per chapter.
 
 ---
 
-### 2.4 `book_illustrations`
+### 2.5 `book_illustrations`
 
 Stores images extracted from PDFs, displayed as full-page images between chapters/sections.
 
@@ -145,7 +163,7 @@ Stores images extracted from PDFs, displayed as full-page images between chapter
 
 ---
 
-### 2.5 `user_subscriptions`
+### 2.6 `user_subscriptions`
 
 One subscription per user. Stripe handles recurring billing.
 
@@ -165,13 +183,14 @@ One subscription per user. Stripe handles recurring billing.
 
 **Business rules**:
 - $49.99 for the first month, then $3.99/month starting month 2.
+- Premium members receive a KANE's T-shirt and a special free gift (not sold in-app).
 - No pause option — users can only cancel and re-join later.
-- The 2 books selected at signup stay in the user's library **forever**, even after cancellation.
+- **All books** (purchased, signup freebies, and monthly picks) stay in the user's library **forever**, even after cancellation or ban.
 - When a premium member is banned, their subscription is **automatically cancelled** via Stripe.
 
 ---
 
-### 2.6 `promo_codes`
+### 2.7 `promo_codes`
 
 Every premium member receives a unique dealer code. Fixed 35% discount.
 
@@ -194,7 +213,7 @@ Every premium member receives a unique dealer code. Fixed 35% discount.
 
 ---
 
-### 2.7 `promo_code_usages`
+### 2.8 `promo_code_usages`
 
 Tracks every use of a dealer code for dealer credit attribution.
 
@@ -209,23 +228,25 @@ Tracks every use of a dealer code for dealer credit attribution.
 
 ---
 
-### 2.8 `cart_items`
+### 2.9 `cart_items`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
-| `user_id` | `UUID` FK | No | — | → `users.id` |
+| `user_id` | `UUID` FK | Yes | — | → `users.id` (NULL for guests) |
+| `session_id` | `TEXT` | Yes | — | Unique anonymous session ID for guests |
 | `book_id` | `UUID` FK | No | — | → `books.id` |
+| `variant_id` | `UUID` FK | No | — | → `book_variants.id` (tracks selected format/price) |
 | `quantity` | `INTEGER` | No | `1` | |
 | `added_at` | `TIMESTAMPTZ` | No | `now()` | |
 
-**Unique constraint**: `(user_id, book_id)`
+**Unique constraint**: `(user_id, book_id, variant_id)`
 
 **Rule**: Cannot add a book that already exists in the user's `user_library` (prevents re-purchasing).
 
 ---
 
-### 2.9 `orders`
+### 2.10 `orders`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -253,19 +274,21 @@ Tracks every use of a dealer code for dealer credit attribution.
 
 ---
 
-### 2.10 `order_items`
+### 2.11 `order_items`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
 | `order_id` | `UUID` FK | No | — | → `orders.id` |
 | `book_id` | `UUID` FK | No | — | → `books.id` |
+| `variant_id` | `UUID` FK | No | — | → `book_variants.id` |
+| `format` | `book_format_enum` | No | — | Format snapshot at time of purchase |
 | `quantity` | `INTEGER` | No | — | |
 | `unit_price` | `NUMERIC(10,2)` | No | — | Price at time of purchase (snapshot) |
 
 ---
 
-### 2.11 `user_library`
+### 2.12 `user_library`
 
 Tracks which books a user owns/has access to and the source of access.
 
@@ -282,12 +305,14 @@ Tracks which books a user owns/has access to and the source of access.
 
 **Business rules**:
 - `purchase` → permanent. Books bought at checkout.
-- `subscription_signup` → permanent. The 2 free books picked during signup. Never expire.
-- `book_club_monthly` → **not permanent**. Monthly picks removed if subscription cancelled/expired.
+- `subscription_signup` → permanent. The 2 free books picked during signup.
+- `book_club_monthly` → **permanent**. Monthly picks remain in library even if subscription cancelled/expired. Users simply stop receiving *new* picks after cancellation.
+- **Ebook Only**: Only the `ebook` variant is added to the digital `user_library`. Physical purchases (Paper/Komet Card) are tracked in `orders` but not readable in the app.
+- Books acquired from ANY source remain in the library forever, including after a ban.
 
 ---
 
-### 2.12 `reading_progress`
+### 2.13 `reading_progress`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -304,7 +329,7 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 
 ---
 
-### 2.13 `highlights`
+### 2.14 `highlights`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -324,7 +349,7 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 
 ---
 
-### 2.14 `bookmarks`
+### 2.15 `bookmarks`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -340,7 +365,7 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 
 ---
 
-### 2.15 `reading_settings`
+### 2.16 `reading_settings`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -354,7 +379,7 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 
 ---
 
-### 2.16 `book_club_selections`
+### 2.17 `book_club_selections`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -375,7 +400,7 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 
 ---
 
-### 2.17 `book_club_events`
+### 2.18 `book_club_events`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -397,7 +422,7 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 
 ---
 
-### 2.18 `event_rsvps`
+### 2.19 `event_rsvps`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -414,7 +439,7 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 
 ---
 
-### 2.19 `discussion_topics`
+### 2.20 `discussion_topics`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -436,7 +461,7 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 
 ---
 
-### 2.20 `discussion_posts`
+### 2.21 `discussion_posts`
 
 Supports threaded comments (self-referencing `parent_id`).
 
@@ -461,7 +486,7 @@ Supports threaded comments (self-referencing `parent_id`).
 
 ---
 
-### 2.21 `discussion_votes`
+### 2.22 `discussion_votes`
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -490,6 +515,7 @@ CREATE TYPE subscription_status_enum AS ENUM ('active', 'cancelled', 'expired', 
 -- PTP = "Prayers, Thoughts, and Poetry"
 CREATE TYPE genre_enum AS ENUM ('Crime', 'Children', 'PTP', 'Spiritual', 'Adult', 'Sports', 'Self-Help', 'Cooking');
 CREATE TYPE book_status_enum AS ENUM ('draft', 'published');
+CREATE TYPE book_format_enum AS ENUM ('ebook', 'paper_book', 'komet_card');
 
 -- Commerce
 CREATE TYPE order_status_enum AS ENUM ('pending', 'confirmed', 'fulfilled');
@@ -514,6 +540,7 @@ CREATE TYPE vote_type_enum AS ENUM ('up', 'down');
 - Removed `cancelled` from `order_status_enum` (all sales are final).
 - Split `library_source_enum` into `purchase`, `subscription_signup`, `book_club_monthly` (from generic `subscription`/`book_club`).
 - Added PTP documentation in comment.
+- Added `book_format_enum`.
 - Genres are **fixed** — only a developer can modify this enum.
 
 ---
@@ -535,16 +562,18 @@ users 1 ──── * discussion_posts
 users 1 ──── * discussion_votes
 users 1 ──── * promo_code_usages (as buyer)
 
+books 1 ──── * book_variants
 books 1 ──── * book_chapters
 books 1 ──── * book_illustrations
-books 1 ──── * cart_items
-books 1 ──── * order_items
 books 1 ──── * user_library
 books 1 ──── * reading_progress
 books 1 ──── * highlights
 books 1 ──── * bookmarks
 books 1 ──── * book_club_selections
 books 1 ──── * discussion_topics (optional)
+
+book_variants 1 ──── * cart_items
+book_variants 1 ──── * order_items
 
 orders 1 ──── * order_items
 orders * ──── 1 promo_codes (optional)
@@ -566,10 +595,12 @@ discussion_posts 1 ──── * discussion_votes
 |---|---|---|---|
 | `books` | `(genre, status)` | B-tree | Browse page genre filter |
 | `books` | `(published_year DESC)` | B-tree | "Newest" sort |
-| `books` | `(price)` | B-tree | Price sort |
 | `books` | `(series_name, series_order)` | B-tree | Series label & ordering |
-| `books` | `GIN(to_tsvector(title \|\| ' ' \|\| author))` | Full-text | Search bar |
+| `books` | `GIN(to_tsvector(title || ' ' || author))` | Full-text | Search bar |
+| `book_variants` | `(book_id, format)` | Unique | Ensure one format per book |
+| `book_variants` | `(book_id, is_in_stock)` | B-tree | Filter available variants for a book |
 | `cart_items` | `(user_id)` | B-tree | Cart retrieval |
+| `cart_items` | `(user_id, book_id, variant_id)` | Unique | Prevent duplicate items in cart |
 | `orders` | `(user_id, placed_at DESC)` | B-tree | Order history |
 | `user_library` | `(user_id)` | B-tree | Dashboard library |
 | `user_library` | `(user_id, book_id)` | Unique | Prevent duplicate ownership |
@@ -612,7 +643,7 @@ discussion_posts 1 ──── * discussion_votes
 
 | Entity | Rule | Implementation |
 |---|---|---|
-| `books.price` | Must be > 0 | CHECK constraint |
+| `book_variants.price` | Must be > 0 | CHECK constraint |
 | `books.page_count` | Must be > 0 | CHECK constraint |
 | `cart_items.quantity` | Must be ≥ 1 | CHECK constraint |
 | `order_items.quantity` | Must be ≥ 1 | CHECK constraint |
@@ -644,8 +675,8 @@ discussion_posts 1 ──── * discussion_votes
 | `users` | Own row only | — | Own row only | — |
 | `books` | Published only | — | — | — |
 | `book_chapters` | Only for owned books (in `user_library`) | — | — | — |
-| `book_illustrations` | Only for owned books | — | — | — |
-| `cart_items` | Own rows | Own rows | Own rows | Own rows |
+| `book_illustrations` | SELECT for all books currently in their library | — | — | — |
+| `cart_items` | Own/Session rows | Own/Session rows | Own/Session rows | Own/Session rows |
 | `orders` | Own rows | Own rows | — | — |
 | `order_items` | Own order's items | — | — | — |
 | `user_library` | Own rows | — | — | — |
@@ -658,8 +689,8 @@ discussion_posts 1 ──── * discussion_votes
 | `book_club_selections` | All | — | — | — |
 | `book_club_events` | Public events only | — | — | — |
 | `event_rsvps` | — | — | — | — |
-| `discussion_topics` | All non-deleted | — | — | — |
-| `discussion_posts` | All non-deleted | — | — | — |
+| `discussion_topics` | None | — | — | — |
+| `discussion_posts` | None | — | — | — |
 | `discussion_votes` | — | — | — | — |
 
 ### Premium Members (authenticated, `role = 'reader'`, active subscription)
@@ -678,8 +709,8 @@ All of the above, **plus**:
 | Table | Access |
 |---|---|
 | `books` | SELECT published only |
-| `book_chapters` | SELECT for owned books only |
-| `book_illustrations` | SELECT for owned books only |
+| `book_chapters` | SELECT for **all** books currently in their library |
+| `book_illustrations` | SELECT for all books currently in their library |
 | `user_library` | SELECT own rows |
 | `reading_progress` | SELECT/INSERT/UPDATE own rows |
 | `highlights` | SELECT/INSERT/UPDATE/DELETE own rows |
@@ -698,8 +729,9 @@ Full CRUD on all tables. No RLS restrictions.
 | `books` | SELECT published only (browse page). Out-of-stock books show with label. |
 | `book_club_selections` | SELECT all |
 | `book_club_events` | SELECT where `is_public = true` |
-| `discussion_topics` | SELECT all non-deleted (read-only) |
-| `discussion_posts` | SELECT all non-deleted (read-only) |
+| `cart_items` | SELECT/INSERT/UPDATE/DELETE (Session-based) |
+| `discussion_topics` | None |
+| `discussion_posts` | None |
 
 ---
 
@@ -772,25 +804,25 @@ All queries filter `WHERE deleted_at IS NULL` by default. RLS policies include t
 |---|---|
 | **Open registration** | Email + password only. No social login. |
 | **Two roles** | `reader` (default) and `admin` (owner + developer). |
-| **Premium = Book Club** | Premium members are book club subscribers. They get: discussions, events, monthly picks, dealer codes, ability to read any book for free. |
-| **Free users** | Can browse, purchase books, read purchased books, customize reader. Cannot access discussions, events, or book club features. |
-| **Banning** | Banned users keep purchased books + reading features. Lose community access. Subscription auto-cancelled. |
+| **Premium = Book Club** | Premium members are book club subscribers. They get: discussions, events, monthly picks, dealer codes, a KANE's T-shirt, and a special free gift. |
+| **Free/Guest users** | Both can browse books and add to cart. Only logged-in users can checkout. Free readers can also read purchased books and customize reader. Guests/Free users cannot access discussions (hidden), events, or book club perks. |
+| **Banning** | Banned users keep **all** books in their library (purchased + picks). Lose community access. Subscription auto-cancelled. |
 | **Privacy** | Only `display_name` is public (in discussions). All other profile data is private. |
 | **Stripe billing** | $49.99 first month → $3.99/month from month 2. No pause—cancel only. |
 | **Dealer codes** | Format: `KANE-{NAME}-{PHONE_LAST4}`. 35% off book purchases. Multi-use, multi-person. Tracks usage for dealer credit. |
 | **2 free books** | Picked at signup. Stay in library forever even after cancellation. |
-| **Monthly pick** | Auto-added to all premium libraries. Removed on cancellation (non-permanent). |
+| **Monthly pick** | Auto-added to all premium libraries. **Permanent access** (retained after cancellation). |
 | **All sales final** | No refunds on book purchases. |
 | **No duplicate purchases** | User cannot buy a book they already own. |
-| **Content pipeline** | Admin uploads PDF → extraction tool → chapters stored as text + illustrations stored as images. |
+| **Content pipeline** | Admin uploads PDF + standard cover image → extraction tool → chapters stored as text + illustrations stored as images. |
 | **Illustrations** | Full-page images shown between chapters in the reader. |
 | **Highlight/bookmark cap** | 10 highlights + 10 bookmarks per book per user. |
 | **Comment editing** | 15-minute edit window. Delete anytime. |
-| **Discussions** | Premium-only. Admin creates topics. Admin-only moderation. |
+| **Discussions** | Premium-only. Admin creates topics. Admin-only moderation. Hidden from free users. |
 | **Events** | No capacity limit. Account required for RSVP. No calendar invites. |
 | **Email** | GoHighLevel handles all outbound emails. No in-app notifications. |
 | **Genres** | Fixed list, developer-managed. PTP = "Prayers, Thoughts, and Poetry". |
-| **Stock** | Simple boolean. Out-of-stock books visible but not purchasable. |
+| **Stock** | Admin-managed boolean per variant. Out-of-stock variants (e.g., Paper Book) are visible but disabled for purchase, while other available variants (e.g., ebook) remain purchasable. |
 | **Series** | Label on book card (e.g., "Brute Syndicate #3"). No dedicated series page. |
 
 ---

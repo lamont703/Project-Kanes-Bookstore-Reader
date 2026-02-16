@@ -7,6 +7,9 @@ import Link from "next/link"
 import Image from "next/image"
 import { useCart } from "@/context/cart-context"
 
+import { BookFormat } from "@/lib/mock-books"
+import { Tablet, Book as BookIcon, CreditCard } from "lucide-react"
+
 interface BookCardProps {
   book: Book
 }
@@ -14,13 +17,17 @@ interface BookCardProps {
 export function BookCard({ book }: BookCardProps) {
   const { addToCart } = useCart()
   const [isAdded, setIsAdded] = useState(false)
+  const [selectedFormat, setSelectedFormat] = useState<BookFormat>("ebook")
+
+  const currentVariant = book.variants.find(v => v.format === selectedFormat) || book.variants[0]
 
   const handleAddToCart = () => {
     addToCart({
       id: book.id,
       title: book.title,
-      price: book.price,
-      coverImage: book.coverImage
+      price: currentVariant.price,
+      coverImage: book.coverImage,
+      format: selectedFormat
     })
     setIsAdded(true)
     setTimeout(() => setIsAdded(false), 2000)
@@ -37,7 +44,7 @@ export function BookCard({ book }: BookCardProps) {
             className="object-cover transition-transform group-hover:scale-105"
           />
           <div className="absolute top-2 right-2 bg-secondary/90 backdrop-blur-sm text-secondary-foreground px-2 py-1 rounded text-sm font-bold">
-            ${book.price}
+            ${currentVariant.price}
           </div>
         </div>
       </Link>
@@ -52,16 +59,37 @@ export function BookCard({ book }: BookCardProps) {
           <p className="text-sm text-muted-foreground">{book.author}</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-secondary text-secondary" />
-            <span className="text-sm font-medium">{book.rating}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 fill-secondary text-secondary" />
+              <span className="text-sm font-medium">{book.rating}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">• {book.pageCount} pgs</span>
           </div>
-          <span className="text-xs text-muted-foreground">• {book.pageCount} pages</span>
+          <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">{book.genre}</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">{book.genre}</span>
+        {/* Variant Selection */}
+        <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
+          {book.variants.map((v) => (
+            <button
+              key={v.format}
+              onClick={() => setSelectedFormat(v.format)}
+              disabled={!v.available}
+              className={`flex-1 flex flex-col items-center py-1.5 rounded transition-all ${selectedFormat === v.format
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "hover:bg-background/50 text-muted-foreground"
+                } ${!v.available ? "opacity-30 cursor-not-allowed" : ""}`}
+            >
+              {v.format === "ebook" && <Tablet className="w-3.5 h-3.5" />}
+              {v.format === "paper_book" && <BookIcon className="w-3.5 h-3.5" />}
+              {v.format === "komet_card" && <CreditCard className="w-3.5 h-3.5" />}
+              <span className="text-[10px] font-bold uppercase mt-0.5">
+                {v.format === "ebook" ? "E-Book" : v.format === "paper_book" ? "Paper" : "Komet Card"}
+              </span>
+            </button>
+          ))}
         </div>
 
         <Button

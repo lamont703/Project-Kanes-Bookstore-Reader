@@ -21,7 +21,7 @@ Kane's Komet Book Reader is a **digital bookstore combined with a members-only b
 
 Right now, the app saves everything on the user's computer (in something called **localStorage**). The new backend moves all of that to a real server so that:
 - Your reading progress follows you from phone to laptop.
-- Your cart doesn't disappear when you clear your browser.
+- Your shopping cart follows you across devices and persists even if you aren't logged in yet.
 - Your purchase history is permanent and secure.
 
 ---
@@ -39,6 +39,7 @@ Anyone with an email and password. No Google or Apple login — just email.
    - Book club events and RSVP
    - A personal **dealer code** to share for 35% off (more on that later)
    - 2 free books picked at signup that **they keep forever**
+   - **A KANE's T-shirt and a special free gift** (these items are exclusive perks and never sold in the app)
 
 ### What About Admins?
 There are only two roles: `reader` and `admin`. Right now, the admin team is the project owner and the developer. In the future, more team admins may be added. Admins can see and change everything.
@@ -57,15 +58,23 @@ Other users can **only** see a person's **display name** in discussions. No prof
 
 ### How Books Get Into the System
 1. An admin uploads a **PDF** of the book.
-2. A **text extraction tool** pulls out the words and breaks them into chapters.
-3. **Illustrations** are extracted from the PDF and stored as separate images.
-4. The reader app shows the text chapter by chapter, with illustrations displayed as **full-page images between chapters or sections** — just like flipping to a picture page in a real book.
+2. An admin uploads a **standard-sized book cover image**.
+3. A **text extraction tool** pulls out the words and breaks them into chapters.
+4. **Illustrations** are extracted from the PDF and stored as separate images.
+5. The reader app shows the text chapter by chapter, with illustrations displayed as **full-page images between chapters or sections** — just like flipping to a picture page in a real book.
 
 ### Key Fields Per Book
 - **One author** and **one illustrator** per book. The illustrator's name is stored for internal record-keeping but is **not shown on the frontend**.
+- **Formats (Variants)**: Every book can be purchased in three ways:
+   - **ebook**: Digital version, added to your library immediately.
+   - **Paper Book**: Physical copy, shipped to your address.
+   - **Komet Card**: Physical commemorative card, shipped to your address.
+- **What You Can Read**: Only the **ebook** version can be opened and read inside the app. Physical items are tracked in your order history but don't show up as readable books on your bookshelf.
 - **Series support**: Some books are part of a series (e.g., "Brute Syndicate #3"). The series name and order number are stored so they can be displayed as a label on the book card. There is **no dedicated "Series" page** — users can simply filter or search by series name.
+- **Inventory Management**: Admins can independently toggle availability for each format (**ebook**, **Paper Book**, and **Komet Card**).
+   - If a physical version (like a **Paper Book**) is marked "Out of Stock," it remains visible with a label, but the purchase option for that specific format is disabled.
+   - The admin dashboard allows management of these stock levels at the individual variant level.
 - **Genres are fixed**: Crime, Children, PTP (Prayers, Thoughts, and Poetry), Spiritual, Adult, Sports, Self-Help, Cooking. Only a developer can add new genres.
-- **In-stock status**: A simple yes/no flag. When a book is "out of stock," it **still appears** on the Browse page with a "Coming Soon" or "Out of Stock" label, but the "Add to Cart" button is hidden.
 - **No user reviews or ratings**: The rating feature has been removed. Books do not have star ratings.
 
 ---
@@ -103,7 +112,12 @@ When a purchase is completed, **GoHighLevel** (an external email marketing tool)
 ## 5. The Book Club: Selections, Events & RSVPs
 
 ### Monthly Book Picks
-Each month, the admin selects a featured book. When a book becomes the "current" pick, it is **automatically added to every active premium member's library**. These monthly books are **not permanent** — if a member cancels, the monthly picks are removed from their library (but purchased books and the 2 signup freebies stay forever).
+Each month, the admin selects a featured book. When a book becomes the "current" pick, it is **automatically added to every active premium member's library**.
+
+### Membership Cancellation & Access
+- **Keep Everything**: Any book a user receives (purchased, signup freebies, OR monthly picks) **remains in their library forever**.
+- **No New Picks**: If a user cancels their membership, they stop receiving *future* monthly picks, but they keep everything they already had.
+- **Ban Protection**: Even if a user is banned, they always keep access to every book currently in their library.
 
 ### Events
 - Can be **virtual** (with a meeting link) or **in-person** (with a physical address).
@@ -117,7 +131,7 @@ Each month, the admin selects a featured book. When a book becomes the "current"
 ## 6. The Community: Discussions
 
 ### Who Can Participate?
-Discussions are for **premium members only**. Free readers can see the topics and posts (read-only), but they cannot create posts or vote.
+Discussions are for **premium members only**. Free readers and guests **cannot see** topics or posts. The community section is completely hidden from non-premium users.
 
 ### Who Creates Topics?
 **Only admins** can create, pin, feature, or delete discussion topics.
@@ -167,10 +181,11 @@ An "enum" is a fixed list of allowed options. Instead of free-text that could ha
 | **Genre** | Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking | PTP = Prayers, Thoughts, and Poetry |
 | **Book status** | draft, published | |
 | **Order status** | pending, confirmed, fulfilled | No "cancelled" — all sales are final |
-| **Library source** | purchase, subscription_signup, book_club_monthly | Tracks *how* a book entered the library |
+| **Library source** | purchase, subscription_signup, book_club_monthly | Tracks *how* a book entered the library (all sources are permanent) |
 | **Highlight color** | yellow, green, blue, pink | |
 | **Reading theme** | dark, light, sepia | |
 | **Selection status** | current, upcoming, past | For monthly book club picks |
+| **Book format** | ebook, paper_book, komet_card | New variants |
 | **Event type** | virtual, in_person | |
 | **Event status** | upcoming, past, cancelled | |
 | **RSVP status** | confirmed, cancelled | |
@@ -228,16 +243,16 @@ These rules prevent bad data from ever entering the system:
 ## 12. Permissions: Who Sees What
 
 ### Guests (not logged in)
-Can browse the book catalog, see book club selections, view public events, and read discussion topics/posts (read-only). Cannot buy, RSVP, post, or do anything else.
+Can browse the book catalog, add books to their cart, see book club selections, and view public events. They **cannot** checkout, RSVP, post, or see discussions. When they create an account, their guest cart is automatically saved to their new profile.
 
 ### Free Readers (logged in, no subscription)
-Everything guests can do, **plus**: add to cart, purchase books, read owned books, use the reader with highlights/bookmarks/settings, view their order history.
+Everything guests can do, **plus**: add to cart, purchase books, read owned books, use the reader with highlights/bookmarks/settings, view their order history. They **cannot** see any part of the community discussions.
 
 ### Premium Members (active book club subscription)
 Everything free readers can do, **plus**: access monthly book picks, RSVP to events, post in discussions, vote on posts, use their dealer code.
 
 ### Banned Users
-Can **only** read their purchased books with full reader features (progress, highlights, bookmarks, settings). Everything else is locked out. Subscription is auto-cancelled.
+Can **only** read the books currently in their library (purchased, signup picks, and monthly picks received prior to the ban) with full reader features (progress, highlights, bookmarks, settings). Everything else is locked out. Subscription is auto-cancelled.
 
 ### Admins
 Full control over everything: manage users, books, events, discussions, selections, and view all data.
@@ -290,6 +305,7 @@ Based on the owner's decisions, these features are **explicitly excluded**:
 - ❌ Gift purchases (duplicate book buying)
 - ❌ Dedicated series page
 - ❌ Mobile app
+- ❌ In-app sales of physical merchandise (T-shirts/gifts)
 
 ---
 

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect } from "react"
+import type { BookFormat } from "@/lib/mock-books"
 
 export interface CartItem {
     id: string
@@ -8,12 +9,13 @@ export interface CartItem {
     price: number
     coverImage: string
     quantity: number
+    format: BookFormat
 }
 
 interface CartContextType {
     items: CartItem[]
     addToCart: (item: Omit<CartItem, "quantity">) => void
-    removeFromCart: (id: string) => void
+    removeFromCart: (id: string, format: BookFormat) => void
     clearCart: () => void
     cartCount: number
 }
@@ -42,18 +44,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     const addToCart = (newItem: Omit<CartItem, "quantity">) => {
         setItems((prev) => {
-            const existing = prev.find((item) => item.id === newItem.id)
+            const existing = prev.find((item) => item.id === newItem.id && item.format === newItem.format)
             if (existing) {
                 return prev.map((item) =>
-                    item.id === newItem.id ? { ...item, quantity: item.quantity + 1 } : item
+                    (item.id === newItem.id && item.format === newItem.format)
+                        ? { ...item, quantity: item.quantity + 1 }
+                        : item
                 )
             }
             return [...prev, { ...newItem, quantity: 1 }]
         })
     }
 
-    const removeFromCart = (id: string) => {
-        setItems((prev) => prev.filter((item) => item.id !== id))
+    const removeFromCart = (id: string, format: BookFormat) => {
+        setItems((prev) => prev.filter((item) => !(item.id === id && item.format === format)))
     }
 
     const clearCart = () => {

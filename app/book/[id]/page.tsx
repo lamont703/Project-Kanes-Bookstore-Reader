@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Star, ShoppingCart, BookOpen, Sparkles } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { AddToCartButton } from "@/components/add-to-cart-button"
+import { BookPurchaseSection } from "@/components/book-purchase-section"
 import { SiteHeader } from "@/components/site-header"
 
 export function generateStaticParams() {
@@ -23,56 +23,64 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
+    <div className="min-h-screen font-body">
       {/* Header */}
       <SiteHeader />
 
       <div className="container mx-auto px-4 py-12">
         <div className="grid md:grid-cols-[300px_1fr] lg:grid-cols-[400px_1fr] gap-12 max-w-6xl">
           {/* Book Cover */}
-          <div>
-            <Card className="overflow-hidden bg-card/50 backdrop-blur border-primary/30">
+          <div className="space-y-6">
+            <Card className="overflow-hidden bg-card/50 backdrop-blur border-primary/30 shadow-2xl">
               <div className="relative aspect-[3/4]">
                 <Image src={book.coverImage || "/placeholder.svg"} alt={book.title} fill className="object-cover" />
               </div>
             </Card>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-card/30 p-4 rounded-xl border border-border">
+                <div className="text-muted-foreground text-xs uppercase font-bold tracking-widest mb-1">Length</div>
+                <div className="text-xl font-display uppercase">{book.pageCount} Pages</div>
+              </div>
+              <div className="bg-card/30 p-4 rounded-xl border border-border">
+                <div className="text-muted-foreground text-xs uppercase font-bold tracking-widest mb-1">Year</div>
+                <div className="text-xl font-display uppercase">{book.publishedYear}</div>
+              </div>
+            </div>
           </div>
 
           {/* Book Details */}
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div>
-              <div className="inline-block bg-primary/20 text-primary px-3 py-1 rounded mb-4 text-sm font-medium">
+              <div className="inline-flex items-center gap-2 bg-primary/20 text-primary px-3 py-1 rounded-full mb-6 text-sm font-bold uppercase tracking-tighter">
+                <Sparkles className="w-4 h-4" />
                 {book.genre}
               </div>
-              <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-2 text-balance">{book.title}</h1>
-              <p className="text-2xl text-muted-foreground mb-4">by {book.author}</p>
+              <h1 className="font-display text-6xl md:text-7xl lg:text-8xl tracking-tighter mb-4 leading-[0.85] text-balance">
+                {book.title}
+              </h1>
+              <p className="text-3xl text-muted-foreground font-light mb-6">By {book.author}</p>
 
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-1">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2 py-2 px-4 bg-secondary/10 rounded-full border border-secondary/20">
                   <Star className="w-5 h-5 fill-secondary text-secondary" />
-                  <span className="font-medium text-lg">{book.rating}</span>
+                  <span className="font-bold text-xl leading-none">{book.rating}</span>
                 </div>
-                <span className="text-muted-foreground">• {book.pageCount} pages</span>
-                <span className="text-muted-foreground">• {book.publishedYear}</span>
+                <div className="flex -space-x-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="w-8 h-8 rounded-full border-2 border-background bg-muted overflow-hidden">
+                      <Image src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${book.id}${i}`} alt="User" width={32} height={32} />
+                    </div>
+                  ))}
+                  <div className="w-8 h-8 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-[10px] font-bold">
+                    +1.2k
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="border-t border-border pt-6">
-              <div className="flex items-baseline gap-2 mb-6">
-                <span className="font-display text-5xl text-secondary">${book.price}</span>
-                <span className="text-muted-foreground">one-time purchase</span>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <AddToCartButton book={{
-                  id: book.id,
-                  title: book.title,
-                  price: book.price,
-                  coverImage: book.coverImage || "/placeholder.svg"
-                }} />
-              </div>
-            </div>
+            <BookPurchaseSection book={book} />
 
             <div className="border-t border-border pt-6">
               <h2 className="font-display text-2xl tracking-wide mb-3">ABOUT THIS BOOK</h2>

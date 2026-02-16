@@ -29,7 +29,12 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
         genre: initialData?.genre || "Science Fiction",
         price: initialData?.price || 0,
         isbn: initialData?.isbn || "",
-        status: initialData?.status || "Published"
+        status: initialData?.status || "Published",
+        variants: initialData?.variants || [
+            { format: "ebook" as const, price: 0, available: true },
+            { format: "paper_book" as const, price: 0, available: true },
+            { format: "komet_card" as const, price: 0, available: true },
+        ]
     })
 
     const [files, setFiles] = useState<{
@@ -47,7 +52,12 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
         if (!formData.title) newErrors.title = "Title is required"
         if (!formData.author) newErrors.author = "Author is required"
         if (!formData.description) newErrors.description = "Description is required"
-        if (formData.price <= 0) newErrors.price = "Price must be greater than 0"
+
+        formData.variants.forEach(v => {
+            if (v.price <= 0) {
+                newErrors[`price_${v.format}`] = `${v.format.replace('_', ' ')} price must be greater than 0`
+            }
+        })
 
         if (!isEdit) {
             if (!files.cover) newErrors.cover = "Cover image is required"
@@ -147,16 +157,15 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="price">Price ($)</Label>
+                                    <Label htmlFor="price">Base Reference Price ($)</Label>
                                     <Input
                                         id="price"
                                         type="number"
                                         step="0.01"
                                         value={formData.price}
                                         onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                                        className={errors.price ? "border-destructive" : ""}
                                     />
-                                    {errors.price && <p className="text-xs text-destructive">{errors.price}</p>}
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold">This price serves as a general reference for internal logging.</p>
                                 </div>
                             </div>
 
@@ -171,6 +180,67 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                 />
                                 {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
                             </div>
+                        </div>
+                    </Card>
+
+                    <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="font-display text-2xl tracking-wide">VARIANT PRICING & INVENTORY</h2>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-secondary/10 rounded-full border border-secondary/20">
+                                <AlertCircle className="w-4 h-4 text-secondary" />
+                                <span className="text-[10px] font-bold uppercase text-secondary">Prices specific to format</span>
+                            </div>
+                        </div>
+                        <div className="space-y-6">
+                            {formData.variants.map((variant, index) => (
+                                <div key={variant.format} className="flex flex-col md:flex-row md:items-end gap-6 p-6 rounded-2xl bg-muted/20 border border-border/50 hover:border-primary/30 transition-all group">
+                                    <div className="flex-1 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <Label className="uppercase tracking-widest text-[10px] font-black text-muted-foreground">
+                                                {variant.format === "ebook" ? "Digital Edition" : variant.format === "paper_book" ? "Physical Copy" : "Komet Card"}
+                                            </Label>
+                                        </div>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-display text-muted-foreground">$</span>
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                placeholder="0.00"
+                                                value={variant.price || ""}
+                                                onChange={(e) => {
+                                                    const newVariants = [...formData.variants]
+                                                    newVariants[index].price = parseFloat(e.target.value) || 0
+                                                    setFormData({ ...formData, variants: newVariants })
+                                                }}
+                                                className={`pl-9 h-14 text-xl font-display bg-background/50 ${errors[`price_${variant.format}`] ? "border-destructive shadow-[0_0_10px_rgba(239,68,68,0.1)]" : "focus:border-primary"}`}
+                                            />
+                                        </div>
+                                        {errors[`price_${variant.format}`] && (
+                                            <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter">{errors[`price_${variant.format}`]}</p>
+                                        )}
+                                    </div>
+                                    <div className={`flex items-center gap-4 h-14 px-5 rounded-xl border transition-all ${variant.available ? "bg-primary/5 border-primary/20" : "bg-destructive/5 border-destructive/20 opacity-60"}`}>
+                                        <div className="space-y-0.5">
+                                            <Label htmlFor={`available-${variant.format}`} className="text-[10px] font-black uppercase tracking-widest cursor-pointer block leading-none">
+                                                Availability
+                                            </Label>
+                                            <span className={`text-xs font-medium ${variant.available ? "text-primary" : "text-destructive"}`}>
+                                                {variant.available ? "IN STOCK" : "OUT OF STOCK"}
+                                            </span>
+                                        </div>
+                                        <Switch
+                                            id={`available-${variant.format}`}
+                                            checked={variant.available}
+                                            onCheckedChange={(checked) => {
+                                                const newVariants = [...formData.variants]
+                                                newVariants[index].available = checked
+                                                setFormData({ ...formData, variants: newVariants })
+                                            }}
+                                            className="data-[state=checked]:bg-primary"
+                                        />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </Card>
 

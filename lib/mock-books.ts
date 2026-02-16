@@ -1,15 +1,22 @@
+export type BookFormat = "ebook" | "paper_book" | "komet_card"
+
 export interface Book {
   id: string
   title: string
   author: string
   coverImage: string
-  price: number
+  price: number // Default price (usually ebook)
   genre: string
   description: string
   rating: number
   pageCount: number
   publishedYear: number
   isbn: string
+  variants: {
+    format: BookFormat
+    price: number
+    available: boolean
+  }[]
 }
 
 export const GENRES = [
@@ -38,6 +45,11 @@ export const mockBooks: Book[] = [
     pageCount: 412,
     publishedYear: 2024,
     isbn: "978-0-123456-78-9",
+    variants: [
+      { format: "ebook", price: 14.99, available: true },
+      { format: "paper_book", price: 29.99, available: true },
+      { format: "komet_card", price: 9.99, available: true },
+    ],
   },
   {
     id: "2",
@@ -51,6 +63,11 @@ export const mockBooks: Book[] = [
     pageCount: 356,
     publishedYear: 2023,
     isbn: "978-0-123456-78-8",
+    variants: [
+      { format: "ebook", price: 12.99, available: true },
+      { format: "paper_book", price: 24.99, available: true },
+      { format: "komet_card", price: 9.99, available: true },
+    ],
   },
   {
     id: "3",
@@ -65,6 +82,11 @@ export const mockBooks: Book[] = [
     pageCount: 384,
     publishedYear: 2024,
     isbn: "978-0-123456-78-7",
+    variants: [
+      { format: "ebook", price: 15.99, available: true },
+      { format: "paper_book", price: 34.99, available: true },
+      { format: "komet_card", price: 12.99, available: true },
+    ],
   },
   {
     id: "4",
@@ -79,6 +101,11 @@ export const mockBooks: Book[] = [
     pageCount: 502,
     publishedYear: 2023,
     isbn: "978-0-123456-78-6",
+    variants: [
+      { format: "ebook", price: 18.99, available: true },
+      { format: "paper_book", price: 39.99, available: true },
+      { format: "komet_card", price: 14.99, available: true },
+    ],
   },
   {
     id: "5",
@@ -92,6 +119,11 @@ export const mockBooks: Book[] = [
     pageCount: 298,
     publishedYear: 2024,
     isbn: "978-0-123456-78-5",
+    variants: [
+      { format: "ebook", price: 11.99, available: true },
+      { format: "paper_book", price: 21.99, available: true },
+      { format: "komet_card", price: 8.99, available: true },
+    ],
   },
   {
     id: "6",
@@ -105,6 +137,11 @@ export const mockBooks: Book[] = [
     pageCount: 445,
     publishedYear: 2024,
     isbn: "978-0-123456-78-4",
+    variants: [
+      { format: "ebook", price: 15.99, available: true },
+      { format: "paper_book", price: 32.99, available: true },
+      { format: "komet_card", price: 12.99, available: true },
+    ],
   },
   {
     id: "7",
@@ -118,6 +155,11 @@ export const mockBooks: Book[] = [
     pageCount: 628,
     publishedYear: 2023,
     isbn: "978-0-123456-78-3",
+    variants: [
+      { format: "ebook", price: 16.99, available: true },
+      { format: "paper_book", price: 36.99, available: true },
+      { format: "komet_card", price: 15.99, available: true },
+    ],
   },
   {
     id: "8",
@@ -131,5 +173,10 @@ export const mockBooks: Book[] = [
     pageCount: 512,
     publishedYear: 2024,
     isbn: "978-0-123456-78-2",
+    variants: [
+      { format: "ebook", price: 17.99, available: true },
+      { format: "paper_book", price: 38.99, available: true },
+      { format: "komet_card", price: 16.99, available: true },
+    ],
   },
 ]
