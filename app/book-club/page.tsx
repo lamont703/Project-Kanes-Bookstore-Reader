@@ -93,19 +93,31 @@ export default function BookClubPage() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-border">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-background to-background" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(127,255,0,0.1),transparent_50%)]" />
+        {/* Cosmic background effect */}
+        <div className="absolute inset-0 bg-gradient-to-b from-orange-600/10 via-background to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,140,0,0.2),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(255,140,0,0.1),transparent_60%)]" />
 
-        <div className="container relative mx-auto px-4 py-16 md:py-24">
+        <div className="container relative mx-auto px-4 py-20 md:py-32">
+          {/* Neon reflection on 'ground' */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 translate-y-24 w-[600px] h-[300px] bg-[#ff8c00]/10 blur-[120px] rounded-full -z-10 animate-pulse" />
+
           <div className="max-w-4xl mx-auto text-center space-y-8">
-            <div className="inline-flex items-center gap-2 bg-primary/20 text-primary border border-primary/30 px-4 py-2 rounded-full">
+            <div className="inline-flex items-center gap-2 bg-orange-600/10 text-orange-500 border border-orange-500/30 px-4 py-2 rounded-full shadow-[0_0_15px_rgba(255,140,0,0.1)]">
               <Crown className="w-4 h-4" />
-              <span className="text-sm font-medium">PREMIUM MEMBERSHIP</span>
+              <span className="text-xs font-bold tracking-widest uppercase">PREMIUM MEMBERSHIP</span>
             </div>
 
-            <h1 className="font-display text-6xl md:text-8xl tracking-wider leading-none text-balance">
-              <span className="text-secondary">KOMET</span> <span className="text-primary">BOOK CLUB</span>
-            </h1>
+            <div className="inline-block px-10 py-12 md:px-16 md:py-16 neon-sign-board mx-auto">
+              <h1 className="flex flex-col items-center gap-2">
+                <span className="komet-neon-text komet-neon-text-flicker text-5xl md:text-7xl lg:text-8xl">
+                  KOMET
+                </span>
+                <span className="komet-neon-text text-6xl md:text-8xl lg:text-9xl">
+                  BOOK CLUB
+                </span>
+              </h1>
+            </div>
 
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
               Join thousands of Komet readers exploring curated selections, exclusive discussions, and unlimited access

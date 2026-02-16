@@ -12,9 +12,9 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-border">
         {/* Cosmic background effect */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-background to-background" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(127,255,0,0.1),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(255,215,0,0.08),transparent_50%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-orange-600/10 via-background to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,140,0,0.2),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(255,140,0,0.1),transparent_60%)]" />
 
         <div className="container relative mx-auto px-4 py-16 md:py-24">
           {/* Header removed */}
@@ -22,15 +22,21 @@ export default function LandingPage() {
           {/* Hero Content */}
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <div className="inline-block">
-              <div className="bg-primary/10 text-primary border border-primary/30 px-4 py-2 rounded-full text-sm font-medium">
+              <div className="bg-orange-600/10 text-orange-500 border border-orange-500/30 px-4 py-2 rounded-full text-xs font-bold tracking-widest uppercase">
                 THE FUNKIEST BOOKSTORE IN THE UNIVERSE
               </div>
             </div>
 
-            <h1 className="font-[family-name:var(--font-hero)] text-5xl md:text-7xl lg:text-8xl tracking-wider leading-none text-balance">
-              <span className="text-primary [text-shadow:0_0_12px_currentColor]">READ</span> <span className="text-secondary [text-shadow:0_0_12px_currentColor]">KOMET</span>{" "}
-              <span className="text-foreground [text-shadow:0_0_12px_currentColor]">BOOKS</span>
-            </h1>
+            <div className="inline-block px-10 py-12 md:px-16 md:py-16 neon-sign-board mx-auto">
+              <h1 className="flex flex-col items-center gap-2">
+                <span className="komet-neon-text komet-neon-text-flicker text-5xl md:text-7xl lg:text-8xl">
+                  READ KOMET
+                </span>
+                <span className="komet-neon-text text-6xl md:text-8xl lg:text-9xl">
+                  BOOKS
+                </span>
+              </h1>
+            </div>
 
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed">
               Discover mind-bending reads, join our intergalactic book club, and explore stories from across the cosmos.
