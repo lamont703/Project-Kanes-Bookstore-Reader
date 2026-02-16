@@ -47,10 +47,10 @@ export default function BrowsePage() {
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-2">
-            <span className="text-primary">KOMET</span> <span className="text-secondary">LIBRARY</span>
+          <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-2 uppercase">
+            <span className="text-primary">THE KOMET</span> <span className="text-secondary">BOOK LIBRARY</span>
           </h1>
-          <p className="text-lg text-muted-foreground">Discover your next great read from across the galaxy</p>
+          <p className="text-lg text-muted-foreground">Explore original stories from the World of Kane: Crime Saga, Kosmic Myths, Street Legends, and Everything In Between.</p>
         </div>
 
         {/* Search and Filters */}

@@ -105,7 +105,7 @@ export default function BookClubPage() {
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <div className="inline-flex items-center gap-2 bg-orange-600/10 text-orange-500 border border-orange-500/30 px-4 py-2 rounded-full shadow-[0_0_15px_rgba(255,140,0,0.1)]">
               <Crown className="w-4 h-4" />
-              <span className="text-xs font-bold tracking-widest uppercase">PREMIUM MEMBERSHIP</span>
+              <span className="text-xs font-bold tracking-widest uppercase">Premium Access</span>
             </div>
 
             <div className="inline-block px-10 py-12 md:px-16 md:py-16 neon-sign-board mx-auto">
@@ -120,8 +120,7 @@ export default function BookClubPage() {
             </div>
 
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Join thousands of Komet readers exploring curated selections, exclusive discussions, and unlimited access
-              to our entire book club library.
+              Unlock the full Komet Book experience. Get exclusive E-Komet Books, member-only perks, and access to the growing World of Kane's Komet Book library.
             </p>
 
             <div className="flex flex-col items-center justify-center gap-2">

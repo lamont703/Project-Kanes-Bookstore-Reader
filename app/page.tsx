@@ -27,29 +27,31 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="inline-block px-10 py-12 md:px-16 md:py-16 neon-sign-board mx-auto">
-              <h1 className="flex flex-col items-center gap-2">
-                <span className="komet-neon-text komet-neon-text-flicker text-5xl md:text-7xl lg:text-8xl">
-                  READ KOMET
+            <div className="inline-block w-full max-w-[95vw] sm:max-w-none sm:w-auto px-6 py-10 md:px-16 md:py-16 neon-sign-board mx-auto overflow-hidden">
+              <h1 className="flex flex-col items-center gap-1 md:gap-2">
+                <span className="komet-neon-text komet-neon-text-flicker text-3xl sm:text-4xl md:text-6xl lg:text-7xl break-words text-center">
+                  READ THE
                 </span>
-                <span className="komet-neon-text text-6xl md:text-8xl lg:text-9xl">
-                  BOOKS
+                <span className="komet-neon-text text-4xl sm:text-5xl md:text-7xl lg:text-8xl break-words text-center">
+                  KOMET BOOK
+                </span>
+                <span className="komet-neon-text text-5xl sm:text-6xl md:text-8xl lg:text-9xl break-words text-center">
+                  COLLECTION
                 </span>
               </h1>
             </div>
 
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed">
-              Discover mind-bending reads, join our intergalactic book club, and explore stories from across the cosmos.
+              Dive into originial short stories from the World of Kane. Explore powerful characters, wild stories, and exclusive komet books you won't find anywhere else.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button size="lg" className="text-lg px-8 animate-pulse-glow" asChild>
                 <Link href="/browse">
                   <Rocket className="w-5 h-5 mr-2" />
-                  Start Reading
+                  Start Your Journey
                 </Link>
               </Button>
-
             </div>
           </div>
 
@@ -61,7 +63,7 @@ export default function LandingPage() {
               </div>
               <h3 className="font-display text-2xl tracking-wide mb-2">KOMET LIBRARY</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Access thousands of books from every genre. Purchase individual titles or subscribe to our book club.
+                Access the growing Komet Book Library of original short stories. Read individual titles or unlock the full experience with the Komet Book Club.
               </p>
             </Card>
 
@@ -81,7 +83,7 @@ export default function LandingPage() {
               </div>
               <h3 className="font-display text-2xl tracking-wide mb-2">BOOK CLUB</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Get 1 curated book monthly, join discussions, and connect with fellow Komet readers.
+                Unlock a featured Komet Book each month, join member-only discussions, and connect with readers inside the World of Kane.
               </p>
             </Card>
           </div>

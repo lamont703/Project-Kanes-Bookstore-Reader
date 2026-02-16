@@ -140,7 +140,7 @@ export const bookClubBenefits = [
   },
   {
     title: "Surprise Gift Item",
-    description: "Unbox a mystery item like a bookmark, wristband, or tile piece in your initial membership kit.",
+    description: "Unbox Mystery item along with your membership kit.",
   },
   {
     title: "Kane Dealer Code (35% OFF)",
