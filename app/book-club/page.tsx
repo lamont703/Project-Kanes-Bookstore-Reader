@@ -111,7 +111,7 @@ export default function BookClubPage() {
             <div className="inline-block px-10 py-12 md:px-16 md:py-16 neon-sign-board mx-auto">
               <h1 className="flex flex-col items-center gap-2">
                 <span className="komet-neon-text komet-neon-text-flicker text-5xl md:text-7xl lg:text-8xl">
-                  KOMET
+                  KANE&apos;S KOMET
                 </span>
                 <span className="komet-neon-text text-6xl md:text-8xl lg:text-9xl">
                   BOOK CLUB
@@ -168,7 +168,7 @@ export default function BookClubPage() {
             <h2 className="font-display text-4xl md:text-5xl tracking-wider mb-2">
               <span className="text-secondary">MEMBERSHIP</span> BENEFITS
             </h2>
-            <p className="text-lg text-muted-foreground">Everything you get as a Komet Book Club member</p>
+            <p className="text-lg text-muted-foreground">Everything you get as a Kane&apos;s Komet Book Club member</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

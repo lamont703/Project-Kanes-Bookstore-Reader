@@ -136,7 +136,7 @@ export const bookClubBenefits = [
   },
   {
     title: "2 Free E-Books",
-    description: "Select any 2 titles from the Komet Book Club Collection to instantly kickstart your digital library.",
+    description: "Select any 2 titles from the Kane's Komet Book Club Collection to instantly kickstart your digital library.",
   },
   {
     title: "Surprise Gift Item",

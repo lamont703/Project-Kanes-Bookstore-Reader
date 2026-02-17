@@ -63,7 +63,7 @@ export default function LandingPage() {
               </div>
               <h3 className="font-display text-2xl tracking-wide mb-2">KOMET LIBRARY</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Access the growing Komet Book Library of original short stories. Read individual titles or unlock the full experience with the Komet Book Club.
+                Access the growing Komet Book Library of original short stories. Read individual titles or unlock the full experience with Kane&apos;s Komet Book Club.
               </p>
             </Card>
 
