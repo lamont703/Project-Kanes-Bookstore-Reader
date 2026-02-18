@@ -49,7 +49,6 @@ export default function AdminDiscussionsPage() {
     const [formData, setFormData] = useState<Partial<DiscussionTopic>>({
         title: "",
         description: "",
-        category: "General",
         bookId: "",
         isPinned: false,
         isFeatured: false
@@ -74,7 +73,6 @@ export default function AdminDiscussionsPage() {
         setFormData({
             title: "",
             description: "",
-            category: "General",
             bookId: "",
             isPinned: false,
             isFeatured: false
@@ -87,7 +85,6 @@ export default function AdminDiscussionsPage() {
         setFormData({
             title: topic.title,
             description: topic.description,
-            category: topic.category,
             bookId: topic.bookId || "",
             isPinned: topic.isPinned,
             isFeatured: topic.isFeatured
@@ -111,7 +108,7 @@ export default function AdminDiscussionsPage() {
                 id: `topic-${Date.now()}`,
                 title: formData.title!,
                 description: formData.description || "",
-                category: formData.category as any,
+                category: "General", // Default hidden category
                 bookId: formData.bookId,
                 isPinned: formData.isPinned || false,
                 isFeatured: formData.isFeatured || false,
@@ -202,9 +199,6 @@ export default function AdminDiscussionsPage() {
                             <div className="flex flex-col md:flex-row gap-6">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3 mb-2">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                                            {topic.category}
-                                        </span>
                                         {topic.bookId && (
                                             <span className="text-[10px] font-bold uppercase tracking-widest text-secondary bg-secondary/10 px-2 py-0.5 rounded border border-secondary/20">
                                                 Linked Volume
@@ -329,36 +323,19 @@ export default function AdminDiscussionsPage() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="category">Sector / Category</Label>
-                                <select
-                                    id="category"
-                                    className="w-full bg-background border border-border rounded-md px-3 h-10 text-sm outline-none focus:ring-1 focus:ring-primary"
-                                    value={formData.category}
-                                    onChange={e => setFormData({ ...formData, category: e.target.value as any })}
-                                >
-                                    <option value="General">General Sector</option>
-                                    <option value="Book Club">Book Club Forge</option>
-                                    <option value="Sci-Fi">Sci-Fi Archives</option>
-                                    <option value="Fantasy">Magic Realms</option>
-                                    <option value="News">Komet Broadcasts</option>
-                                </select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="book">Linked Volume (Optional)</Label>
-                                <select
-                                    id="book"
-                                    className="w-full bg-background border border-border rounded-md px-3 h-10 text-sm outline-none focus:ring-1 focus:ring-primary"
-                                    value={formData.bookId}
-                                    onChange={e => setFormData({ ...formData, bookId: e.target.value })}
-                                >
-                                    <option value="">None</option>
-                                    {mockBooks.map(book => (
-                                        <option key={book.id} value={book.id}>{book.title}</option>
-                                    ))}
-                                </select>
-                            </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="book">Linked Volume (Optional)</Label>
+                            <select
+                                id="book"
+                                className="w-full bg-background border border-border rounded-md px-3 h-10 text-sm outline-none focus:ring-1 focus:ring-primary"
+                                value={formData.bookId}
+                                onChange={e => setFormData({ ...formData, bookId: e.target.value })}
+                            >
+                                <option value="">None</option>
+                                {mockBooks.map(book => (
+                                    <option key={book.id} value={book.id}>{book.title}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 pt-2">

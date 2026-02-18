@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Home, BookOpen, Users, Calendar, MessageSquare, X } from "lucide-react"
+import { Home, BookOpen, Users, Calendar, MessageSquare, X, Star } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -16,7 +16,7 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
   const navItems = [
     { href: "/admin", icon: Home, label: "Dashboard" },
     { href: "/admin/books", icon: BookOpen, label: "Catalog" },
-    { href: "/admin/book-club", icon: Calendar, label: "Monthly Selection" },
+    { href: "/admin/book-club", icon: Star, label: "Monthly Selection" },
     { href: "/admin/discussions", icon: MessageSquare, label: "Discussions" },
     { href: "/admin/events", icon: Calendar, label: "Events" },
     { href: "/admin/users", icon: Users, label: "Users" },
@@ -50,7 +50,10 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href
+          const isActive = item.href === "/admin"
+            ? pathname === "/admin"
+            : pathname === item.href || pathname.startsWith(item.href + "/")
+
           return (
             <Button
               key={item.href}

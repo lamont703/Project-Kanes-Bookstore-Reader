@@ -11,11 +11,70 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import { Check, Truck } from "lucide-react"
 
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+import { CreditCard } from "lucide-react"
+
 export default function CheckoutPage() {
     const { items, clearCart } = useCart()
     const router = useRouter()
     const [isProcessing, setIsProcessing] = useState(false)
     const [orderComplete, setOrderComplete] = useState(false)
+
+    // Form State
+    const [formData, setFormData] = useState({
+        firstName: "Jane",
+        lastName: "Doe",
+        address: "123 Cosmic Way",
+        city: "Nebula City",
+        zip: "10001",
+        country: "United States",
+        ccName: "",
+        ccNumber: "",
+        ccExpiry: "",
+        ccCvc: ""
+    })
+    const [errors, setErrors] = useState<Record<string, boolean>>({})
+
+    const updateFormData = (field: string, value: string) => {
+        setFormData(prev => ({ ...prev, [field]: value }))
+        if (errors[field]) {
+            setErrors(prev => {
+                const next = { ...prev }
+                delete next[field]
+                return next
+            })
+        }
+    }
+
+    const validate = () => {
+        const newErrors: Record<string, boolean> = {}
+
+        // Address validation
+        if (!formData.firstName) newErrors.firstName = true
+        if (!formData.lastName) newErrors.lastName = true
+        if (!formData.address || formData.address.length < 5) newErrors.address = true
+        if (!formData.city) newErrors.city = true
+        if (!formData.zip || !/^\d{5}(-\d{4})?$/.test(formData.zip)) newErrors.zip = true
+
+        // Payment validation
+        if (!formData.ccName) newErrors.ccName = true
+        const cleanCC = formData.ccNumber.replace(/\s+/g, '')
+        if (!/^\d{16}$/.test(cleanCC)) {
+            newErrors.ccNumber = true
+            toast.error("Invalid card format. Use 16 digits.")
+        }
+        if (!/^\d{2}\/\d{2}$/.test(formData.ccExpiry)) newErrors.ccExpiry = true
+        if (!/^\d{3}$/.test(formData.ccCvc)) newErrors.ccCvc = true
+
+        setErrors(newErrors)
+
+        if (Object.keys(newErrors).length > 0) {
+            toast.error("Please correct the errors in the form")
+            return false
+        }
+        return true
+    }
 
     // Redirect if not logged in
     useEffect(() => {
@@ -39,6 +98,8 @@ export default function CheckoutPage() {
 
     const handlePlaceOrder = (e: React.FormEvent) => {
         e.preventDefault()
+        if (!validate()) return
+
         setIsProcessing(true)
 
         // Simulate API call
@@ -89,38 +150,123 @@ export default function CheckoutPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="firstName">First Name</Label>
-                                        <Input id="firstName" placeholder="Jane" required defaultValue="Jane" />
+                                        <Input
+                                            id="firstName"
+                                            placeholder="Jane"
+                                            required
+                                            value={formData.firstName}
+                                            onChange={e => updateFormData("firstName", e.target.value)}
+                                            className={errors.firstName ? "border-destructive/50 ring-destructive/20" : ""}
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="lastName">Last Name</Label>
-                                        <Input id="lastName" placeholder="Doe" required defaultValue="Doe" />
+                                        <Input
+                                            id="lastName"
+                                            placeholder="Doe"
+                                            required
+                                            value={formData.lastName}
+                                            onChange={e => updateFormData("lastName", e.target.value)}
+                                            className={errors.lastName ? "border-destructive/50 ring-destructive/20" : ""}
+                                        />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="address">Address</Label>
-                                    <Input id="address" placeholder="123 Cosmic Way" required defaultValue="123 Cosmic Way" />
+                                    <Input
+                                        id="address"
+                                        placeholder="123 Cosmic Way"
+                                        required
+                                        value={formData.address}
+                                        onChange={e => updateFormData("address", e.target.value)}
+                                        className={errors.address ? "border-destructive/50 ring-destructive/20" : ""}
+                                    />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="city">City</Label>
-                                        <Input id="city" placeholder="Nebula City" required defaultValue="Nebula City" />
+                                        <Input
+                                            id="city"
+                                            placeholder="Nebula City"
+                                            required
+                                            value={formData.city}
+                                            onChange={e => updateFormData("city", e.target.value)}
+                                            className={errors.city ? "border-destructive/50 ring-destructive/20" : ""}
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="zip">Zip / Postal Code</Label>
-                                        <Input id="zip" placeholder="10001" required defaultValue="10001" />
+                                        <Input
+                                            id="zip"
+                                            placeholder="10001"
+                                            required
+                                            value={formData.zip}
+                                            onChange={e => updateFormData("zip", e.target.value)}
+                                            className={errors.zip ? "border-destructive/50 ring-destructive/20" : ""}
+                                        />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="country">Country</Label>
-                                    <Input id="country" placeholder="United States" required defaultValue="United States" />
+                                    <Input
+                                        id="country"
+                                        placeholder="United States"
+                                        required
+                                        value={formData.country}
+                                        onChange={e => updateFormData("country", e.target.value)}
+                                    />
                                 </div>
                             </form>
                         </Card>
 
                         <Card className="p-6">
                             <h2 className="font-display text-2xl tracking-wide mb-6">Payment Method</h2>
-                            <div className="p-4 border rounded-lg bg-card/50 text-muted-foreground text-sm">
-                                Mock Payment Integration (Card ending in 4242)
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="ccName">Name on Card</Label>
+                                    <Input
+                                        id="ccName"
+                                        placeholder="John Doe"
+                                        value={formData.ccName}
+                                        onChange={e => updateFormData("ccName", e.target.value)}
+                                        className={errors.ccName ? "border-destructive/50 ring-destructive/20" : ""}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="ccNum">Card Number</Label>
+                                    <div className="relative">
+                                        <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <Input
+                                            id="ccNum"
+                                            className={cn("pl-10", errors.ccNumber ? "border-destructive/50 ring-destructive/20" : "")}
+                                            placeholder="0000 0000 0000 0000"
+                                            value={formData.ccNumber}
+                                            onChange={e => updateFormData("ccNumber", e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="expiry">Expiry</Label>
+                                        <Input
+                                            id="expiry"
+                                            placeholder="MM/YY"
+                                            value={formData.ccExpiry}
+                                            onChange={e => updateFormData("ccExpiry", e.target.value)}
+                                            className={errors.ccExpiry ? "border-destructive/50 ring-destructive/20" : ""}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="cvc">CVC</Label>
+                                        <Input
+                                            id="cvc"
+                                            placeholder="123"
+                                            value={formData.ccCvc}
+                                            onChange={e => updateFormData("ccCvc", e.target.value)}
+                                            className={errors.ccCvc ? "border-destructive/50 ring-destructive/20" : ""}
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </Card>
                     </div>

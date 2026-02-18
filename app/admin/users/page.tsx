@@ -182,35 +182,40 @@ export default function AdminUsersPage() {
 
       {/* Manage Subscription Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] border-primary/20 bg-card/95 backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle>Manage Subscription</DialogTitle>
-            <DialogDescription>
-              Update subscription tier for {selectedUser?.name}.
+            <DialogTitle className="font-display text-3xl tracking-wider text-primary uppercase">Identity Modification</DialogTitle>
+            <DialogDescription className="text-base text-muted-foreground">
+              Update the clearance level and subscription tier for <span className="text-foreground font-bold italic">"{selectedUser?.name}"</span>.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="plan" className="text-right">
-                Plan
-              </Label>
+          <div className="grid gap-6 py-6">
+            <div className="space-y-2">
+              <Label htmlFor="plan" className="text-xs uppercase tracking-widest text-primary font-bold">Clearance Level</Label>
               <Select
                 value={newSubscription}
                 onValueChange={(value) => setNewSubscription(value as "free" | "premium")}
               >
-                <SelectTrigger className="col-span-3">
+                <SelectTrigger id="plan" className="w-full bg-background/50 border-border/50 h-12">
                   <SelectValue placeholder="Select a plan" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">Free</SelectItem>
-                  <SelectItem value="premium">Premium (Book Club)</SelectItem>
+                  <SelectItem value="free">Standard (Free)</SelectItem>
+                  <SelectItem value="premium">Elite (Book Club Access)</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {newSubscription === "premium"
+                  ? "Grants access to exclusive forum sectors and monthly features."
+                  : "Standard access to the public library catalog."}
+              </p>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleUpdateSubscription}>Save Changes</Button>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">Abort Mission</Button>
+            <Button onClick={handleUpdateSubscription} className="font-display tracking-widest w-full sm:w-auto">
+              SYNC IDENTITY
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

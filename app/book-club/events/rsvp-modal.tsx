@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Check, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import Link from "next/link"
 
 interface RsvpModalProps {
     eventTitle: string
@@ -63,19 +64,25 @@ export function RsvpModal({ eventTitle }: RsvpModalProps) {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 {isSuccess ? (
-                    <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
-                        <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
-                            <Check className="w-6 h-6 text-green-500" />
+                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-6 animate-fade-up">
+                        <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center border-2 border-primary/20 relative">
+                            <Check className="w-10 h-10 text-primary" />
+                            <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping opacity-25" />
                         </div>
-                        <div>
-                            <DialogTitle className="text-xl mb-2">You're In!</DialogTitle>
-                            <DialogDescription>
-                                Thanks for RSVPing to <strong>{eventTitle}</strong>. We've sent a confirmation to {email} with all the details.
+                        <div className="space-y-2">
+                            <DialogTitle className="text-3xl font-display tracking-wider uppercase">Signal Locked</DialogTitle>
+                            <DialogDescription className="text-base text-muted-foreground leading-relaxed px-4">
+                                Your coordinates are confirmed! We've sent an encrypted brief to <strong>{email}</strong>. Prepare for the jump to <strong>{eventTitle}</strong>.
                             </DialogDescription>
                         </div>
-                        <Button onClick={handleClose} className="mt-4">
-                            Close
-                        </Button>
+                        <div className="flex gap-4 w-full pt-4">
+                            <Button onClick={handleClose} variant="outline" className="flex-1 uppercase tracking-widest text-xs h-11 font-bold">
+                                Return
+                            </Button>
+                            <Button asChild className="flex-1 uppercase tracking-widest text-xs h-11 font-bold">
+                                <Link href="/dashboard">Dashboard</Link>
+                            </Button>
+                        </div>
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit}>

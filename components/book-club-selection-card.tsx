@@ -54,7 +54,6 @@ export function BookClubSelectionCard({ selection, book, isMember = false }: Boo
           <div className="border-t border-border pt-4">
             <h4 className="font-display text-xl tracking-wide mb-2">{book.title}</h4>
             <p className="text-sm text-muted-foreground mb-1">by {book.author}</p>
-            <p className="text-sm text-muted-foreground">{book.pageCount} pages</p>
           </div>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

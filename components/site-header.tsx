@@ -17,6 +17,17 @@ export function SiteHeader() {
     const [isLoggedIn, setIsLoggedIn] = React.useState(false)
     const pathname = usePathname()
     const { cartCount } = useCart()
+    const [isBouncing, setIsBouncing] = React.useState(false)
+    const prevCartCount = React.useRef(cartCount)
+
+    React.useEffect(() => {
+        if (cartCount > prevCartCount.current) {
+            setIsBouncing(true)
+            const timer = setTimeout(() => setIsBouncing(false), 400)
+            return () => clearTimeout(timer)
+        }
+        prevCartCount.current = cartCount
+    }, [cartCount])
 
     // Check login status
     React.useEffect(() => {
@@ -77,12 +88,12 @@ export function SiteHeader() {
                         </Link>
                     </div>
 
-                    {/* Desktop Nav */}
-                    <nav className="hidden md:flex items-center gap-6">
+                    {/* Desktop Center Nav */}
+                    <nav className="hidden md:flex flex-1 justify-center items-center gap-6 px-8">
                         <Link
                             href="/browse"
                             className={cn(
-                                "text-sm font-medium transition-colors hover:text-primary",
+                                "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
                                 pathname === "/browse" ? "text-primary" : "text-muted-foreground",
                             )}
                         >
@@ -91,63 +102,63 @@ export function SiteHeader() {
                         <Link
                             href="/book-club"
                             className={cn(
-                                "text-sm font-medium transition-colors hover:text-primary",
+                                "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
                                 pathname === "/book-club" ? "text-primary" : "text-muted-foreground",
                             )}
                         >
                             Book Club
                         </Link>
-                        {isLoggedIn && (
-                            <>
-                                <Link
-                                    href="/book-club/discussions"
-                                    className={cn(
-                                        "text-sm font-medium transition-colors hover:text-primary",
-                                        pathname.startsWith("/book-club/discussions") ? "text-primary" : "text-muted-foreground",
-                                    )}
-                                >
-                                    Discussions
-                                </Link>
-                                <Link
-                                    href="/book-club/events"
-                                    className={cn(
-                                        "text-sm font-medium transition-colors hover:text-primary",
-                                        pathname.startsWith("/book-club/events") ? "text-primary" : "text-muted-foreground",
-                                    )}
-                                >
-                                    Events
-                                </Link>
-                            </>
-                        )}
-                        {isLoggedIn && (
+
+                        {/* Only show these if logged in, but we use a small container to minimize shift */}
+                        <div className={cn("flex items-center gap-6 overflow-hidden transition-all duration-300",
+                            isLoggedIn ? "max-w-[400px] opacity-100" : "max-w-0 opacity-0")}>
+                            <Link
+                                href="/book-club/discussions"
+                                className={cn(
+                                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
+                                    pathname.startsWith("/book-club/discussions") ? "text-primary" : "text-muted-foreground",
+                                )}
+                            >
+                                Discussions
+                            </Link>
+                            <Link
+                                href="/book-club/events"
+                                className={cn(
+                                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
+                                    pathname.startsWith("/book-club/events") ? "text-primary" : "text-muted-foreground",
+                                )}
+                            >
+                                Events
+                            </Link>
                             <Link
                                 href="/dashboard"
                                 className={cn(
-                                    "text-sm font-medium transition-colors hover:text-primary",
+                                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
                                     pathname === "/dashboard" ? "text-primary" : "text-muted-foreground",
                                 )}
                             >
                                 My Library
                             </Link>
-                        )}
-                        {isLoggedIn && (
                             <Link
                                 href="/admin"
                                 className={cn(
-                                    "text-sm font-medium transition-colors hover:text-primary",
+                                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
                                     pathname === "/admin" ? "text-primary" : "text-muted-foreground",
                                 )}
                             >
                                 Admin
                             </Link>
-                        )}
+                        </div>
+                    </nav>
 
+                    {/* Right Actions */}
+                    <div className="hidden md:flex items-center gap-3 min-w-[140px] justify-end">
                         {/* Cart Icon */}
                         <Link href="/cart" className="relative group">
-                            <Button variant="ghost" size="icon" className="relative">
+                            <Button variant="ghost" size="icon" className={cn("relative h-10 w-10 transition-transform", isBouncing && "animate-cart-bounce")}>
                                 <ShoppingCart className="h-5 w-5" />
                                 {cartCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground animate-in zoom-in">
+                                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground animate-in zoom-in">
                                         {cartCount}
                                     </span>
                                 )}
@@ -155,18 +166,18 @@ export function SiteHeader() {
                         </Link>
 
                         {isLoggedIn ? (
-                            <Button variant="outline" size="sm" onClick={handleLogout}>
+                            <Button variant="outline" size="sm" onClick={handleLogout} className="h-9 min-w-[90px]">
                                 Sign Out
                             </Button>
                         ) : (
-                            <Button variant="default" size="sm" asChild className="animate-pulse-glow">
+                            <Button variant="default" size="sm" asChild className="h-9 min-w-[90px] animate-pulse-glow">
                                 <Link href="/login">
                                     <Rocket className="mr-2 h-4 w-4" />
                                     Sign In
                                 </Link>
                             </Button>
                         )}
-                    </nav>
+                    </div>
 
                     {/* Mobile Menu Toggle */}
                     <button

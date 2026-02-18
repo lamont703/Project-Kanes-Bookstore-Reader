@@ -9,11 +9,22 @@ import { Search, SlidersHorizontal } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { SiteHeader } from "@/components/site-header"
+import { Skeleton } from "@/components/ui/skeleton"
+import * as React from "react"
 
 export default function BrowsePage() {
   const [selectedGenre, setSelectedGenre] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<"title" | "price-low" | "price-high">("title")
+  const [isLoading, setIsLoading] = useState(true)
+
+  React.useEffect(() => {
+    // Simulate loading
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+    }, 1200)
+    return () => clearTimeout(timer)
+  }, [selectedGenre, sortBy]) // Re-trigger on filter change for better UX feel
 
   const filteredBooks = mockBooks
     .filter((book) => {
@@ -105,14 +116,30 @@ export default function BrowsePage() {
         </div>
 
         {/* Books Grid */}
-        {filteredBooks.length > 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="space-y-4">
+                <Skeleton className="aspect-[2/3] w-full rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <div className="flex justify-between pt-2">
+                    <Skeleton className="h-10 w-24" />
+                    <Skeleton className="h-10 w-10" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredBooks.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredBooks.map((book) => (
               <BookCard key={book.id} book={book} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-16">
+          <div className="text-center py-16 animate-fade-in">
             <p className="text-xl text-muted-foreground mb-4">No books found matching your criteria</p>
             <Button
               onClick={() => {

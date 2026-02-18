@@ -195,24 +195,27 @@ export default function ReadPage() {
         <div className="flex-1 overflow-y-auto" ref={contentRef}>
           <div className={`min-h-full ${themeClasses[settings.theme]} transition-colors`}>
             <div className="container max-w-3xl mx-auto px-4 py-12">
-              {/* Chapter Title */}
-              <h1 className="font-display text-4xl tracking-wide mb-8 text-balance">{currentChapter.title}</h1>
+              {/* Animated Content Wrapper */}
+              <div key={currentChapterIndex} className="animate-fade-up">
+                {/* Chapter Title */}
+                <h1 className="font-display text-4xl tracking-wide mb-8 text-balance">{currentChapter.title}</h1>
 
-              {/* Chapter Content */}
-              <div
-                className={`space-y-6 ${fontFamilyClasses[settings.fontFamily]}`}
-                style={{
-                  fontSize: `${settings.fontSize}px`,
-                  lineHeight: settings.lineHeight,
-                  textAlign: settings.textAlign,
-                }}
-                onMouseUp={handleTextSelection}
-              >
-                {currentChapter.content.map((paragraph, index) => (
-                  <p key={index} className="text-pretty">
-                    {paragraph}
-                  </p>
-                ))}
+                {/* Chapter Content */}
+                <div
+                  className={`space-y-6 ${fontFamilyClasses[settings.fontFamily]}`}
+                  style={{
+                    fontSize: `${settings.fontSize}px`,
+                    lineHeight: settings.lineHeight,
+                    textAlign: settings.textAlign,
+                  }}
+                  onMouseUp={handleTextSelection}
+                >
+                  {currentChapter.content.map((paragraph, index) => (
+                    <p key={index} className="text-pretty">
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
               </div>
 
               {/* Navigation */}

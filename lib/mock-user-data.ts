@@ -45,6 +45,18 @@ export const mockUserLibrary: UserLibraryBook[] = [
   },
 ]
 
+export interface UserOrder {
+  id: string
+  date: Date
+  total: number
+  status: "delivered" | "shipped" | "processing"
+  items: {
+    title: string
+    quantity: number
+    price: number
+  }[]
+}
+
 export const mockUserStats: UserStats = {
   booksOwned: 4,
   booksRead: 1,
@@ -52,3 +64,35 @@ export const mockUserStats: UserStats = {
   totalReadingTime: 1240,
   favoriteGenre: "Science Fiction",
 }
+
+export const mockOrders: UserOrder[] = [
+  {
+    id: "ORD-7742",
+    date: new Date("2025-01-15"),
+    total: 42.97,
+    status: "delivered",
+    items: [
+      { title: "Somes 3", quantity: 1, price: 14.99 },
+      { title: "Brute Syndicate 1", quantity: 2, price: 13.99 },
+    ]
+  },
+  {
+    id: "ORD-9921",
+    date: new Date("2024-12-10"),
+    total: 19.99,
+    status: "delivered",
+    items: [
+      { title: "Flying With The Chrysiridiarhipheus 1", quantity: 1, price: 19.99 },
+    ]
+  },
+  {
+    id: "ORD-2031",
+    date: new Date("2025-02-01"),
+    total: 29.98,
+    status: "processing",
+    items: [
+      { title: "The Cosmic Drift", quantity: 2, price: 14.99 }
+    ]
+  }
+]
+

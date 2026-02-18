@@ -32,6 +32,15 @@ const initialComments: CommentType[] = [
                 time: "1h ago",
                 content: "Right? checking previous chapters, the hints were there all along!",
                 likes: 45,
+                replies: [
+                    {
+                        id: 111,
+                        author: { name: "DeepThinker" },
+                        time: "45m ago",
+                        content: "Exactly! Like the way the droid kept looking at the pilot... that wasn't random curiosity, that was data synchronization.",
+                        likes: 24,
+                    }
+                ]
             },
             {
                 id: 12,
@@ -49,30 +58,111 @@ const initialComments: CommentType[] = [
         content: "Does anyone have theories about the sequel? That cliffhanger was intense. I feel like the Commander isn't actually dead...",
         likes: 42,
         replies: []
-    },
-    {
-        id: 3,
-        author: { name: "VoidDrifter" },
-        time: "45m ago",
-        content: "I totally missed the foreshadowing in chapter 3 until my second read. The author is a genius.",
-        likes: 12,
-        replies: [
-            {
-                id: 31,
-                author: { name: "StarGazer99" },
-                time: "15m ago",
-                content: "Chapter 3 is key! The dialogue between the pilot and the droid reveals everything.",
-                likes: 8,
-            }
-        ]
     }
 ]
+
+interface CommentItemProps {
+    comment: CommentType
+    onVote: (id: number, type: 'up' | 'down') => void
+    onReply: (parentId: number, content: string) => void
+    isNested?: boolean
+}
+
+function CommentItem({ comment, onVote, onReply, isNested = false }: CommentItemProps) {
+    const [isReplying, setIsReplying] = useState(false)
+    const [replyContent, setReplyContent] = useState("")
+
+    const handleReplySubmit = () => {
+        if (!replyContent.trim()) return
+        onReply(comment.id, replyContent)
+        setReplyContent("")
+        setIsReplying(false)
+    }
+
+    return (
+        <div className={cn("group", isNested && "mt-4 ml-4 pl-4 border-l-2 border-border/30")}>
+            <div className="flex gap-3">
+                <div className="flex flex-col items-center gap-1 w-8 pt-1">
+                    <div className="flex flex-col items-center group/vote">
+                        <ArrowUp
+                            className={cn(
+                                "w-4 h-4 cursor-pointer transition-colors",
+                                comment.userVote === 'up' ? "text-orange-500" : "text-muted-foreground hover:text-orange-500"
+                            )}
+                            onClick={() => onVote(comment.id, 'up')}
+                        />
+                        <span className={cn(
+                            "text-xs font-bold my-1",
+                            comment.userVote === 'up' ? "text-orange-500" : comment.userVote === 'down' ? "text-blue-500" : ""
+                        )}>
+                            {comment.likes}
+                        </span>
+                        <ArrowDown
+                            className={cn(
+                                "w-4 h-4 cursor-pointer transition-colors",
+                                comment.userVote === 'down' ? "text-blue-500" : "text-muted-foreground hover:text-blue-500"
+                            )}
+                            onClick={() => onVote(comment.id, 'down')}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex-1 pb-2">
+                    <div className="flex items-center gap-2 text-xs mb-1">
+                        <span className="font-bold text-foreground hover:underline cursor-pointer">{comment.author.name}</span>
+                        <span className="text-muted-foreground">• {comment.time}</span>
+                    </div>
+                    <p className="text-sm text-foreground/90 mb-2 leading-relaxed">{comment.content}</p>
+
+                    <div className="flex items-center gap-4">
+                        <button
+                            className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground hover:bg-muted px-1.5 py-0.5 rounded transition-colors uppercase tracking-wider"
+                            onClick={() => setIsReplying(!isReplying)}
+                        >
+                            <MessageSquare className="w-3 h-3" />
+                            Reply
+                        </button>
+                    </div>
+
+                    {isReplying && (
+                        <div className="mt-4 mb-4 animate-fade-in">
+                            <Textarea
+                                placeholder="What are your thoughts?"
+                                className="min-h-[80px] mb-2 bg-card"
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.target.value)}
+                                autoFocus
+                            />
+                            <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setIsReplying(false)}>Cancel</Button>
+                                <Button size="sm" className="h-8 text-xs" onClick={handleReplySubmit} disabled={!replyContent.trim()}>Reply</Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Recursive Replies */}
+                    {comment.replies && comment.replies.length > 0 && (
+                        <div className="space-y-4">
+                            {comment.replies.map((reply) => (
+                                <CommentItem
+                                    key={reply.id}
+                                    comment={reply}
+                                    onVote={onVote}
+                                    onReply={onReply}
+                                    isNested={true}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+}
 
 export default function DiscussionThreadClient({ discussion }: { discussion: any }) {
     const [comments, setComments] = useState<CommentType[]>(initialComments)
     const [newComment, setNewComment] = useState("")
-    const [replyingTo, setReplyingTo] = useState<number | null>(null)
-    const [replyContent, setReplyContent] = useState("")
 
     // Main discussion vote state
     const [discussionLikes, setDiscussionLikes] = useState(discussion.stats.likes)
@@ -95,40 +185,39 @@ export default function DiscussionThreadClient({ discussion }: { discussion: any
         setNewComment("")
     }
 
-    const handlePostReply = (parentId: number) => {
-        if (!replyContent.trim()) return
-
+    const handlePostReply = (parentId: number, content: string) => {
         const reply: CommentType = {
             id: Date.now(),
             author: { name: "KometExplorer" },
             time: "Just now",
-            content: replyContent,
+            content: content,
             likes: 1,
-            userVote: 'up', // Auto-upvote own reply
+            userVote: 'up',
+            replies: []
         }
 
-        setComments(comments.map(c => {
-            if (c.id === parentId) {
-                return {
-                    ...c,
-                    replies: [...(c.replies || []), reply]
+        const addReplyRecursive = (items: CommentType[]): CommentType[] => {
+            return items.map(item => {
+                if (item.id === parentId) {
+                    return { ...item, replies: [reply, ...(item.replies || [])] }
                 }
-            }
-            return c
-        }))
-        setReplyingTo(null)
-        setReplyContent("")
+                if (item.replies) {
+                    return { ...item, replies: addReplyRecursive(item.replies) }
+                }
+                return item
+            })
+        }
+
+        setComments(addReplyRecursive(comments))
+        toast.success("Transmission sent!")
     }
 
     const handleDiscussionVote = (type: 'up' | 'down') => {
         if (discussionUserVote === type) {
-            // Toggle off
             setDiscussionUserVote(undefined)
             setDiscussionLikes((prev: number) => type === 'up' ? prev - 1 : prev + 1)
         } else {
-            // Switch vote or separate new vote
-            const diff = discussionUserVote ? 2 : 1 // if switching (e.g. down -> up), add 2. If new, add 1.
-
+            const diff = discussionUserVote ? 2 : 1
             if (type === 'up') {
                 setDiscussionLikes((prev: number) => prev + diff)
             } else {
@@ -138,46 +227,30 @@ export default function DiscussionThreadClient({ discussion }: { discussion: any
         }
     }
 
-    const handleCommentVote = (commentId: number, type: 'up' | 'down', isReplyToId?: number) => {
-        // Helper to update a single comment object
-        const updateCommentVote = (c: CommentType) => {
-            if (c.id !== commentId) return c;
+    const handleCommentVote = (commentId: number, type: 'up' | 'down') => {
+        const updateVoteRecursive = (items: CommentType[]): CommentType[] => {
+            return items.map(c => {
+                if (c.id === commentId) {
+                    let newLikes = c.likes;
+                    let newVote = c.userVote;
 
-            let newLikes = c.likes;
-            let newVote = c.userVote;
-
-            if (c.userVote === type) {
-                // Toggle off
-                newVote = undefined;
-                newLikes = type === 'up' ? c.likes - 1 : c.likes + 1;
-            } else {
-                // Switch or new
-                const diff = c.userVote ? 2 : 1;
-                if (type === 'up') {
-                    newLikes = c.likes + diff;
-                } else {
-                    newLikes = c.likes - diff;
-                }
-                newVote = type;
-            }
-            return { ...c, likes: newLikes, userVote: newVote };
-        };
-
-        setComments(comments.map(c => {
-            if (isReplyToId) {
-                // It's a nested reply we are looking for inside this comment
-                if (c.id === isReplyToId && c.replies) {
-                    return {
-                        ...c,
-                        replies: c.replies.map(r => updateCommentVote(r))
+                    if (c.userVote === type) {
+                        newVote = undefined;
+                        newLikes = type === 'up' ? c.likes - 1 : c.likes + 1;
+                    } else {
+                        const diff = c.userVote ? 2 : 1;
+                        newLikes = type === 'up' ? c.likes + diff : c.likes - diff;
+                        newVote = type;
                     }
+                    return { ...c, likes: newLikes, userVote: newVote };
+                }
+                if (c.replies) {
+                    return { ...c, replies: updateVoteRecursive(c.replies) }
                 }
                 return c;
-            } else {
-                // Top level comment
-                return updateCommentVote(c);
-            }
-        }));
+            })
+        }
+        setComments(updateVoteRecursive(comments))
     }
 
     return (
@@ -185,201 +258,123 @@ export default function DiscussionThreadClient({ discussion }: { discussion: any
             <SiteHeader />
 
             <div className="container mx-auto px-4 py-8 max-w-5xl">
-                <Link href="/book-club/discussions" className="inline-flex items-center text-muted-foreground hover:text-primary mb-6 transition-colors">
-                    <span className="mr-2">←</span> Back to Discussions
+                <Link href="/book-club/discussions" className="inline-flex items-center text-muted-foreground hover:text-primary mb-6 transition-all group">
+                    <span className="mr-2 group-hover:-translate-x-1 transition-transform">←</span> Back to Discussions
                 </Link>
 
                 {/* Main Discussion Post (Reddit Style) */}
                 <div className="flex gap-4 mb-2">
                     {/* Vote Column */}
-                    <div className="flex flex-col items-center gap-1 w-10 pt-2 hidden sm:flex">
+                    <div className="flex flex-col items-center gap-1 w-12 pt-2 hidden sm:flex">
                         <Button
                             variant="ghost"
                             size="icon"
-                            className={`h-8 w-8 hover:bg-transparent ${discussionUserVote === 'up' ? 'text-orange-500' : 'text-muted-foreground hover:text-orange-500'}`}
+                            className={cn(
+                                "h-10 w-10 hover:bg-transparent transition-colors",
+                                discussionUserVote === 'up' ? "text-orange-500" : "text-muted-foreground hover:text-orange-500"
+                            )}
                             onClick={() => handleDiscussionVote('up')}
                         >
-                            <ArrowUp className="w-6 h-6" />
+                            <ArrowUp className="w-7 h-7" />
                         </Button>
-                        <span className={`text-sm font-bold ${discussionUserVote === 'up' ? 'text-orange-500' : discussionUserVote === 'down' ? 'text-blue-500' : ''}`}>
+                        <span className={cn(
+                            "text-lg font-bold",
+                            discussionUserVote === 'up' ? "text-orange-500" : discussionUserVote === 'down' ? "text-blue-500" : ""
+                        )}>
                             {discussionLikes}
                         </span>
                         <Button
                             variant="ghost"
                             size="icon"
-                            className={`h-8 w-8 hover:bg-transparent ${discussionUserVote === 'down' ? 'text-blue-500' : 'text-muted-foreground hover:text-blue-500'}`}
+                            className={cn(
+                                "h-10 w-10 hover:bg-transparent transition-colors",
+                                discussionUserVote === 'down' ? "text-blue-500" : "text-muted-foreground hover:text-blue-500"
+                            )}
                             onClick={() => handleDiscussionVote('down')}
                         >
-                            <ArrowDown className="w-6 h-6" />
+                            <ArrowDown className="w-7 h-7" />
                         </Button>
                     </div>
 
                     {/* Content Column */}
                     <div className="flex-1">
-                        <Card className="bg-card border-border overflow-hidden">
-                            <div className="p-4 sm:p-6">
+                        <Card className="bg-card/50 backdrop-blur border-border overflow-hidden">
+                            <div className="p-4 sm:p-8">
                                 {/* Post Header */}
                                 <div className="flex items-center text-xs text-muted-foreground mb-4 gap-2">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center text-[10px] font-bold text-primary">
+                                        <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center text-xs font-bold text-primary border border-primary/30">
                                             {discussion.author.name.charAt(0)}
                                         </div>
-                                        <span className="font-semibold text-foreground hover:underline cursor-pointer">r/{discussion.category.replace(" ", "")}</span>
-                                        <span>•</span>
-                                        <span>Posted by u/{discussion.author.name}</span>
-                                        <span>•</span>
-                                        <span>{discussion.lastReply.time}</span>
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-foreground">u/{discussion.author.name}</span>
+                                            <span>{discussion.lastReply.time}</span>
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Title & Body */}
-                                <h1 className="text-xl md:text-2xl font-bold mb-4 leading-snug">{discussion.title}</h1>
-                                <div className="prose prose-invert max-w-none text-muted-foreground mb-6">
+                                <h1 className="text-2xl md:text-3xl font-bold mb-6 leading-tight tracking-tight">{discussion.title}</h1>
+                                <div className="prose prose-invert max-w-none text-muted-foreground mb-8 text-lg leading-relaxed">
                                     <p>I just finished 'Cosmic Drift' and that ending completely blew my mind! The twist was unexpected but made so much sense in hindsight. What did you all think?</p>
                                     <p className="mt-4">Currently re-reading Chapter 12 to see if I missed any clues. The character development of Zara was also top-tier.</p>
                                 </div>
 
                                 {/* Action Bar */}
-                                <div className="flex items-center gap-2 text-muted-foreground text-sm border-t border-border pt-3">
-                                    <Button variant="ghost" size="sm" className="gap-2 px-2">
+                                <div className="flex items-center gap-4 text-muted-foreground text-sm border-t border-border pt-4">
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/30 rounded-full">
                                         <MessageSquare className="w-4 h-4" />
-                                        {discussion.stats.replies} Comments
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className="gap-2 px-2 ml-auto">
+                                        <span className="font-medium">{discussion.stats.replies} Comments</span>
+                                    </div>
+                                    <Button variant="ghost" size="icon" className="h-9 w-9 ml-auto rounded-full">
                                         <MoreHorizontal className="w-4 h-4" />
                                     </Button>
                                 </div>
                             </div>
                         </Card>
 
-                        {/* Comment Section Header */}
-                        <div className="mt-8 mb-6 flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm">
-                                <span className="font-bold">Sort by:</span>
-                                <select className="bg-transparent text-primary font-medium focus:outline-none cursor-pointer">
-                                    <option>Best</option>
-                                    <option>New</option>
-                                    <option>Top</option>
-                                </select>
+                        {/* Comment Input */}
+                        <div className="mt-8 mb-10">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                                <span>Comment as</span>
+                                <span className="text-primary font-bold">KometExplorer</span>
                             </div>
+                            <Card className="p-4 bg-card/30 border-dashed border-2">
+                                <Textarea
+                                    placeholder="What are your thoughts?"
+                                    className="min-h-[120px] mb-3 bg-transparent border-none focus-visible:ring-0 p-0 text-lg"
+                                    value={newComment}
+                                    onChange={(e) => setNewComment(e.target.value)}
+                                />
+                                <div className="flex justify-end pt-2 border-t border-border/50">
+                                    <Button onClick={handlePostComment} disabled={!newComment.trim()} className="px-8 font-bold tracking-widest text-xs h-9">
+                                        PUBLISH SIGNAL
+                                    </Button>
+                                </div>
+                            </Card>
                         </div>
 
-                        {/* Reply Input */}
-                        <Card className="p-4 mb-8 bg-card border-border">
-                            <p className="text-sm mb-2">Comment as <span className="text-primary font-bold">KometExplorer</span></p>
-                            <Textarea
-                                placeholder="What are your thoughts?"
-                                className="min-h-[100px] mb-2"
-                                value={newComment}
-                                onChange={(e) => setNewComment(e.target.value)}
-                            />
-                            <div className="flex justify-end">
-                                <Button size="sm" onClick={handlePostComment} disabled={!newComment.trim()}>Comment</Button>
-                            </div>
-                        </Card>
-
                         {/* Comments List */}
-                        <div className="space-y-4">
-                            {comments.map((comment) => (
-                                <div key={comment.id} className="group">
-                                    <div className="flex gap-3">
-                                        <div className="flex flex-col items-center gap-1 w-8 pt-1">
-                                            <div className="flex flex-col items-center group/vote">
-                                                <ArrowUp
-                                                    className={`w-4 h-4 cursor-pointer ${comment.userVote === 'up' ? 'text-orange-500' : 'text-muted-foreground hover:text-orange-500'}`}
-                                                    onClick={() => handleCommentVote(comment.id, 'up')}
-                                                />
-                                                <span className={`text-xs font-bold my-1 ${comment.userVote === 'up' ? 'text-orange-500' : comment.userVote === 'down' ? 'text-blue-500' : ''}`}>
-                                                    {comment.likes}
-                                                </span>
-                                                <ArrowDown
-                                                    className={`w-4 h-4 cursor-pointer ${comment.userVote === 'down' ? 'text-blue-500' : 'text-muted-foreground hover:text-blue-500'}`}
-                                                    onClick={() => handleCommentVote(comment.id, 'down')}
-                                                />
-                                            </div>
-                                            <div className="w-[2px] h-full bg-border/50 mt-2 group-hover:bg-border transition-colors rounded-full" />
-                                        </div>
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-2 mb-8 border-b border-border pb-4">
+                                <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Pulse Order:</span>
+                                <select className="bg-transparent text-primary font-bold text-sm tracking-wider uppercase focus:outline-none cursor-pointer">
+                                    <option>Priority (Best)</option>
+                                    <option>Fresh (New)</option>
+                                    <option>Intensity (Top)</option>
+                                </select>
+                            </div>
 
-                                        <div className="flex-1 pb-4">
-                                            <div className="flex items-center gap-2 text-xs mb-2">
-                                                <span className="font-bold text-foreground hover:underline cursor-pointer">{comment.author.name}</span>
-                                                <span className="text-muted-foreground">• {comment.time}</span>
-                                            </div>
-                                            <p className="text-sm text-foreground/90 mb-2">{comment.content}</p>
-                                            <div className="flex items-center gap-4">
-                                                <button
-                                                    className="flex items-center gap-1 text-xs font-bold text-muted-foreground hover:bg-muted px-1.5 py-1 rounded transition-colors"
-                                                    onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-                                                >
-                                                    <MessageSquare className="w-3 h-3" />
-                                                    Reply
-                                                </button>
-                                            </div>
-
-                                            {/* Reply Input for Comment */}
-                                            {replyingTo === comment.id && (
-                                                <div className="mt-4 mb-4">
-                                                    <Textarea
-                                                        placeholder="What are your thoughts?"
-                                                        className="min-h-[80px] mb-2"
-                                                        value={replyContent}
-                                                        onChange={(e) => setReplyContent(e.target.value)}
-                                                    />
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button size="sm" variant="ghost" onClick={() => setReplyingTo(null)}>Cancel</Button>
-                                                        <Button size="sm" onClick={() => handlePostReply(comment.id)} disabled={!replyContent.trim()}>Reply</Button>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Nested Replies */}
-                                            {comment.replies && comment.replies.length > 0 && (
-                                                <div className="mt-4 space-y-4">
-                                                    {comment.replies.map((reply) => (
-                                                        <div key={reply.id} className="relative pl-4">
-                                                            {/* Indentation line for reply */}
-                                                            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-border/30 rounded-full"></div>
-
-                                                            <div className="flex gap-3">
-                                                                <div className="flex flex-col items-center gap-1 w-6 pt-1">
-                                                                    <div className="flex flex-col items-center group/vote-reply">
-                                                                        <ArrowUp
-                                                                            className={`w-3 h-3 cursor-pointer ${reply.userVote === 'up' ? 'text-orange-500' : 'text-muted-foreground hover:text-orange-500'}`}
-                                                                            onClick={() => handleCommentVote(reply.id, 'up', comment.id)}
-                                                                        />
-                                                                        <span className={`text-[10px] font-bold my-0.5 ${reply.userVote === 'up' ? 'text-orange-500' : reply.userVote === 'down' ? 'text-blue-500' : ''}`}>
-                                                                            {reply.likes}
-                                                                        </span>
-                                                                        <ArrowDown
-                                                                            className={`w-3 h-3 cursor-pointer ${reply.userVote === 'down' ? 'text-blue-500' : 'text-muted-foreground hover:text-blue-500'}`}
-                                                                            onClick={() => handleCommentVote(reply.id, 'down', comment.id)}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex-1">
-                                                                    <div className="flex items-center gap-2 text-xs mb-1">
-                                                                        <span className="font-bold text-foreground hover:underline cursor-pointer">
-                                                                            {reply.author.name}
-                                                                        </span>
-                                                                        <span className="text-muted-foreground">• {reply.time}</span>
-                                                                    </div>
-                                                                    <p className="text-sm text-foreground/90 mb-2">{reply.content}</p>
-                                                                    <div className="flex items-center gap-4">
-                                                                        <button className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground hover:bg-muted px-1.5 py-0.5 rounded transition-colors">
-                                                                            <MessageSquare className="w-2.5 h-2.5" />
-                                                                            Reply
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                            <div className="space-y-8 pb-20">
+                                {comments.map((comment) => (
+                                    <CommentItem
+                                        key={comment.id}
+                                        comment={comment}
+                                        onVote={handleCommentVote}
+                                        onReply={handlePostReply}
+                                    />
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -387,3 +382,7 @@ export default function DiscussionThreadClient({ discussion }: { discussion: any
         </div>
     )
 }
+
+import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+

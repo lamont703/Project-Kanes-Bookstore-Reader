@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { mockAdminUsers } from "@/lib/mock-admin-data"
 import { mockBooks } from "@/lib/mock-books"
 import { mockBookClubSelections } from "@/lib/mock-book-club-data"
-import { TrendingUp, BookOpen, Calendar, MessageSquare, ArrowRight, LayoutDashboard } from "lucide-react"
+import { TrendingUp, BookOpen, Calendar, MessageSquare, ArrowRight, LayoutDashboard, Star, Users } from "lucide-react"
 import Link from "next/link"
 
 export default function AdminDashboard() {
@@ -14,7 +14,7 @@ export default function AdminDashboard() {
   const adminNavCards = [
     {
       title: "Catalog",
-      description: "Manage Komet book collection, inventory and categories",
+      description: "Manage Komet book collection and inventory",
       href: "/admin/books",
       icon: BookOpen,
       color: "text-primary",
@@ -26,7 +26,7 @@ export default function AdminDashboard() {
       title: "Monthly Selection",
       description: "Curate and schedule future book club monthly picks",
       href: "/admin/book-club",
-      icon: Calendar,
+      icon: Star,
       color: "text-secondary",
       bgColor: "bg-secondary/10",
       borderColor: "border-secondary/30",
@@ -34,7 +34,7 @@ export default function AdminDashboard() {
     },
     {
       title: "Discussion Topics",
-      description: "Moderate community conversations and forum categories",
+      description: "Moderate community conversations and forum topics",
       href: "/admin/discussions",
       icon: MessageSquare,
       color: "text-primary",
@@ -49,6 +49,15 @@ export default function AdminDashboard() {
       color: "text-secondary",
       bgColor: "bg-secondary/10",
       borderColor: "border-secondary/30",
+    },
+    {
+      title: "Identity Hub",
+      description: "Manage explorer clearance levels and access credentials",
+      href: "/admin/users",
+      icon: Users,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+      borderColor: "border-primary/30",
     },
   ]
 

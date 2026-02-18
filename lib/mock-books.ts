@@ -34,7 +34,7 @@ export const mockBooks: Book[] = [
     author: "Caleb V. Kaine",
     coverImage: "/Brute Syndicate 1 Cover.webp",
     price: 14.99,
-    genre: "Science Fiction",
+    genre: "Crime",
     description:
       "In a world ruled by corporate syndicates, one brute fights for the little guy. A hard-hitting, neon-soaked adventure.",
     variants: [
@@ -49,7 +49,7 @@ export const mockBooks: Book[] = [
     author: "Marcus Stone",
     coverImage: "/dark-mystery-book-cover.jpg",
     price: 12.99,
-    genre: "Mystery",
+    genre: "Crime",
     description: "A gripping tale of murder and intrigue set in the depths of space, where no one can hear you scream.",
     variants: [
       { format: "ebook", price: 12.99, available: true },
@@ -63,7 +63,7 @@ export const mockBooks: Book[] = [
     author: "Caleb V. Kaine",
     coverImage: "/Flying With The Chrysiridiarhipheus 1 Cover.webp",
     price: 15.99,
-    genre: "Fantasy",
+    genre: "Children",
     description:
       "A young pilot bonds with a legendary Chrysiridiarhipheus to save their floating world from plummeting into the abyss.",
     variants: [
@@ -78,7 +78,7 @@ export const mockBooks: Book[] = [
     author: "Caleb V. Kaine",
     coverImage: "/Somes 3 Cover.webp",
     price: 18.99,
-    genre: "Science Fiction",
+    genre: "PTP",
     description:
       "The thrilling conclusion to the Somes trilogy. Boundaries dissolve as the syndicate faces its final, most devastating threat.",
     variants: [
@@ -93,7 +93,7 @@ export const mockBooks: Book[] = [
     author: "Raven Dark",
     coverImage: "/horror-thriller-book-cover.jpg",
     price: 11.99,
-    genre: "Horror",
+    genre: "Spiritual",
     description: "Terror lurks in the nebula's shadows as a crew discovers they're not alone in the cosmic void.",
     variants: [
       { format: "ebook", price: 11.99, available: true },
@@ -107,7 +107,7 @@ export const mockBooks: Book[] = [
     author: "Alex Quantum",
     coverImage: "/thriller-heist-book-cover.jpg",
     price: 15.99,
-    genre: "Thriller",
+    genre: "Adult",
     description: "A high-stakes heist across multiple dimensions where reality itself is the ultimate prize.",
     variants: [
       { format: "ebook", price: 15.99, available: true },
@@ -121,7 +121,7 @@ export const mockBooks: Book[] = [
     author: "Aria Windwalker",
     coverImage: "/epic-fantasy-book-cover.jpg",
     price: 16.99,
-    genre: "Fantasy",
+    genre: "Sports",
     description: "An epic fantasy saga where magic and technology collide in a world suspended between dimensions.",
     variants: [
       { format: "ebook", price: 16.99, available: true },
@@ -135,7 +135,7 @@ export const mockBooks: Book[] = [
     author: "Commander Sarah Chen",
     coverImage: "/mars-biography-book-cover.jpg",
     price: 17.99,
-    genre: "Biography",
+    genre: "Self-Help",
     description: "The incredible true story of humanity's first Mars colony and the pioneers who made it possible.",
     variants: [
       { format: "ebook", price: 17.99, available: true },

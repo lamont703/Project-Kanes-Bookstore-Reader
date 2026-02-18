@@ -11,24 +11,60 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useState } from "react"
 import { ShoppingCart } from "lucide-react"
 
+import { toast } from "sonner"
+
 function AuthContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectPath = searchParams.get("redirect") || "/"
   const message = searchParams.get("message")
 
+  // Registration State
+  const [regData, setRegData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    dob: "",
+    password: "",
+    confirmPassword: ""
+  })
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
     // Mock login
     localStorage.setItem("komet_subscription_active", "true")
-    // Use a small timeout to ensure storage event fires/propagates if needed (though immediate usually works)
     setTimeout(() => {
-      // Force a hard navigation to ensure header state updates or just use router
-      // For this app context, router.push is fine, the header listens to storage events
-      // dispatching a custom event helps too
       window.dispatchEvent(new Event("storage"))
       router.push(redirectPath)
     }, 100)
+  }
+
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault()
+    const newErrors: Record<string, boolean> = {}
+
+    if (regData.password.length < 8) {
+      newErrors.password = true
+      toast.error("Password must be at least 8 characters long")
+    }
+
+    if (regData.password !== regData.confirmPassword) {
+      newErrors.confirmPassword = true
+      toast.error("Passwords do not match")
+    }
+
+    setErrors(newErrors)
+
+    if (Object.keys(newErrors).length === 0) {
+      // Mock registration
+      localStorage.setItem("komet_subscription_active", "true")
+      toast.success("Account created successfully!")
+      setTimeout(() => {
+        window.dispatchEvent(new Event("storage"))
+        router.push(redirectPath)
+      }, 100)
+    }
   }
 
   return (
@@ -96,42 +132,84 @@ function AuthContent() {
               </form>
             </TabsContent>
             <TabsContent value="register">
-              <form className="space-y-4" onSubmit={handleLogin}>
+              <form className="space-y-4" onSubmit={handleRegister}>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground" htmlFor="register-name">
                     FULL NAME
                   </label>
-                  <Input id="register-name" placeholder="John Doe" required />
+                  <Input
+                    id="register-name"
+                    placeholder="John Doe"
+                    required
+                    value={regData.name}
+                    onChange={e => setRegData({ ...regData, name: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground" htmlFor="register-email">
                     EMAIL
                   </label>
-                  <Input id="register-email" type="email" placeholder="you@komet.explorer" required />
+                  <Input
+                    id="register-email"
+                    type="email"
+                    placeholder="you@komet.explorer"
+                    required
+                    value={regData.email}
+                    onChange={e => setRegData({ ...regData, email: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground" htmlFor="register-phone">
                     PHONE NUMBER
                   </label>
-                  <Input id="register-phone" type="tel" placeholder="(555) 123-4567" required />
+                  <Input
+                    id="register-phone"
+                    type="tel"
+                    placeholder="(555) 123-4567"
+                    required
+                    value={regData.phone}
+                    onChange={e => setRegData({ ...regData, phone: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground" htmlFor="register-dob">
                     DATE OF BIRTH
                   </label>
-                  <Input id="register-dob" type="date" required />
+                  <Input
+                    id="register-dob"
+                    type="date"
+                    required
+                    value={regData.dob}
+                    onChange={e => setRegData({ ...regData, dob: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground" htmlFor="register-password">
                     PASSWORD
                   </label>
-                  <Input id="register-password" type="password" placeholder="••••••••" required />
+                  <Input
+                    id="register-password"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    className={errors.password ? "border-destructive/50 ring-1 ring-destructive/20" : ""}
+                    value={regData.password}
+                    onChange={e => setRegData({ ...regData, password: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground" htmlFor="register-confirm-password">
                     CONFIRM PASSWORD
                   </label>
-                  <Input id="register-confirm-password" type="password" placeholder="••••••••" required />
+                  <Input
+                    id="register-confirm-password"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    className={errors.confirmPassword ? "border-destructive/50 ring-1 ring-destructive/20" : ""}
+                    value={regData.confirmPassword}
+                    onChange={e => setRegData({ ...regData, confirmPassword: e.target.value })}
+                  />
                 </div>
                 <Button className="w-full text-lg py-6 font-display tracking-wider" size="lg">
                   CREATE ACCOUNT

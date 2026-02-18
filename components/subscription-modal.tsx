@@ -25,10 +25,14 @@ interface SubscriptionModalProps {
 
 type Step = 1 | 2 | 3 | 4
 
+import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+
 export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     const [step, setStep] = useState<Step>(1)
     const [loading, setLoading] = useState(false)
     const [selectedBooks, setSelectedBooks] = useState<string[]>([])
+    const [errors, setErrors] = useState<Record<string, boolean>>({})
 
     // Form State
     const [formData, setFormData] = useState({
@@ -46,22 +50,68 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
     const updateFormData = (field: string, value: string) => {
         setFormData((prev) => ({ ...prev, [field]: value }))
+        if (errors[field]) {
+            setErrors(prev => {
+                const next = { ...prev }
+                delete next[field]
+                return next
+            })
+        }
+    }
+
+    const validateStep1 = () => {
+        const newErrors: Record<string, boolean> = {}
+        if (!formData.name) newErrors.name = true
+        if (!formData.email || !/^\S+@\S+\.\S+$/.test(formData.email)) newErrors.email = true
+        if (!formData.dob) newErrors.dob = true
+        if (!formData.address || formData.address.length < 10) newErrors.address = true
+        if (!formData.tshirtSize) newErrors.tshirtSize = true
+
+        setErrors(newErrors)
+        if (Object.keys(newErrors).length > 0) {
+            toast.error("Please fill in all required fields correctly")
+            return false
+        }
+        return true
+    }
+
+    const validateStep3 = () => {
+        const newErrors: Record<string, boolean> = {}
+        if (!formData.ccName) newErrors.ccName = true
+
+        // Basic CC validation (16 digits)
+        const cleanCC = formData.ccNumber.replace(/\s+/g, '')
+        if (!/^\d{16}$/.test(cleanCC)) {
+            newErrors.ccNumber = true
+            toast.error("Credit card number must be 16 digits")
+        }
+
+        if (!/^\d{2}\/\d{2}$/.test(formData.ccExpiry)) {
+            newErrors.ccExpiry = true
+            toast.error("Expiry must be MM/YY format")
+        }
+
+        if (!/^\d{3}$/.test(formData.ccCvc)) {
+            newErrors.ccCvc = true
+            toast.error("CVC must be 3 digits")
+        }
+
+        setErrors(newErrors)
+        return Object.keys(newErrors).length === 0
     }
 
     const handleNext = () => {
         if (step === 1) {
-            // Basic validation
-            if (!formData.name || !formData.email || !formData.address || !formData.tshirtSize || !formData.dob) {
-                // In a real app, use better validation feedback
-                return
-            }
+            if (!validateStep1()) return
             setStep(2)
         } else if (step === 2) {
             if (selectedBooks.length !== 2) {
+                toast.error("Please select exactly 2 books")
                 return
             }
             setStep(3)
         } else if (step === 3) {
+            if (!validateStep3()) return
             // Submit
             setLoading(true)
             setTimeout(() => {
@@ -117,6 +167,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                     value={formData.name}
                                     onChange={(e) => updateFormData("name", e.target.value)}
                                     placeholder="John Doe"
+                                    className={errors.name ? "border-destructive/50 ring-destructive/20" : ""}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -127,6 +178,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                     value={formData.email}
                                     onChange={(e) => updateFormData("email", e.target.value)}
                                     placeholder="john@example.com"
+                                    className={errors.email ? "border-destructive/50 ring-destructive/20" : ""}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -146,6 +198,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                     type="date"
                                     value={formData.dob}
                                     onChange={(e) => updateFormData("dob", e.target.value)}
+                                    className={errors.dob ? "border-destructive/50 ring-destructive/20" : ""}
                                 />
                             </div>
                             <div className="col-span-2 space-y-2">
@@ -155,6 +208,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                     value={formData.address}
                                     onChange={(e) => updateFormData("address", e.target.value)}
                                     placeholder="123 Cosmic Way, Galaxy City, GC 12345"
+                                    className={errors.address ? "border-destructive/50 ring-destructive/20" : ""}
                                 />
                             </div>
                             <div className="col-span-2 space-y-2">
@@ -299,17 +353,35 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                     <Label htmlFor="ccNum">Card Number</Label>
                                     <div className="relative">
                                         <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                        <Input id="ccNum" className="pl-10" placeholder="0000 0000 0000 0000" value={formData.ccNumber} onChange={(e) => updateFormData("ccNumber", e.target.value)} />
+                                        <Input
+                                            id="ccNum"
+                                            className={cn("pl-10", errors.ccNumber ? "border-destructive/50 ring-destructive/20" : "")}
+                                            placeholder="0000 0000 0000 0000"
+                                            value={formData.ccNumber}
+                                            onChange={(e) => updateFormData("ccNumber", e.target.value)}
+                                        />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="expiry">Expiry</Label>
-                                        <Input id="expiry" placeholder="MM/YY" value={formData.ccExpiry} onChange={(e) => updateFormData("ccExpiry", e.target.value)} />
+                                        <Input
+                                            id="expiry"
+                                            placeholder="MM/YY"
+                                            value={formData.ccExpiry}
+                                            onChange={(e) => updateFormData("ccExpiry", e.target.value)}
+                                            className={errors.ccExpiry ? "border-destructive/50 ring-destructive/20" : ""}
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="cvc">CVC</Label>
-                                        <Input id="cvc" placeholder="123" value={formData.ccCvc} onChange={(e) => updateFormData("ccCvc", e.target.value)} />
+                                        <Input
+                                            id="cvc"
+                                            placeholder="123"
+                                            value={formData.ccCvc}
+                                            onChange={(e) => updateFormData("ccCvc", e.target.value)}
+                                            className={errors.ccCvc ? "border-destructive/50 ring-destructive/20" : ""}
+                                        />
                                     </div>
                                 </div>
                             </div>
