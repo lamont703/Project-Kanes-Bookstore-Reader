@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { SiteHeader } from "@/components/site-header"
 import { Button } from "@/components/ui/button"
 import { Check, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
-export default function CheckoutSuccessPage() {
+function CheckoutSuccessContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const supabase = createClient()
@@ -22,8 +22,6 @@ export default function CheckoutSuccessPage() {
                 return
             }
 
-            // In a real app, we might check the order status in DB
-            // Stripe webhook will actually fulfill it, but we can check here for UI feedback
             const { data: order, error } = await supabase
                 .from('orders')
                 .select('status')
@@ -35,7 +33,6 @@ export default function CheckoutSuccessPage() {
             } else if (order.status === 'confirmed' || order.status === 'fulfilled') {
                 setStatus('success')
             } else {
-                // Still pending, wait a bit or just show success because we know payment was confirmed on client
                 setStatus('success')
             }
         }
@@ -81,5 +78,21 @@ export default function CheckoutSuccessPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+export default function CheckoutSuccessPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-background">
+                <SiteHeader />
+                <div className="container mx-auto px-4 py-32 flex flex-col items-center justify-center text-center">
+                    <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                    <h1 className="font-display text-2xl tracking-widest">LOADING...</h1>
+                </div>
+            </div>
+        }>
+            <CheckoutSuccessContent />
+        </Suspense>
     )
 }
