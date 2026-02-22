@@ -160,6 +160,27 @@ export async function PATCH(request: NextRequest) {
     if (body.action === "ban") {
         const { error } = await admin.from("users").update({ is_banned: true }).eq("id", body.userId)
         if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+        // Also update subscription status to expired
+        await admin.from("user_subscriptions").update({ status: 'expired' }).eq("user_id", body.userId)
+
+        // Trigger USER_BANNED event via email-ops Edge Function
+        try {
+            await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/email-ops`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+                },
+                body: JSON.stringify({
+                    event: "USER_BANNED",
+                    userId: body.userId
+                })
+            })
+        } catch (e) {
+            console.error("Failed to trigger email-ops for banning:", e)
+        }
+
         return NextResponse.json({ success: true, action: "ban" })
     }
 

@@ -6,11 +6,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Check, Loader2, Sparkles, Book as BookIcon, Shirt, Gift, Tag, CreditCard } from "lucide-react"
+import { Check, Loader2, Sparkles, Book as BookIcon, Shirt, Gift, Tag, CreditCard, Crown } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
+import { loadStripe } from "@stripe/stripe-js"
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +40,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     const [loading, setLoading] = useState(false)
     const [selectedBooks, setSelectedBooks] = useState<string[]>([])
     const [errors, setErrors] = useState<Record<string, boolean>>({})
+    const [clientSecret, setClientSecret] = useState<string | null>(null)
 
     // Books fetched from Supabase
     const [availableBooks, setAvailableBooks] = useState<DbBook[]>([])
@@ -49,10 +54,6 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
         address: "",
         dob: "",
         tshirtSize: "",
-        ccNumber: "",
-        ccExpiry: "",
-        ccCvc: "",
-        ccName: "",
     })
 
     // Pre-fill from Supabase auth user on open
@@ -80,10 +81,10 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             .order("title")
             .then(({ data, error }) => {
                 if (error) toast.error("Failed to load books")
-                setAvailableBooks(data ?? [])
+                setAvailableBooks(data || [])
                 setBooksLoading(false)
             })
-    }, [step])
+    }, [step, availableBooks.length, supabase])
 
     const updateFormData = (field: string, value: string) => {
         setFormData((prev) => ({ ...prev, [field]: value }))
@@ -112,30 +113,6 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
         return true
     }
 
-    const validateStep3 = () => {
-        const newErrors: Record<string, boolean> = {}
-        if (!formData.ccName) newErrors.ccName = true
-
-        const cleanCC = formData.ccNumber.replace(/\s+/g, '')
-        if (!/^\d{16}$/.test(cleanCC)) {
-            newErrors.ccNumber = true
-            toast.error("Credit card number must be 16 digits")
-        }
-
-        if (!/^\d{2}\/\d{2}$/.test(formData.ccExpiry)) {
-            newErrors.ccExpiry = true
-            toast.error("Expiry must be MM/YY format")
-        }
-
-        if (!/^\d{3}$/.test(formData.ccCvc)) {
-            newErrors.ccCvc = true
-            toast.error("CVC must be 3 digits")
-        }
-
-        setErrors(newErrors)
-        return Object.keys(newErrors).length === 0
-    }
-
     const handleNext = async () => {
         if (step === 1) {
             if (!validateStep1()) return
@@ -145,48 +122,43 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 toast.error("Please select exactly 2 books")
                 return
             }
-            setStep(3)
-        } else if (step === 3) {
-            if (!validateStep3()) return
-
+            
             setLoading(true)
-
             try {
-                const res = await fetch("/api/subscribe", {
+                const { data: { session } } = await supabase.auth.getSession()
+                if (!session) throw new Error("Not authenticated")
+
+                const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-subscription`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${session.access_token}`
+                    },
                     body: JSON.stringify({
-                        name: formData.name,
+                        fullName: formData.name,
                         email: formData.email,
                         phone: formData.phone,
-                        address: formData.address,
-                        dob: formData.dob,
+                        mailingAddress: formData.address,
                         tshirtSize: formData.tshirtSize,
                         selectedBookIds: selectedBooks,
                     }),
                 })
 
                 const result = await res.json()
+                if (!res.ok) throw new Error(result.error || "Failed to prepare subscription")
 
-                if (!res.ok) {
-                    toast.error(result.error || "Subscription failed. Please try again.")
-                    setLoading(false)
-                    return
-                }
-
+                setClientSecret(result.clientSecret)
+                setStep(3)
+            } catch (err: any) {
+                toast.error(err.message)
+            } finally {
                 setLoading(false)
-                setStep(4)
-                toast.success("Welcome to Kane's Komet Book Club!")
-            } catch (err) {
-                setLoading(false)
-                toast.error("Network error. Please try again.")
             }
         }
     }
 
     const handleFinish = () => {
         onClose()
-        // Reload so that server components re-fetch subscription status from DB
         window.location.reload()
     }
 
@@ -200,23 +172,6 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             }
         })
     }
-
-    // Filter adult books based on age
-    const isAdult18Plus = () => {
-        if (!formData.dob) return false
-        const dob = new Date(formData.dob)
-        const today = new Date()
-        let age = today.getFullYear() - dob.getFullYear()
-        const m = today.getMonth() - dob.getMonth()
-        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--
-        return age >= 18
-    }
-
-    const visibleBooks = availableBooks.filter(book => {
-        // Filter adult-genre books for under-18 users
-        // We rely on the book title/genre — ideally fetch genre too, but for now show all to 18+
-        return true
-    })
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -308,11 +263,11 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                         </div>
                     )}
 
-                    {/* Step 2: Book Selection — real books from Supabase */}
+                    {/* Step 2: Book Selection */}
                     {step === 2 && (
                         <div className="space-y-4">
                             <div className="text-center mb-6">
-                                <p className="text-muted-foreground">
+                                <p className="text-muted-foreground text-sm">
                                     Select <span className="text-primary font-bold">2 books</span> from our catalog to start your library.
                                     <br />
                                     Selected: {selectedBooks.length}/2
@@ -323,20 +278,16 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                 <div className="flex items-center justify-center py-12">
                                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                                 </div>
-                            ) : visibleBooks.length === 0 ? (
-                                <div className="text-center py-12 text-muted-foreground">
-                                    No books available at this time.
-                                </div>
                             ) : (
-                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                    {visibleBooks.map((book) => {
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[400px] overflow-y-auto px-2">
+                                    {availableBooks.map((book) => {
                                         const isSelected = selectedBooks.includes(book.id)
                                         const isDisabled = !isSelected && selectedBooks.length >= 2
                                         return (
                                             <div
                                                 key={book.id}
                                                 className={cn(
-                                                    "relative cursor-pointer group transition-all transform",
+                                                    "relative cursor-pointer group transition-all transform mb-2",
                                                     isSelected ? "ring-2 ring-primary scale-105" : "",
                                                     isDisabled ? "opacity-40 pointer-events-none" : "hover:scale-105 opacity-80 hover:opacity-100"
                                                 )}
@@ -344,12 +295,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                             >
                                                 <div className="aspect-[2/3] relative rounded-lg overflow-hidden bg-secondary/10">
                                                     {book.cover_image_url ? (
-                                                        <Image
-                                                            src={book.cover_image_url}
-                                                            alt={book.title}
-                                                            fill
-                                                            className="object-cover"
-                                                        />
+                                                        <Image src={book.cover_image_url} alt={book.title} fill className="object-cover" />
                                                     ) : (
                                                         <div className="absolute inset-0 flex items-center justify-center">
                                                             <BookIcon className="w-10 h-10 text-muted-foreground opacity-30" />
@@ -361,9 +307,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                                         <Check className="w-4 h-4" />
                                                     </div>
                                                 )}
-                                                <div className="mt-2 text-center">
-                                                    <p className="text-xs font-medium line-clamp-2 px-1" title={book.title}>{book.title}</p>
-                                                </div>
+                                                <div className="mt-1 text-center text-[10px] font-medium line-clamp-1">{book.title}</div>
                                             </div>
                                         )
                                     })}
@@ -372,105 +316,39 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                         </div>
                     )}
 
-                    {/* Step 3: Payment & Summary */}
-                    {step === 3 && (
+                    {/* Step 3: Payment */}
+                    {step === 3 && clientSecret && (
                         <div className="grid md:grid-cols-2 gap-8">
                             <div className="space-y-6">
                                 <div className="rounded-lg border border-border bg-card p-6">
                                     <h3 className="font-display text-xl mb-4 flex items-center gap-2">
                                         <Sparkles className="text-primary w-5 h-5" /> Membership Includes
                                     </h3>
-                                    <ul className="space-y-3">
-                                        <li className="flex items-center gap-3 text-sm">
-                                            <Shirt className="w-4 h-4 text-blue-400" />
-                                            <span>Kane's Komet Book Club T-Shirt</span>
-                                        </li>
-                                        <li className="flex items-center gap-3 text-sm">
-                                            <BookIcon className="w-4 h-4 text-green-400" />
-                                            <span>2 E-Books (Selected)</span>
-                                        </li>
-                                        <li className="flex items-center gap-3 text-sm">
-                                            <Gift className="w-4 h-4 text-pink-400" />
-                                            <span>Surprise Gift (Bookmark, etc.)</span>
-                                        </li>
-                                        <li className="flex items-center gap-3 text-sm">
-                                            <Tag className="w-4 h-4 text-yellow-400" />
-                                            <span>Kane Dealer Code (35% OFF)</span>
-                                        </li>
-                                        <li className="flex items-center gap-3 text-sm pt-2 border-t border-border mt-2">
-                                            <Sparkles className="w-4 h-4 text-primary" />
-                                            <span>Monthly E-Komet Book (Ongoing)</span>
+                                    <ul className="space-y-2 text-sm">
+                                        <li className="flex items-center gap-2"><Shirt className="w-4 h-4 text-blue-400" /> Kane's Komet T-Shirt</li>
+                                        <li className="flex items-center gap-2"><BookIcon className="w-4 h-4 text-green-400" /> 2 E-Books (Selected)</li>
+                                        <li className="flex items-center gap-2 border-t pt-2 mt-2 font-medium">
+                                            <Crown className="w-4 h-4 text-primary" /> Monthly E-Komet Book Access
                                         </li>
                                     </ul>
                                 </div>
 
                                 <div className="rounded-lg border border-border bg-secondary/10 p-6">
-                                    <h4 className="font-semibold mb-2">Order Summary</h4>
-                                    <div className="flex justify-between text-sm py-1">
-                                        <span>Initial Membership Fee</span>
-                                        <span>$49.99</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm py-1 border-b border-border/50 pb-2">
-                                        <span>Monthly Subscription</span>
-                                        <span className="text-muted-foreground">$3.99/mo</span>
-                                    </div>
-                                    <div className="flex justify-between font-bold text-lg pt-2 text-primary">
+                                    <div className="flex justify-between font-bold text-lg text-primary">
                                         <span>Total Today</span>
                                         <span>$49.99</span>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-2">
-                                        You will be charged $49.99 today, then $3.99/month starting next month.
+                                    <p className="text-[10px] text-muted-foreground mt-2">
+                                        Charged $49.99 today, then $3.99/month starting next month.
                                     </p>
                                 </div>
                             </div>
 
                             <div className="space-y-4">
-                                <h3 className="font-display text-xl mb-4">Payment Details</h3>
-                                <div className="space-y-2">
-                                    <Label htmlFor="sub-ccName">Name on Card</Label>
-                                    <Input
-                                        id="sub-ccName"
-                                        placeholder="John Doe"
-                                        value={formData.ccName}
-                                        onChange={(e) => updateFormData("ccName", e.target.value)}
-                                        className={errors.ccName ? "border-destructive/50" : ""}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="sub-ccNum">Card Number</Label>
-                                    <div className="relative">
-                                        <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                        <Input
-                                            id="sub-ccNum"
-                                            className={cn("pl-10", errors.ccNumber ? "border-destructive/50" : "")}
-                                            placeholder="0000 0000 0000 0000"
-                                            value={formData.ccNumber}
-                                            onChange={(e) => updateFormData("ccNumber", e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="sub-expiry">Expiry</Label>
-                                        <Input
-                                            id="sub-expiry"
-                                            placeholder="MM/YY"
-                                            value={formData.ccExpiry}
-                                            onChange={(e) => updateFormData("ccExpiry", e.target.value)}
-                                            className={errors.ccExpiry ? "border-destructive/50" : ""}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="sub-cvc">CVC</Label>
-                                        <Input
-                                            id="sub-cvc"
-                                            placeholder="123"
-                                            value={formData.ccCvc}
-                                            onChange={(e) => updateFormData("ccCvc", e.target.value)}
-                                            className={errors.ccCvc ? "border-destructive/50" : ""}
-                                        />
-                                    </div>
-                                </div>
+                                <h3 className="font-display text-xl mb-4">Secure Payment</h3>
+                                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night' } }}>
+                                    <SubscriptionStripeForm onCardsuccess={() => setStep(4)} />
+                                </Elements>
                             </div>
                         </div>
                     )}
@@ -478,45 +356,71 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     {/* Step 4: Success */}
                     {step === 4 && (
                         <div className="text-center space-y-6 py-8">
-                            <div className="w-24 h-24 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                            <div className="w-24 h-24 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
                                 <Check className="w-12 h-12" />
                             </div>
-                            <h3 className="font-display text-3xl tracking-wide">Welcome Aboard!</h3>
-                            <p className="text-muted-foreground max-w-md mx-auto text-lg">
-                                Your membership is now active. Your 2 free books have been added to your library
-                                and your welcome kit is on its way!
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                Check your Dashboard to access your new books and discover your Kane Dealer Code.
+                            <h3 className="font-display text-3xl tracking-wide uppercase tracking-widest">Welcome Aboard!</h3>
+                            <p className="text-muted-foreground max-w-md mx-auto">
+                                Your membership is now active. Your 2 free books have been added to your library.
                             </p>
                         </div>
                     )}
                 </div>
 
-                <DialogFooter className="flex sm:justify-between items-center sm:gap-0 gap-4">
-                    {step > 1 && step < 4 ? (
+                <DialogFooter>
+                    {step > 1 && step < 3 ? (
                         <Button variant="ghost" onClick={() => setStep((s) => Math.max(1, s - 1) as Step)} disabled={loading}>
                             Back
                         </Button>
-                    ) : (
-                        <div />
-                    )}
+                    ) : null}
 
-                    {step < 4 ? (
-                        <Button
-                            onClick={handleNext}
-                            disabled={loading || (step === 2 && selectedBooks.length !== 2)}
-                        >
+                    {step < 3 ? (
+                        <Button onClick={handleNext} disabled={loading}>
                             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            {step === 3 ? "Complete Purchase" : "Continue"}
+                            Continue
                         </Button>
-                    ) : (
+                    ) : step === 4 ? (
                         <Button onClick={handleFinish} className="bg-green-600 hover:bg-green-700">
-                            Okay, Return to Club
+                            Return to Club
                         </Button>
-                    )}
+                    ) : null}
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    )
+}
+
+function SubscriptionStripeForm({ onCardsuccess }: { onCardsuccess: () => void }) {
+    const stripe = useStripe()
+    const elements = useElements()
+    const [loading, setLoading] = useState(false)
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!stripe || !elements) return
+        setLoading(true)
+
+        const { error, paymentIntent } = await stripe.confirmPayment({
+            elements,
+            confirmParams: { return_url: `${window.location.origin}/book-club` },
+            redirect: "if_required",
+        })
+
+        if (error) {
+            toast.error(error.message || "Payment failed")
+        } else if (paymentIntent?.status === "succeeded") {
+            toast.success("Payment successful!")
+            onCardsuccess()
+        }
+        setLoading(false)
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <PaymentElement />
+            <Button type="submit" className="w-full" disabled={!stripe || loading}>
+                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Complete Membership"}
+            </Button>
+        </form>
     )
 }

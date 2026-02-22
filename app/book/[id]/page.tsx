@@ -11,12 +11,23 @@ import { createClient, createStaticClient } from "@/lib/supabase/server"
 export const revalidate = 300 // Revalidate every 5 minutes
 
 export async function generateStaticParams() {
-  const supabase = createStaticClient()
-  const { data: books } = await supabase.from('books').select('id')
+  // Prevent build crash if env vars are missing during CI/CD or Vercel build
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    console.warn("⚠️ NEXT_PUBLIC_SUPABASE_URL is missing. Skipping generateStaticParams.")
+    return []
+  }
 
-  return books?.map((book) => ({
-    id: book.id,
-  })) || []
+  try {
+    const supabase = createStaticClient()
+    const { data: books } = await supabase.from('books').select('id')
+
+    return books?.map((book) => ({
+      id: book.id,
+    })) || []
+  } catch (err) {
+    console.error("❌ Error in generateStaticParams:", err)
+    return []
+  }
 }
 
 export default async function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {

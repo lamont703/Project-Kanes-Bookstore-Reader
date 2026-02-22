@@ -7,12 +7,12 @@
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, email, first_name, last_name, avatar_url)
+  INSERT INTO public.users (id, email, display_name, full_name, avatar_url)
   VALUES (
     NEW.id,
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'first_name', ''),
-    COALESCE(NEW.raw_user_meta_data->>'last_name', ''),
+    COALESCE(NEW.raw_user_meta_data->>'display_name', NEW.email),
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
     NEW.raw_user_meta_data->>'avatar_url'
   );
 

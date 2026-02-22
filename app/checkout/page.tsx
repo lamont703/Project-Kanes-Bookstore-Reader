@@ -13,6 +13,11 @@ import { Check, Truck, Tag, Package, CreditCard, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { loadStripe } from "@stripe/stripe-js"
+import { Elements } from "@stripe/react-stripe-js"
+import { StripeCheckoutForm } from "@/components/checkout/stripe-checkout-form"
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function CheckoutPage() {
     const { items, clearCart } = useCart()
@@ -21,6 +26,7 @@ export default function CheckoutPage() {
     const [isProcessing, setIsProcessing] = useState(false)
     const [orderComplete, setOrderComplete] = useState(false)
     const [orderId, setOrderId] = useState<string | null>(null)
+    const [clientSecret, setClientSecret] = useState<string | null>(null)
 
     // Dealer Code State
     const [dealerCode, setDealerCode] = useState("")
@@ -36,10 +42,6 @@ export default function CheckoutPage() {
         city: "",
         zip: "",
         country: "United States",
-        ccName: "",
-        ccNumber: "",
-        ccExpiry: "",
-        ccCvc: ""
     })
     const [errors, setErrors] = useState<Record<string, boolean>>({})
 
@@ -70,20 +72,10 @@ export default function CheckoutPage() {
             if (!formData.zip || !/^\d{5}(-\d{4})?$/.test(formData.zip)) newErrors.zip = true
         }
 
-        // Payment validation
-        if (!formData.ccName) newErrors.ccName = true
-        const cleanCC = formData.ccNumber.replace(/\s+/g, '')
-        if (!/^\d{16}$/.test(cleanCC)) {
-            newErrors.ccNumber = true
-            toast.error("Invalid card format. Use 16 digits.")
-        }
-        if (!/^\d{2}\/\d{2}$/.test(formData.ccExpiry)) newErrors.ccExpiry = true
-        if (!/^\d{3}$/.test(formData.ccCvc)) newErrors.ccCvc = true
-
         setErrors(newErrors)
 
         if (Object.keys(newErrors).length > 0) {
-            toast.error("Please correct the errors in the form")
+            toast.error("Please fill in all shipping details correctly.")
             return false
         }
         return true
@@ -179,28 +171,31 @@ export default function CheckoutPage() {
                 } : undefined,
             }
 
-            const res = await fetch("/api/checkout", {
+            // Call Supabase Edge Function
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) throw new Error("Not authenticated")
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-checkout`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`
+                },
                 body: JSON.stringify(checkoutPayload),
             })
 
             const data = await res.json()
 
             if (!res.ok) {
-                toast.error(data.error || "Checkout failed. Please try again.")
+                toast.error(data.error?.message || data.error || "Checkout failed. Please try again.")
                 return
             }
 
-            // Success!
+            // Success! We have a client secret and order ID
             setOrderId(data.orderId)
-            setOrderComplete(true)
-            clearCart()
-
-            if (data.digitalItems > 0) {
-                toast.success(`${data.digitalItems} book(s) added to your library!`)
-            }
-        } catch {
+            setClientSecret(data.clientSecret)
+        } catch (err) {
+            console.error(err)
             toast.error("An unexpected error occurred. Please try again.")
         } finally {
             setIsProcessing(false)
@@ -348,56 +343,42 @@ export default function CheckoutPage() {
 
                         <Card className="p-6">
                             <h2 className="font-display text-2xl tracking-wide mb-6">Payment Method</h2>
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="ccName">Name on Card</Label>
-                                    <Input
-                                        id="ccName"
-                                        placeholder="John Doe"
-                                        value={formData.ccName}
-                                        onChange={e => updateFormData("ccName", e.target.value)}
-                                        className={errors.ccName ? "border-destructive/50 ring-destructive/20" : ""}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="ccNum">Card Number</Label>
-                                    <div className="relative">
-                                        <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                        <Input
-                                            id="ccNum"
-                                            className={cn("pl-10", errors.ccNumber ? "border-destructive/50 ring-destructive/20" : "")}
-                                            placeholder="0000 0000 0000 0000"
-                                            value={formData.ccNumber}
-                                            onChange={e => updateFormData("ccNumber", e.target.value)}
-                                        />
+                            {!clientSecret ? (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-lg border border-border">
+                                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                            <CreditCard className="w-5 h-5 text-primary" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-medium">Safe & Secure Payment</p>
+                                            <p className="text-xs text-muted-foreground">Complete shipping & discount info to reveal encrypted Stripe payment portal.</p>
+                                        </div>
                                     </div>
+                                    <p className="text-xs text-muted-foreground text-center mt-2">
+                                        Payments processed securely by Stripe
+                                    </p>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="expiry">Expiry</Label>
-                                        <Input
-                                            id="expiry"
-                                            placeholder="MM/YY"
-                                            value={formData.ccExpiry}
-                                            onChange={e => updateFormData("ccExpiry", e.target.value)}
-                                            className={errors.ccExpiry ? "border-destructive/50 ring-destructive/20" : ""}
+                            ) : (
+                                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                                        <StripeCheckoutForm
+                                            orderId={orderId!}
+                                            onSuccess={() => {
+                                                setOrderComplete(true)
+                                                clearCart()
+                                            }}
                                         />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="cvc">CVC</Label>
-                                        <Input
-                                            id="cvc"
-                                            placeholder="123"
-                                            value={formData.ccCvc}
-                                            onChange={e => updateFormData("ccCvc", e.target.value)}
-                                            className={errors.ccCvc ? "border-destructive/50 ring-destructive/20" : ""}
-                                        />
-                                    </div>
+                                    </Elements>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full mt-4 text-xs"
+                                        onClick={() => setClientSecret(null)}
+                                    >
+                                        Change Shipping Details
+                                    </Button>
                                 </div>
-                                <p className="text-xs text-muted-foreground text-center mt-2">
-                                    Payments processed securely by Stripe
-                                </p>
-                            </div>
+                            )}
                         </Card>
                     </div>
 
@@ -501,22 +482,24 @@ export default function CheckoutPage() {
                                 </div>
                             </div>
 
-                            <Button
-                                type="submit"
-                                form="checkout-form"
-                                className="w-full mt-6"
-                                size="lg"
-                                disabled={isProcessing}
-                            >
-                                {isProcessing ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Processing...
-                                    </>
-                                ) : (
-                                    "Place Order"
-                                )}
-                            </Button>
+                            {!clientSecret && (
+                                <Button
+                                    type="submit"
+                                    form="checkout-form"
+                                    className="w-full mt-6"
+                                    size="lg"
+                                    disabled={isProcessing}
+                                >
+                                    {isProcessing ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Initializing Secure Payment...
+                                        </>
+                                    ) : (
+                                        "Continue to Payment"
+                                    )}
+                                </Button>
+                            )}
                         </Card>
                     </div>
                 </div>
