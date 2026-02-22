@@ -9,9 +9,9 @@ interface ReadingSidebarProps {
   bookId: string
   highlights: Highlight[]
   bookmarks: BookmarkType[]
-  currentChapter: number
-  onHighlightClick: (chapterIndex: number, paragraphIndex: number) => void
-  onBookmarkClick: (chapterIndex: number, paragraphIndex: number) => void
+  currentPage: number
+  onHighlightClick: (pageNumber: number) => void
+  onBookmarkClick: (pageNumber: number) => void
   onDeleteHighlight: (id: string) => void
   onDeleteBookmark: (id: string) => void
 }
@@ -19,7 +19,7 @@ interface ReadingSidebarProps {
 export function ReadingSidebar({
   highlights,
   bookmarks,
-  currentChapter,
+  currentPage,
   onHighlightClick,
   onBookmarkClick,
   onDeleteHighlight,
@@ -53,15 +53,15 @@ export function ReadingSidebar({
                 <div className="flex items-start justify-between gap-2">
                   <button
                     className="flex-1 text-left"
-                    onClick={() => onBookmarkClick(bookmark.chapterIndex, bookmark.paragraphIndex)}
+                    onClick={() => onBookmarkClick(bookmark.pageNumber)}
                   >
                     <div className="text-sm font-medium mb-1">
-                      Chapter {bookmark.chapterIndex + 1}
-                      {bookmark.chapterIndex === currentChapter && (
+                      Page {bookmark.pageNumber}
+                      {bookmark.pageNumber === currentPage && (
                         <span className="ml-2 text-xs text-primary">(current)</span>
                       )}
                     </div>
-                    {bookmark.note && <p className="text-xs text-muted-foreground line-clamp-2">{bookmark.note}</p>}
+                    {bookmark.label && <p className="text-xs text-muted-foreground line-clamp-2">{bookmark.label}</p>}
                   </button>
                   <Button
                     variant="ghost"
@@ -82,11 +82,11 @@ export function ReadingSidebar({
       <Card className="p-4 bg-card/50 backdrop-blur">
         <div className="flex items-center gap-2 mb-4">
           <Highlighter className="w-5 h-5 text-secondary" />
-          <h3 className="font-display text-lg tracking-wide">HIGHLIGHTS</h3>
+          <h3 className="font-display text-lg tracking-wide">NOTES</h3>
         </div>
 
         {highlights.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No highlights yet</p>
+          <p className="text-sm text-muted-foreground">No notes yet</p>
         ) : (
           <div className="space-y-2">
             {highlights.map((highlight) => (
@@ -97,11 +97,11 @@ export function ReadingSidebar({
                 <div className="flex items-start justify-between gap-2">
                   <button
                     className="flex-1 text-left"
-                    onClick={() => onHighlightClick(highlight.chapterIndex, highlight.paragraphIndex)}
+                    onClick={() => onHighlightClick(highlight.pageNumber)}
                   >
                     <div className="text-xs text-muted-foreground mb-2">
-                      Chapter {highlight.chapterIndex + 1}
-                      {highlight.chapterIndex === currentChapter && (
+                      Page {highlight.pageNumber}
+                      {highlight.pageNumber === currentPage && (
                         <span className="ml-2 text-primary">(current)</span>
                       )}
                     </div>

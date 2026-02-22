@@ -13,45 +13,108 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Check, Loader2 } from "lucide-react"
+import { Check, Loader2, CalendarCheck } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
+import { createClient } from "@/lib/supabase/client"
+import type { User } from "@supabase/supabase-js"
 
 interface RsvpModalProps {
+    eventId: string
     eventTitle: string
+    isPublic: boolean
+    currentUser: User | null
+    alreadyRsvped: boolean
 }
 
-export function RsvpModal({ eventTitle }: RsvpModalProps) {
+export function RsvpModal({ eventId, eventTitle, isPublic, currentUser, alreadyRsvped: initialRsvped }: RsvpModalProps) {
+    const supabase = createClient()
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)
+    const [hasRsvped, setHasRsvped] = useState(initialRsvped)
 
-    // Form states
-    const [name, setName] = useState("")
-    const [email, setEmail] = useState("")
-    const [phone, setPhone] = useState("")
+    // Pre-fill from Supabase user metadata if available
+    const [name, setName] = useState(
+        (currentUser?.user_metadata?.full_name as string | undefined) ?? ""
+    )
+    const [email, setEmail] = useState(currentUser?.email ?? "")
+    const [phone, setPhone] = useState(
+        (currentUser?.user_metadata?.phone as string | undefined) ?? ""
+    )
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        if (!currentUser) {
+            toast.error("Please log in to RSVP for this event.")
+            return
+        }
+
+        if (!name.trim() || !email.trim()) {
+            toast.error("Please fill in your name and email.")
+            return
+        }
+
         setIsLoading(true)
 
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false)
-            setIsSuccess(true)
-            toast.success("RSVP Confirmed! Check your email for details.")
-        }, 1500)
+        const { error } = await supabase
+            .from("event_rsvps")
+            .insert({
+                event_id: eventId,
+                user_id: currentUser.id,
+                name: name.trim(),
+                email: email.trim(),
+                phone: phone.trim() || null,
+                rsvp_status: "confirmed",
+            })
+
+        setIsLoading(false)
+
+        if (error) {
+            if (error.code === "23505") {
+                // Unique constraint — already RSVP'd
+                toast.info("You've already secured your spot for this event!")
+                setHasRsvped(true)
+                setOpen(false)
+            } else {
+                toast.error("Failed to confirm RSVP. Please try again.")
+                console.error(error)
+            }
+            return
+        }
+
+        setIsSuccess(true)
+        setHasRsvped(true)
+        toast.success("RSVP Confirmed! See you there.")
     }
 
     const handleClose = () => {
         setOpen(false)
-        // Reset state after a delay to allow animation to finish
         setTimeout(() => {
             setIsSuccess(false)
-            setName("")
-            setEmail("")
-            setPhone("")
         }, 300)
+    }
+
+    // If not logged in, show login prompt button
+    if (!currentUser) {
+        return (
+            <Button asChild variant="outline" className="w-full">
+                <Link href={`/login?redirect=/book-club/events`}>
+                    Log in to RSVP
+                </Link>
+            </Button>
+        )
+    }
+
+    // If already RSVP'd, show confirmed state (no dialog needed)
+    if (hasRsvped) {
+        return (
+            <Button variant="outline" className="w-full text-green-400 border-green-400/30 bg-green-400/5 cursor-default" disabled>
+                <CalendarCheck className="w-4 h-4 mr-2" />
+                You're Going!
+            </Button>
+        )
     }
 
     return (
@@ -64,7 +127,7 @@ export function RsvpModal({ eventTitle }: RsvpModalProps) {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 {isSuccess ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-6 animate-fade-up">
+                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-6">
                         <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center border-2 border-primary/20 relative">
                             <Check className="w-10 h-10 text-primary" />
                             <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping opacity-25" />
@@ -72,7 +135,8 @@ export function RsvpModal({ eventTitle }: RsvpModalProps) {
                         <div className="space-y-2">
                             <DialogTitle className="text-3xl font-display tracking-wider uppercase">Signal Locked</DialogTitle>
                             <DialogDescription className="text-base text-muted-foreground leading-relaxed px-4">
-                                Your coordinates are confirmed! We've sent an encrypted brief to <strong>{email}</strong>. Prepare for the jump to <strong>{eventTitle}</strong>.
+                                Your coordinates are confirmed! See you at{" "}
+                                <strong>{eventTitle}</strong>.
                             </DialogDescription>
                         </div>
                         <div className="flex gap-4 w-full pt-4">
@@ -89,14 +153,14 @@ export function RsvpModal({ eventTitle }: RsvpModalProps) {
                         <DialogHeader>
                             <DialogTitle>RSVP for {eventTitle}</DialogTitle>
                             <DialogDescription>
-                                Secure your spot! Please provide your details below.
+                                Secure your spot! We'll use your info to send event details.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="name">Full Name</Label>
+                                <Label htmlFor="rsvp-name">Full Name</Label>
                                 <Input
-                                    id="name"
+                                    id="rsvp-name"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     placeholder="Enter your full name"
@@ -104,9 +168,9 @@ export function RsvpModal({ eventTitle }: RsvpModalProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email Address</Label>
+                                <Label htmlFor="rsvp-email">Email Address</Label>
                                 <Input
-                                    id="email"
+                                    id="rsvp-email"
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -115,14 +179,13 @@ export function RsvpModal({ eventTitle }: RsvpModalProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="phone">Phone Number</Label>
+                                <Label htmlFor="rsvp-phone">Phone Number <span className="text-muted-foreground text-xs">(optional)</span></Label>
                                 <Input
-                                    id="phone"
+                                    id="rsvp-phone"
                                     type="tel"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
                                     placeholder="(555) 000-0000"
-                                    required
                                 />
                             </div>
                         </div>

@@ -131,7 +131,7 @@ The database is built through a series of **migration files** — numbered SQL s
 
 1. **Step 1** (00001): Define all the categories (genres, user roles, order statuses, etc.)
 2. **Step 2** (00002): Create the users table
-3. **Step 3** (00003): Create the books tables (books, variants, chapters, illustrations)
+3. **Step 3** (00003): Create the books tables (books, variants, pages, illustrations)
 4. **Step 4** (00004): Create the shopping tables (cart, orders, library, promo codes)
 5. **Step 5** (00005): Create the subscription table
 6. **Step 6** (00006): Create the reading experience tables (progress, highlights, bookmarks, settings)
@@ -172,7 +172,7 @@ The Next.js frontend checks if you're logged in before showing certain pages:
 Every table in the database has **Row-Level Security** (RLS) policies. These are rules enforced by the database itself — even if someone bypasses the frontend, the database refuses to hand over data they shouldn't see:
 
 - **Your profile**: Only you can see your own email, phone, and address. Other users can only see your display name.
-- **Books**: Anyone can browse published books. Only book owners can read chapters.
+- **Books**: Anyone can browse published books. Only book owners can read pages.
 - **Cart**: You can only see your own cart. Other users can't see yours.
 - **Discussions**: Only premium members can see or post in discussions. The database rejects requests from free users.
 - **Admin**: Admins can see and modify everything.
@@ -183,7 +183,7 @@ Every table in the database has **Row-Level Security** (RLS) policies. These are
 ### Layer 3: The Alarm System (Edge Function Guards)
 
 For complex operations, the server-side code adds extra checks:
-- **Checkout**: Before processing payment, it verifies the cart isn't empty, items are in stock, promo codes are valid, and the user doesn't already own any of the books.
+- **Checkout**: Before processing payment, it verifies the cart isn't empty, items are in stock, promo codes are valid (including self-use prevention), and the user doesn't already own any of the ebooks.
 - **Subscribe**: Before creating a subscription, it verifies the user isn't already subscribed.
 - **Post in discussion**: Before saving a post, it checks the user has an active premium subscription and isn't banned.
 - **Edit a post**: Before allowing an edit, it checks the post is less than 15 minutes old.
@@ -193,7 +193,7 @@ For complex operations, the server-side code adds extra checks:
 | User Type | Access Level |
 |---|---|
 | **Guest** (no account) | Browse books, view public events, manage a session-based cart |
-| **Free Reader** | All above + purchase, read owned books, highlights, bookmarks, reader settings, profile, order history |
+| **Free Reader** | All above + purchase, read owned books, highlights, bookmarks, reader settings, profile, order history, RSVP to public events |
 | **Premium Member** | All above + discussions, all events, RSVPs, book club picks, dealer code |
 | **Banned User** | Read owned books only (highlights, bookmarks, settings still work). Everything else blocked. |
 | **Admin** | Full control over everything |
@@ -214,7 +214,7 @@ Some operations involve **multiple steps that must all succeed or all fail**. If
 1. Validate the cart ✓
 2. Charge the credit card ✓
 3. Create the order ✓
-4. Add ebooks to the library ← *Network drops here*
+4. Add ebooks and Komet Card purchases to the library ← *Network drops here*
 5. Clear the cart ✗
 6. Send confirmation email ✗
 
@@ -227,11 +227,11 @@ If the frontend ran this, steps 4–6 would fail silently. With an Edge Function
 | Browse books | ❌ No | Simple database read — RLS handles security |
 | Update profile | ❌ No | Simple database write — RLS handles security |
 | Save reading progress | ❌ No | Simple database write — RLS handles security |
-| **Checkout** | ✅ Yes | 6+ coordinated steps across DB + Stripe + GoHighLevel |
-| **Subscribe** | ✅ Yes | Stripe subscription + DB updates + promo code generation + email |
+| **Checkout** | ✅ Yes | 7+ coordinated steps across DB + Stripe + GoHighLevel (cart validation, promo code checks including self-use prevention, shipping determination, payment, order creation, library additions, email) |
+| **Subscribe** | ✅ Yes | One-time $49.99 Stripe charge + $3.99/mo subscription (delayed 30 days) + DB updates + promo code generation (DB + Stripe Promotion Code) + GoHighLevel sync + email |
 | **Cancel subscription** | ✅ Yes | Stripe cancellation + DB updates + promo deactivation |
 | **Ban user** | ✅ Yes | Update user + cancel Stripe + deactivate promo + email |
-| **Upload book** | ✅ Yes | PDF parsing + text extraction + image extraction |
+| **Upload book** | ✅ Yes | PDF page rendering (WebP images for layout preservation) + text extraction (for search) + inline illustration extraction with positions |
 | **Stripe webhook** | ✅ Yes | Routes Stripe notifications to correct handler |
 | **Validate promo code** | ✅ Yes | Multi-table lookup + business rule checks |
 
@@ -303,17 +303,18 @@ Think of these as four labeled filing cabinets:
 |---|---|---|
 | **Book Covers** | The cover images shown on book cards | Everyone (public) |
 | **Book PDFs** | Original uploaded PDF files | Admin only |
-| **Book Illustrations** | Images extracted from PDFs (shown between chapters) | Only users who own the book |
+| **Book Pages** | Rendered page images (WebP) that preserve the exact PDF layout | Only users who own the book |
+| **Book Illustrations** | Inline illustrations extracted from PDFs (displayed within pages) | Only users who own the book |
 | **Avatars** | User profile images | Only the user themselves |
 
 ### How It Works
 
 1. Admin uploads a PDF → stored in the "Book PDFs" cabinet
-2. An Edge Function extracts text (into chapters) and images (into illustrations)
-3. Chapters are stored as text in the database
-4. Illustration images are stored in the "Book Illustrations" cabinet
+2. An Edge Function renders each PDF page as a high-quality WebP image (preserving the exact visual layout) and also extracts plain text for search indexing
+3. Rendered page images are stored in the "Book Pages" cabinet
+4. Inline illustrations are extracted with their page positions and stored in the "Book Illustrations" cabinet
 5. The book cover image is stored in the "Book Covers" cabinet
-6. When a reader opens a book, the frontend loads chapters from the database and illustration images from storage — but only if they own the book
+6. When a reader opens a book, they see the rendered page images — everything looks exactly like the original printed book, page by page ("Page 1 of 45" navigation). Only book owners can access these images.
 
 ---
 
@@ -324,12 +325,13 @@ Think of these as four labeled filing cabinets:
 Stripe handles all money. Our backend talks to Stripe in two ways:
 
 **Our app → Stripe** (when we need something):
-- "Charge this customer $30.70 for their book order"
-- "Create a monthly subscription for $49.99/$3.99"
+- "Create a one-time charge of $49.99 for this new premium member"
+- "Create a $3.99/month subscription with the first invoice delayed 30 days"
+- "Create a Stripe Promotion Code for this dealer code"
 - "Cancel this subscription"
 
 **Stripe → Our app** (when Stripe tells us something happened):
-- "Payment succeeded" → We confirm the order and add ebooks to the library
+- "Payment succeeded" → We confirm the order and add ebooks/Komet Cards to the library
 - "Monthly payment went through" → We extend the subscription
 - "Monthly payment failed" → We mark the subscription as past due and send an email
 - "Subscription was cancelled" → We deactivate the dealer code
@@ -338,7 +340,7 @@ These "Stripe telling us" messages are called **webhooks**. We have a dedicated 
 
 ### GoHighLevel (Email)
 
-GoHighLevel handles all outbound emails. Our app never sends emails directly — instead, it tells GoHighLevel "send a welcome email to jane@example.com" and GoHighLevel handles the formatting, delivery, and tracking.
+GoHighLevel handles all outbound emails and contact management. Our app never sends emails directly — instead, it tells GoHighLevel "send a welcome email to jane@example.com" and GoHighLevel handles the formatting, delivery, and tracking. A GoHighLevel contact is created for **every** new user, including free accounts. For premium subscribers, we also sync their t-shirt size and mailing address.
 
 Emails are triggered by:
 - New user registration → Welcome email
@@ -400,7 +402,7 @@ The architecture is designed to handle growth without major rewrites:
 | **Database getting slow** | Performance indexes on every frequently-queried column (search, genre filter, user lookup) |
 | **Too many database writes** | Reading progress saves every 30 seconds (not on every scroll). Counters are updated via triggers, not recalculated. |
 | **Book catalog growing** | Cursor-based pagination loads 20 books at a time. Full-text search uses PostgreSQL's built-in high-speed search. |
-| **Large books** | Chapters are stored separately. The reader loads one chapter at a time, not the entire book. |
+| **Large books** | Pages are rendered as individual images. The reader loads one page image at a time ("Page X of Y" navigation), not the entire book. |
 | **Many concurrent users** | Supabase includes built-in connection pooling (efficiently sharing database connections). |
 | **Edge Function speed** | Each function is small and focused (< 500 lines). Minimal imports keep startup times fast. |
 | **File storage** | Cover images are served from Supabase's CDN (global edge network) for fast loading anywhere in the world. |

@@ -1,25 +1,57 @@
 import { notFound } from "next/navigation"
-import { mockBooks } from "@/lib/mock-books"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { ShoppingCart, BookOpen, Sparkles } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
-import { BookPurchaseSection } from "@/components/book-purchase-section"
+import { type Book } from "@/lib/mock-books"
+import { notFound as nextNotFound } from "next/navigation"
 import { SiteHeader } from "@/components/site-header"
+import { BookPurchaseSection } from "@/components/book-purchase-section"
+import { Card } from "@/components/ui/card"
+import { Sparkles } from "lucide-react"
+import Image from "next/image"
+import { createClient, createStaticClient } from "@/lib/supabase/server"
 
-export function generateStaticParams() {
-  return mockBooks.map((book) => ({
+export const revalidate = 300 // Revalidate every 5 minutes
+
+export async function generateStaticParams() {
+  const supabase = createStaticClient()
+  const { data: books } = await supabase.from('books').select('id')
+
+  return books?.map((book) => ({
     id: book.id,
-  }))
+  })) || []
 }
 
 export default async function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const book = mockBooks.find((b) => b.id === id)
+  const supabase = await createClient()
 
-  if (!book) {
+  const { data: b, error } = await supabase
+    .from('books')
+    .select(`
+      *,
+      book_variants (*)
+    `)
+    .eq('id', id)
+    .single()
+
+  if (error || !b) {
     notFound()
+  }
+
+  const book: Book = {
+    id: b.id,
+    title: b.title,
+    author: b.author,
+    illustrator: b.illustrator,
+    coverImage: b.cover_image_url || "/placeholder.webp",
+    genre: b.genre,
+    description: b.description || "",
+    // Use ebook price as default, or first variant
+    price: b.book_variants?.find((v: any) => v.format === 'ebook')?.price || b.book_variants?.[0]?.price || 0,
+    variants: b.book_variants?.map((v: any) => ({
+      id: v.id,
+      format: v.format,
+      price: v.price,
+      available: v.is_in_stock
+    })) || []
   }
 
   return (
@@ -50,7 +82,11 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
               <h1 className="font-display text-6xl md:text-7xl lg:text-8xl tracking-tighter mb-4 leading-[0.85] text-balance">
                 {book.title}
               </h1>
-              <p className="text-3xl text-muted-foreground font-light mb-6">By {book.author}</p>
+              <p className="text-3xl text-muted-foreground font-light mb-2">By {book.author}</p>
+              {book.illustrator && (
+                <p className="text-lg text-muted-foreground/80 italic mb-6">Illustrated by {book.illustrator}</p>
+              )}
+              {!book.illustrator && <div className="mb-6" />}
             </div>
 
             <BookPurchaseSection book={book} />

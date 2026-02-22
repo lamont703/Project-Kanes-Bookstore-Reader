@@ -423,13 +423,14 @@ All errors follow a consistent envelope:
 
 **Auth:** Optional (public for published books)
 
-**Response `200 OK`:** Single book object (same shape as list item, plus `chapters` summary).
+**Response `200 OK`:** Single book object (same shape as list item, plus `illustrator`).
 
 ```json
 {
   "id": "uuid",
   "title": "Brute Syndicate",
   "author": "Caleb V. Kaine",
+  "illustrator": "John Smith",
   "description": "In a world ruled by corporate syndicates...",
   "genre": "Crime",
   "cover_image_url": "/Brute Syndicate 1 Cover.webp",
@@ -438,14 +439,15 @@ All errors follow a consistent envelope:
   "is_age_restricted": false,
   "status": "published",
   "variants": [ /* ... */ ],
-  "chapter_count": 12,
   "created_at": "2025-01-01T00:00:00Z"
 }
 ```
 
+> **Note**: Total page count is not stored on the `books` table. Use `GET /rest/v1/book_pages?book_id=eq.{book_id}` and read the `total_pages` field from that response.
+
 ---
 
-#### `GET /rest/v1/book_chapters?book_id=eq.{book_id}` — Get Book Chapters
+#### `GET /rest/v1/book_pages?book_id=eq.{book_id}` — Get Book Pages
 
 **Auth:** Required (must own book in `user_library`)
 
@@ -455,14 +457,16 @@ All errors follow a consistent envelope:
   "data": [
     {
       "id": "uuid",
-      "chapter_number": 1,
-      "title": "Chapter 1: The Awakening",
-      "content": "The stars had always called to her...",
-      "word_count": 1250
+      "page_number": 1,
+      "page_image_url": "https://storage.supabase.co/.../page-001.webp",
+      "word_count": 350
     }
-  ]
+  ],
+  "total_pages": 45
 }
 ```
+
+**Note:** The reader displays `page_image_url` (a rendered image of the original PDF page) to preserve exact visual layout. Text content is stored server-side for search indexing only and is not returned in this response. Navigation shows "Page X of Y" style pagination.
 
 **Error:** `403 FORBIDDEN` — User doesn't own this book.
 
@@ -479,9 +483,11 @@ All errors follow a consistent envelope:
     {
       "id": "uuid",
       "image_url": "https://storage.supabase.co/...",
-      "display_after_chapter": 1,
+      "page_number": 3,
+      "position_index": 0,
       "caption": "The nebula stretches across the viewport",
-      "sort_order": 0
+      "width": 400,
+      "height": 300
     }
   ]
 }
@@ -540,9 +546,10 @@ All errors follow a consistent envelope:
 **Response `201 Created`:** Created cart item.
 
 **Error Cases:**
-- `409 CONFLICT` — Book already in user's library (prevents re-purchase)
+- `409 CONFLICT` — Ebook already in user's library (prevents re-purchase of ebooks). Physical variants (Paper Book, Komet Card) can still be purchased even if user owns the ebook.
 - `409 CONFLICT` — Item already in cart (use PATCH to update quantity)
 - `422 BUSINESS_RULE_VIOLATION` — Variant is out of stock
+- `422 BUSINESS_RULE_VIOLATION` — Ebook quantity must be 1
 
 ---
 
@@ -571,7 +578,7 @@ All errors follow a consistent envelope:
 
 #### `POST /functions/v1/checkout` — Create Order (Edge Function)
 
-This is an Edge Function because it orchestrates: validate cart → apply promo code → create Stripe PaymentIntent → create order + order_items → add ebooks to library → clear cart → trigger GoHighLevel email.
+This is an Edge Function because it orchestrates: validate cart → check dealer code (prevent self-use) → apply promo code → determine shipping → create Stripe PaymentIntent → create order + order_items → add ebooks/Komet Cards to library → clear cart → trigger GoHighLevel email.
 
 **Auth:** Required
 
@@ -599,8 +606,10 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
     "status": "confirmed",
     "subtotal": 44.98,
     "discount_amount": 15.74,
+    "shipping_amount": 5.99,
     "tax_amount": 1.46,
-    "total": 30.70,
+    "total": 36.69,
+    "has_physical_items": true,
     "promo_code_used": "KANE-EVANS-4821",
     "placed_at": "2026-02-18T07:00:00Z",
     "items": [
@@ -627,8 +636,8 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
 
 **Error Cases:**
 - `400 VALIDATION_ERROR` — Empty cart, missing shipping for physical items
-- `409 CONFLICT` — Book already owned
-- `422 BUSINESS_RULE_VIOLATION` — Invalid/inactive promo code, out-of-stock variant
+- `409 CONFLICT` — Ebook already owned
+- `422 BUSINESS_RULE_VIOLATION` — Invalid/inactive promo code, out-of-stock variant, self-use of own dealer code
 - `402` — Stripe payment failed
 
 ---
@@ -646,8 +655,9 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
       "status": "confirmed",
       "subtotal": 44.98,
       "discount_amount": 15.74,
+      "shipping_amount": 5.99,
       "tax_amount": 1.46,
-      "total": 30.70,
+      "total": 36.69,
       "placed_at": "2026-02-18T07:00:00Z",
       "items": [
         {
@@ -681,7 +691,6 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
       "id": "uuid",
       "book_id": "uuid",
       "source": "purchase",
-      "is_permanent": true,
       "acquired_at": "2025-12-01T00:00:00Z",
       "book": {
         "id": "uuid",
@@ -691,7 +700,7 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
         "genre": "Crime"
       },
       "reading_progress": {
-        "current_chapter": 3,
+        "current_page": 12,
         "progress_percent": 45.00,
         "last_read_at": "2026-02-18T06:00:00Z"
       }
@@ -712,7 +721,7 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
 ```json
 {
   "book_id": "uuid",
-  "current_chapter": 3,
+  "current_page": 12,
   "progress_percent": 45.00,
   "last_read_at": "2026-02-18T06:00:00Z"
 }
@@ -730,7 +739,7 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
 {
   "user_id": "uuid",
   "book_id": "uuid",
-  "current_chapter": 4,
+  "current_page": 13,
   "progress_percent": 52.30
 }
 ```
@@ -745,7 +754,7 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
   "data": [
     {
       "id": "uuid",
-      "chapter_index": 1,
+      "page_number": 3,
       "paragraph_index": 3,
       "text": "The stars had always called to her.",
       "color": "yellow",
@@ -764,7 +773,7 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
 ```json
 {
   "book_id": "uuid",
-  "chapter_index": 1,
+  "page_number": 3,
   "paragraph_index": 3,
   "text": "The stars had always called to her.",
   "color": "yellow",
@@ -784,9 +793,32 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
 
 #### `GET /rest/v1/bookmarks?user_id=eq.{user_id}&book_id=eq.{book_id}` — Get Bookmarks
 
-**Response:** Same pattern as highlights.
+**Response `200 OK`:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "page_number": 12,
+      "label": "Key scene",
+      "created_at": "2026-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+**Note:** Bookmarks are page-level (no paragraph_index). Users bookmark entire pages.
 
 #### `POST /rest/v1/bookmarks` — Create Bookmark
+
+**Request Body:**
+```json
+{
+  "book_id": "uuid",
+  "page_number": 12,
+  "label": "Key scene"
+}
+```
 
 **Error:** `422 BUSINESS_RULE_VIOLATION` — Bookmark cap exceeded (max 10 per book).
 
@@ -825,7 +857,7 @@ This is an Edge Function because it orchestrates: validate cart → apply promo 
 
 #### `POST /functions/v1/subscribe` — Create Premium Subscription (Edge Function)
 
-Orchestrates: create Stripe Subscription → create/update `user_subscriptions` → add 2 selected books to library → generate dealer code → trigger GoHighLevel welcome email.
+Orchestrates: create one-time $49.99 Stripe charge → create $3.99/month Stripe Subscription (first invoice delayed 30 days) → create/update `user_subscriptions` → add 2 selected books to library → generate dealer code (+ Stripe Promotion Code) → sync t-shirt size and mailing address to GoHighLevel → trigger welcome email.
 
 **Auth:** Required
 
@@ -914,7 +946,7 @@ Orchestrates: create Stripe Subscription → create/update `user_subscriptions` 
 }
 ```
 
-**Error:** `422 BUSINESS_RULE_VIOLATION` — Code not found, inactive, or owner banned.
+**Error:** `422 BUSINESS_RULE_VIOLATION` — Code not found, inactive, owner banned, or user is trying to use their own code.
 
 ---
 
@@ -1002,7 +1034,9 @@ Orchestrates: create Stripe Subscription → create/update `user_subscriptions` 
 
 #### `POST /rest/v1/event_rsvps` — RSVP to Event
 
-**Auth:** Required (account needed)
+**Auth:** Required (account needed)  
+- **Public events:** Free users and premium users can RSVP  
+- **Private events:** Premium users only
 
 **Request Body:**
 ```json
@@ -1041,7 +1075,7 @@ Orchestrates: create Stripe Subscription → create/update `user_subscriptions` 
       "id": "uuid",
       "title": "Official: 'Cosmic Drift' Discussion",
       "description": "The primary forge for all deep-dives...",
-      "category": "Book Club",
+      "category": "Crime",
       "is_pinned": true,
       "is_featured": true,
       "post_count": 154,
@@ -1158,7 +1192,7 @@ All admin endpoints require `role = 'admin'` in JWT.
 | `PATCH` | `/rest/v1/books?id=eq.{id}` | Update book metadata |
 | `DELETE` | `/rest/v1/books?id=eq.{id}` | Soft delete book |
 | `PATCH` | `/rest/v1/book_variants?id=eq.{id}` | Update price/stock status |
-| `POST` | `/functions/v1/upload-book` | Upload PDF + cover → extract chapters/illustrations |
+| `POST` | `/functions/v1/upload-book` | Upload PDF + cover → extract pages and inline illustrations |
 
 #### Admin Create Book Request:
 ```json
@@ -1326,7 +1360,7 @@ This maps every current frontend data source to its API endpoint replacement:
 | Current Source | Current Type | API Endpoint Replacement |
 |---|---|---|
 | `lib/mock-books.ts` | Static TypeScript file | `GET /rest/v1/books` |
-| `lib/mock-book-content.ts` | Static TypeScript file | `GET /rest/v1/book_chapters` + `book_illustrations` |
+| `lib/mock-book-content.ts` | Static TypeScript file | `GET /rest/v1/book_pages` + `book_illustrations` |
 | `lib/mock-user-data.ts` | Static TypeScript file | `GET /rest/v1/user_library` + `orders` |
 | `lib/mock-admin-data.ts` | Static TypeScript file | `GET /rest/v1/users` (admin) |
 | `lib/mock-book-club-data.ts` | Static TypeScript file | `GET /rest/v1/book_club_selections` + `events` + `discussion_topics` |

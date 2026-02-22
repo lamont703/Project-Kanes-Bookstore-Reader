@@ -1,0 +1,37 @@
+meta {
+  name: Register
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{supabase_url}}/auth/v1/signup
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  apikey: {{anon_key}}
+}
+
+body:json {
+  {
+    "email": "testuser@example.com",
+    "password": "SecurePass123!",
+    "data": {
+      "full_name": "Test User",
+      "display_name": "TestUser",
+      "phone": "5551234567"
+    }
+  }
+}
+
+tests {
+  test("Status is 200 or 201", function() {
+    expect(res.status).to.be.oneOf([200, 201]);
+  });
+  test("Returns access_token", function() {
+    expect(res.body).to.have.property("access_token");
+  });
+}

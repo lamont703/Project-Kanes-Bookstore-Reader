@@ -12,7 +12,7 @@ interface BookPurchaseSectionProps {
 export function BookPurchaseSection({ book }: BookPurchaseSectionProps) {
     const [selectedFormat, setSelectedFormat] = useState<BookFormat>("ebook")
 
-    const currentVariant = book.variants.find((v) => v.format === selectedFormat) || book.variants[0]
+    const currentVariant = book.variants.find((v) => v.format === selectedFormat) || book.variants[0] || { id: "", price: 0, available: false }
 
     return (
         <div className="border-t border-border pt-6">
@@ -27,8 +27,8 @@ export function BookPurchaseSection({ book }: BookPurchaseSectionProps) {
                             onClick={() => setSelectedFormat(v.format)}
                             disabled={!v.available}
                             className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${selectedFormat === v.format
-                                    ? "border-secondary bg-secondary/5 shadow-[0_0_15px_rgba(var(--secondary),0.1)]"
-                                    : "border-border bg-card/30 hover:border-primary/50"
+                                ? "border-secondary bg-secondary/5 shadow-[0_0_15px_rgba(var(--secondary),0.1)]"
+                                : "border-border bg-card/30 hover:border-primary/50"
                                 } ${!v.available ? "opacity-40 cursor-not-allowed" : ""}`}
                         >
                             <div
@@ -53,7 +53,12 @@ export function BookPurchaseSection({ book }: BookPurchaseSectionProps) {
             <div className="flex items-baseline gap-2 mb-6">
                 <span className="font-display text-5xl text-secondary">${currentVariant.price}</span>
                 <span className="text-muted-foreground">
-                    {selectedFormat === "ebook" ? "Instant Digital Access" : "Physical Item (Shipped)"}
+                    {selectedFormat === "ebook"
+                        ? "Instant Digital Access"
+                        : selectedFormat === "paper_book"
+                            ? "Physical Book (Shipped)"
+                            : "Physical Card + Digital Access (Shipped)"
+                    }
                 </span>
             </div>
 
@@ -61,6 +66,7 @@ export function BookPurchaseSection({ book }: BookPurchaseSectionProps) {
                 <AddToCartButton
                     book={{
                         id: book.id,
+                        variantId: currentVariant.id || "",
                         title: book.title,
                         price: currentVariant.price,
                         coverImage: book.coverImage || "/placeholder.svg",

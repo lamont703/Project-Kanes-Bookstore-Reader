@@ -1,0 +1,189 @@
+openapi: 3.1.0
+info:
+  title: Kane's Komet Book Reader API
+  description: API contract for the Kane's Komet bookstore and premium book club.
+  version: 1.0.0
+servers:
+  - url: http://localhost:54321/rest/v1
+    description: Local Development (Supabase PostgREST)
+  - url: http://localhost:54321/functions/v1
+    description: Local Development (Supabase Edge Functions)
+  - url: https://{project-ref}.supabase.co/rest/v1
+    description: Production (Supabase PostgREST)
+    variables:
+      project-ref:
+        default: your-project-ref
+  - url: https://{project-ref}.supabase.co/functions/v1
+    description: Production (Supabase Edge Functions)
+    variables:
+      project-ref:
+        default: your-project-ref
+
+components:
+  securitySchemes:
+    supabaseKey:
+      type: apiKey
+      in: header
+      name: apikey
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  issue:
+                    type: string
+
+    Book:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        author:
+          type: string
+        illustrator:
+          type: string
+        description:
+          type: string
+        genre:
+          $ref: '#/components/schemas/Genre'
+        cover_image_url:
+          type: string
+          format: uri
+        series_name:
+          type: string
+          nullable: true
+        series_order:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [draft, published]
+        is_age_restricted:
+          type: boolean
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookVariant'
+
+    BookVariant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        format:
+          type: string
+          enum: [ebook, paper_book, komet_card]
+        price:
+          type: number
+          format: float
+        is_in_stock:
+          type: boolean
+
+    Genre:
+      type: string
+      enum: [Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking]
+
+security:
+  - supabaseKey: []
+
+paths:
+  /books:
+    get:
+      summary: List books
+      parameters:
+        - name: genre
+          in: query
+          schema:
+            $ref: '#/components/schemas/Genre'
+        - name: select
+          in: query
+          description: Supabase select string
+          schema:
+            type: string
+            default: "*,book_variants(*)"
+      responses:
+        '200':
+          description: A list of books
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+  
+  /user_library:
+    get:
+      summary: Get user owned books
+      security:
+        - bearerAuth: []
+        - supabaseKey: []
+      responses:
+        '200':
+          description: List of books in library
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /functions/v1/checkout:
+    post:
+      summary: Process checkout
+      security:
+        - bearerAuth: []
+        - supabaseKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                promo_code:
+                  type: string
+                shipping:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    address: { type: string }
+                    city: { type: string }
+                    state: { type: string }
+                    zip: { type: string }
+                stripe_payment_method_id:
+                  type: string
+      responses:
+        '201':
+          description: Order created successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+responses:
+  BadRequest:
+    description: Invalid request
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/Error'

@@ -1,32 +1,71 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { BookCard } from "@/components/book-card"
-import { mockBooks, GENRES } from "@/lib/mock-books"
-import { Search, SlidersHorizontal } from "lucide-react"
+import { GENRES, type Book } from "@/lib/mock-books"
+import { Search, SlidersHorizontal, Loader2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { SiteHeader } from "@/components/site-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import * as React from "react"
+import { createClient } from "@/lib/supabase/client"
 
 export default function BrowsePage() {
+  const [books, setBooks] = useState<Book[]>([])
   const [selectedGenre, setSelectedGenre] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<"title" | "price-low" | "price-high">("title")
   const [isLoading, setIsLoading] = useState(true)
+  const supabase = createClient()
 
-  React.useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 1200)
-    return () => clearTimeout(timer)
-  }, [selectedGenre, sortBy]) // Re-trigger on filter change for better UX feel
+  useEffect(() => {
+    async function fetchBooks() {
+      setIsLoading(true)
+      try {
+        const { data, error } = await supabase
+          .from('books')
+          .select(`
+            *,
+            book_variants (*)
+          `)
+          .eq('status', 'published')
 
-  const filteredBooks = mockBooks
+        if (error) throw error
+
+        if (data) {
+          const mappedBooks: Book[] = data.map((b: any) => ({
+            id: b.id,
+            title: b.title,
+            author: b.author,
+            illustrator: b.illustrator,
+            coverImage: b.cover_image_url || "/placeholder.webp",
+            genre: b.genre,
+            description: b.description || "",
+            // Use ebook price as default, or first variant
+            price: b.book_variants?.find((v: any) => v.format === 'ebook')?.price || b.book_variants?.[0]?.price || 0,
+            variants: b.book_variants?.map((v: any) => ({
+              id: v.id,
+              format: v.format,
+              price: v.price,
+              available: v.is_in_stock
+            })) || []
+          }))
+          setBooks(mappedBooks)
+        }
+      } catch (error) {
+        console.error("Error fetching books:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchBooks()
+  }, [supabase])
+
+  const filteredBooks = books
     .filter((book) => {
       const matchesGenre = selectedGenre === "All" || book.genre === selectedGenre
       const matchesSearch =

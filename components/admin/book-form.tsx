@@ -12,25 +12,28 @@ import { GENRES, type Book } from "@/lib/mock-books"
 import { UploadCloud, FileText, ImageIcon, Loader, CheckCircle2, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 
+import { createClient } from "@/lib/supabase/client"
+
 interface BookFormProps {
-    initialData?: Partial<Book> & { status?: string }
+    initialData?: any
     isEdit?: boolean
 }
 
 export function BookForm({ initialData, isEdit }: BookFormProps) {
     const router = useRouter()
     const [isUploading, setIsUploading] = useState(false)
+    const supabase = createClient()
 
     // Form State
     const [formData, setFormData] = useState({
         title: initialData?.title || "",
         author: initialData?.author || "",
+        illustrator: initialData?.illustrator || "",
         description: initialData?.description || "",
-        genre: initialData?.genre || "Science Fiction",
+        genre: initialData?.genre || "Crime",
         price: initialData?.price || 0,
-
-        status: initialData?.status || "Published",
-        variants: initialData?.variants || [
+        status: initialData?.status || "Draft",
+        variants: initialData?.book_variants || [
             { format: "ebook" as const, price: 0, available: true },
             { format: "paper_book" as const, price: 0, available: true },
             { format: "komet_card" as const, price: 0, available: true },
@@ -53,7 +56,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
         if (!formData.author) newErrors.author = "Author is required"
         if (!formData.description) newErrors.description = "Description is required"
 
-        formData.variants.forEach(v => {
+        formData.variants.forEach((v: any) => {
             if (v.price <= 0) {
                 newErrors[`price_${v.format}`] = `${v.format.replace('_', ' ')} price must be greater than 0`
             }
@@ -91,12 +94,106 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
 
         setIsUploading(true)
 
-        // Simulate API call
-        setTimeout(() => {
-            setIsUploading(false)
-            toast.success(isEdit ? "Volume updated successfully" : "New volume added to catalog")
+        let bookId: string | null = null
+
+        try {
+            // 1. Create the book record
+            const { data: book, error: bookError } = await supabase
+                .from("books")
+                .insert({
+                    title: formData.title,
+                    author: formData.author,
+                    illustrator: formData.illustrator || null,
+                    description: formData.description,
+                    genre: formData.genre,
+                    status: formData.status === "Published" ? "published" : "draft",
+                })
+                .select()
+                .single()
+
+            if (bookError) throw new Error(`Failed to create book: ${bookError.message}`)
+            bookId = book.id
+
+            // 2. Upload cover image to Storage
+            if (files.cover) {
+                const coverExt = files.cover.name.split(".").pop()?.toLowerCase() || "jpg"
+                const coverPath = `${bookId}/cover.${coverExt}`
+
+                const { error: coverUploadError } = await supabase.storage
+                    .from("book-covers")
+                    .upload(coverPath, files.cover, {
+                        contentType: files.cover.type,
+                        upsert: true,
+                    })
+
+                if (coverUploadError) {
+                    console.error("Cover upload error:", coverUploadError)
+                    toast.error("Cover upload failed, but book was created. You can re-upload later.")
+                } else {
+                    // Get public URL and update book record
+                    const { data: publicUrl } = supabase.storage
+                        .from("book-covers")
+                        .getPublicUrl(coverPath)
+
+                    await supabase
+                        .from("books")
+                        .update({ cover_image_url: publicUrl.publicUrl })
+                        .eq("id", bookId)
+                }
+            }
+
+            // 3. Create book variants
+            const variantInserts = formData.variants
+                .filter((v: any) => v.price > 0)
+                .map((v: any) => ({
+                    book_id: bookId,
+                    format: v.format,
+                    price: v.price,
+                    is_in_stock: v.available,
+                }))
+
+            if (variantInserts.length > 0) {
+                const { error: variantError } = await supabase
+                    .from("book_variants")
+                    .insert(variantInserts)
+
+                if (variantError) {
+                    console.error("Variant creation error:", variantError)
+                    toast.error("Some variants failed to create.")
+                }
+            }
+
+            // 4. Upload PDF to Storage (for later processing by Edge Function)
+            if (files.pdf) {
+                const pdfPath = `${bookId}/original.pdf`
+
+                const { error: pdfUploadError } = await supabase.storage
+                    .from("book-pdfs")
+                    .upload(pdfPath, files.pdf, {
+                        contentType: "application/pdf",
+                        upsert: true,
+                    })
+
+                if (pdfUploadError) {
+                    console.error("PDF upload error:", pdfUploadError)
+                    toast.error("PDF upload failed. You can re-upload from the edit page.")
+                }
+            }
+
+            toast.success(isEdit ? "Volume updated successfully" : "New volume added to the cosmic library!")
             router.push("/admin/books")
-        }, 2000)
+        } catch (err: any) {
+            console.error("Upload error:", err)
+            toast.error(err.message || "Failed to upload volume")
+
+            // Rollback: delete the book if we created one but something else failed
+            if (bookId) {
+                await supabase.from("books").delete().eq("id", bookId)
+                console.log("Rolled back book record:", bookId)
+            }
+        } finally {
+            setIsUploading(false)
+        }
     }
 
     return (
@@ -154,8 +251,8 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                         id="price"
                                         type="number"
                                         step="0.01"
-                                        value={formData.price}
-                                        onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                                        value={formData.price || ""}
+                                        onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                                     />
                                     <p className="text-[10px] text-muted-foreground uppercase font-bold">This price serves as a general reference for internal logging.</p>
                                 </div>
@@ -184,7 +281,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                             </div>
                         </div>
                         <div className="space-y-6">
-                            {formData.variants.map((variant, index) => (
+                            {formData.variants.map((variant: any, index: number) => (
                                 <div key={variant.format} className="flex flex-col md:flex-row md:items-end gap-6 p-6 rounded-2xl bg-muted/20 border border-border/50 hover:border-primary/30 transition-all group">
                                     <div className="flex-1 space-y-3">
                                         <div className="flex items-center gap-2">

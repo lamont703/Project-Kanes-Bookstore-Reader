@@ -1,0 +1,9 @@
+{
+    "version": "1",
+    "name": "Kane's Komet Book Reader",
+    "type": "collection",
+    "ignore": [
+        "node_modules",
+        ".git"
+    ]
+}

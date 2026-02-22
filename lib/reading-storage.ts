@@ -10,19 +10,13 @@ const STORAGE_KEYS = {
 }
 
 export interface ReadingSettings {
-  fontSize: number
-  fontFamily: "serif" | "sans" | "mono"
-  lineHeight: number
+  zoom: number
   theme: "light" | "dark" | "sepia"
-  textAlign: "left" | "justify"
 }
 
 export const defaultSettings: ReadingSettings = {
-  fontSize: 18,
-  fontFamily: "serif",
-  lineHeight: 1.8,
+  zoom: 100,
   theme: "dark",
-  textAlign: "justify",
 }
 
 // Highlights

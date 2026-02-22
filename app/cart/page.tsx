@@ -9,17 +9,24 @@ import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 
+import { createClient } from "@/lib/supabase/client"
+
 export default function CartPage() {
     const { items, removeFromCart, clearCart } = useCart()
     const router = useRouter()
+    const supabase = createClient()
+
+    const hasPhysicalItems = items.some(item => item.format !== "ebook")
+    const FLAT_SHIPPING_RATE = 5.99
 
     const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
     const gst = total * 0.05
-    const finalTotal = total + gst
+    const shipping = hasPhysicalItems ? FLAT_SHIPPING_RATE : 0
+    const finalTotal = total + gst + shipping
 
-    const handleCheckout = () => {
-        const isLoggedIn = localStorage.getItem("komet_subscription_active") === "true"
-        if (isLoggedIn) {
+    const handleCheckout = async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
             router.push("/checkout")
         } else {
             router.push("/login?redirect=/cart&message=purchase")
@@ -107,6 +114,10 @@ export default function CartPage() {
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Subtotal</span>
                                         <span>${total.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Shipping</span>
+                                        <span>{hasPhysicalItems ? `$${shipping.toFixed(2)}` : "Free (Digital)"}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Calculated GST (5%)</span>

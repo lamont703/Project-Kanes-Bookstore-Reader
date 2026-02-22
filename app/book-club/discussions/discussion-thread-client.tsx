@@ -3,116 +3,157 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { MessageSquare, MoreHorizontal, ArrowUp, ArrowDown } from "lucide-react"
+import { MessageSquare, MoreHorizontal, ArrowUp, ArrowDown, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { SiteHeader } from "@/components/site-header"
-import { useState } from "react"
+import { useState, useTransition } from "react"
+import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
+import type { User } from "@supabase/supabase-js"
 
-interface CommentType {
-    id: number
-    author: { name: string }
-    time: string
+// ─── DB Row Types ────────────────────────────────────────────────────────────
+
+interface DbPost {
+    id: string
+    topic_id: string
+    parent_id: string | null
+    author_id: string
     content: string
     likes: number
-    userVote?: 'up' | 'down' // Track user vote
-    replies?: CommentType[]
+    created_at: string
+    updated_at: string
+    // Supabase returns joined users as array[] from raw select, or single from typed client
+    users: {
+        id: string
+        full_name: string | null
+        username: string | null
+    } | { id: string; full_name: string | null; username: string | null }[] | null
 }
 
-const initialComments: CommentType[] = [
-    {
-        id: 1,
-        author: { name: "GalaxyExplorer" },
-        time: "2h ago",
-        content: "I completely agree! The plot twist with the AI was something I did not see coming. It completely recontextualized the main character's journey for me. Honestly, it might be my favorite sci-fi twist of the year.",
-        likes: 156,
-        replies: [
-            {
-                id: 11,
-                author: { name: "NebulaNomad" },
-                time: "1h ago",
-                content: "Right? checking previous chapters, the hints were there all along!",
-                likes: 45,
-                replies: [
-                    {
-                        id: 111,
-                        author: { name: "DeepThinker" },
-                        time: "45m ago",
-                        content: "Exactly! Like the way the droid kept looking at the pilot... that wasn't random curiosity, that was data synchronization.",
-                        likes: 24,
-                    }
-                ]
-            },
-            {
-                id: 12,
-                author: { name: "CosmicDust" },
-                time: "30m ago",
-                content: "I felt like it was a bit rushed, but I respect the boldness of it.",
-                likes: 12,
-            }
-        ]
-    },
-    {
-        id: 2,
-        author: { name: "StarHopper" },
-        time: "1h ago",
-        content: "Does anyone have theories about the sequel? That cliffhanger was intense. I feel like the Commander isn't actually dead...",
-        likes: 42,
-        replies: []
+interface DbTopic {
+    id: string
+    title: string
+    description: string | null
+    category: string
+    post_count: number
+    member_count: number
+    last_activity_at: string | null
+    is_pinned: boolean
+    is_featured: boolean
+    books?: { title: string; cover_image_url: string | null } | null
+}
+
+// ─── Client-Side Nested Post Type ───────────────────────────────────────────
+
+interface PostNode extends DbPost {
+    userVote?: "up" | "down"
+    replies: PostNode[]
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function nestPosts(flat: DbPost[], userVotes: Record<string, "up" | "down">): PostNode[] {
+    const map: Record<string, PostNode> = {}
+    const roots: PostNode[] = []
+
+    // First pass — build map
+    for (const p of flat) {
+        map[p.id] = { ...p, userVote: userVotes[p.id], replies: [] }
     }
-]
+
+    // Second pass — attach children
+    for (const p of flat) {
+        if (p.parent_id && map[p.parent_id]) {
+            map[p.parent_id].replies.push(map[p.id])
+        } else {
+            roots.push(map[p.id])
+        }
+    }
+
+    return roots
+}
+
+function getAuthorName(post: DbPost): string {
+    const u = Array.isArray(post.users) ? post.users[0] : post.users
+    return u?.username ?? u?.full_name ?? "Komet Explorer"
+}
+
+function timeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60_000)
+    if (mins < 1) return "just now"
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    return `${Math.floor(hrs / 24)}d ago`
+}
+
+// ─── CommentItem Component ───────────────────────────────────────────────────
 
 interface CommentItemProps {
-    comment: CommentType
-    onVote: (id: number, type: 'up' | 'down') => void
-    onReply: (parentId: number, content: string) => void
+    post: PostNode
+    currentUser: User
+    onVote: (postId: string, type: "up" | "down") => Promise<void>
+    onReply: (parentId: string, content: string) => Promise<void>
     isNested?: boolean
 }
 
-function CommentItem({ comment, onVote, onReply, isNested = false }: CommentItemProps) {
+function CommentItem({ post, currentUser, onVote, onReply, isNested = false }: CommentItemProps) {
     const [isReplying, setIsReplying] = useState(false)
     const [replyContent, setReplyContent] = useState("")
+    const [isPendingVote, startVote] = useTransition()
+    const [isPendingReply, startReply] = useTransition()
 
     const handleReplySubmit = () => {
         if (!replyContent.trim()) return
-        onReply(comment.id, replyContent)
-        setReplyContent("")
-        setIsReplying(false)
+        startReply(async () => {
+            await onReply(post.id, replyContent)
+            setReplyContent("")
+            setIsReplying(false)
+        })
     }
 
     return (
         <div className={cn("group", isNested && "mt-4 ml-4 pl-4 border-l-2 border-border/30")}>
             <div className="flex gap-3">
+                {/* Vote Column */}
                 <div className="flex flex-col items-center gap-1 w-8 pt-1">
-                    <div className="flex flex-col items-center group/vote">
+                    <div className="flex flex-col items-center">
                         <ArrowUp
                             className={cn(
                                 "w-4 h-4 cursor-pointer transition-colors",
-                                comment.userVote === 'up' ? "text-orange-500" : "text-muted-foreground hover:text-orange-500"
+                                isPendingVote ? "opacity-40" : "",
+                                post.userVote === "up" ? "text-orange-500" : "text-muted-foreground hover:text-orange-500"
                             )}
-                            onClick={() => onVote(comment.id, 'up')}
+                            onClick={() => !isPendingVote && startVote(() => onVote(post.id, "up"))}
                         />
-                        <span className={cn(
-                            "text-xs font-bold my-1",
-                            comment.userVote === 'up' ? "text-orange-500" : comment.userVote === 'down' ? "text-blue-500" : ""
-                        )}>
-                            {comment.likes}
+                        <span
+                            className={cn(
+                                "text-xs font-bold my-1",
+                                post.userVote === "up" ? "text-orange-500" : post.userVote === "down" ? "text-blue-500" : ""
+                            )}
+                        >
+                            {post.likes}
                         </span>
                         <ArrowDown
                             className={cn(
                                 "w-4 h-4 cursor-pointer transition-colors",
-                                comment.userVote === 'down' ? "text-blue-500" : "text-muted-foreground hover:text-blue-500"
+                                isPendingVote ? "opacity-40" : "",
+                                post.userVote === "down" ? "text-blue-500" : "text-muted-foreground hover:text-blue-500"
                             )}
-                            onClick={() => onVote(comment.id, 'down')}
+                            onClick={() => !isPendingVote && startVote(() => onVote(post.id, "down"))}
                         />
                     </div>
                 </div>
 
+                {/* Content */}
                 <div className="flex-1 pb-2">
                     <div className="flex items-center gap-2 text-xs mb-1">
-                        <span className="font-bold text-foreground hover:underline cursor-pointer">{comment.author.name}</span>
-                        <span className="text-muted-foreground">• {comment.time}</span>
+                        <span className="font-bold text-foreground">{getAuthorName(post)}</span>
+                        <span className="text-muted-foreground">• {timeAgo(post.created_at)}</span>
                     </div>
-                    <p className="text-sm text-foreground/90 mb-2 leading-relaxed">{comment.content}</p>
+                    <p className="text-sm text-foreground/90 mb-2 leading-relaxed">{post.content}</p>
 
                     <div className="flex items-center gap-4">
                         <button
@@ -125,7 +166,7 @@ function CommentItem({ comment, onVote, onReply, isNested = false }: CommentItem
                     </div>
 
                     {isReplying && (
-                        <div className="mt-4 mb-4 animate-fade-in">
+                        <div className="mt-4 mb-4">
                             <Textarea
                                 placeholder="What are your thoughts?"
                                 className="min-h-[80px] mb-2 bg-card"
@@ -134,19 +175,30 @@ function CommentItem({ comment, onVote, onReply, isNested = false }: CommentItem
                                 autoFocus
                             />
                             <div className="flex justify-end gap-2">
-                                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setIsReplying(false)}>Cancel</Button>
-                                <Button size="sm" className="h-8 text-xs" onClick={handleReplySubmit} disabled={!replyContent.trim()}>Reply</Button>
+                                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setIsReplying(false)}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    className="h-8 text-xs"
+                                    onClick={handleReplySubmit}
+                                    disabled={!replyContent.trim() || isPendingReply}
+                                >
+                                    {isPendingReply && <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />}
+                                    Reply
+                                </Button>
                             </div>
                         </div>
                     )}
 
                     {/* Recursive Replies */}
-                    {comment.replies && comment.replies.length > 0 && (
+                    {post.replies.length > 0 && (
                         <div className="space-y-4">
-                            {comment.replies.map((reply) => (
+                            {post.replies.map((reply) => (
                                 <CommentItem
                                     key={reply.id}
-                                    comment={reply}
+                                    post={reply}
+                                    currentUser={currentUser}
                                     onVote={onVote}
                                     onReply={onReply}
                                     isNested={true}
@@ -160,98 +212,137 @@ function CommentItem({ comment, onVote, onReply, isNested = false }: CommentItem
     )
 }
 
-export default function DiscussionThreadClient({ discussion }: { discussion: any }) {
-    const [comments, setComments] = useState<CommentType[]>(initialComments)
+// ─── Main Client Component ────────────────────────────────────────────────────
+
+interface Props {
+    topic: DbTopic
+    initialPosts: DbPost[]
+    currentUser: User
+    initialUserVotes: Record<string, "up" | "down">
+}
+
+export default function DiscussionThreadClient({ topic, initialPosts, currentUser, initialUserVotes }: Props) {
+    const supabase = createClient()
+
+    const [posts, setPosts] = useState<PostNode[]>(() => nestPosts(initialPosts, initialUserVotes))
+    const [userVotes, setUserVotes] = useState<Record<string, "up" | "down">>(initialUserVotes)
     const [newComment, setNewComment] = useState("")
+    const [isPosting, setIsPosting] = useState(false)
 
-    // Main discussion vote state
-    const [discussionLikes, setDiscussionLikes] = useState(discussion.stats.likes)
-    const [discussionUserVote, setDiscussionUserVote] = useState<'up' | 'down' | undefined>(undefined)
+    // Author display name
+    const myDisplayName =
+        (currentUser.user_metadata?.username as string | undefined) ??
+        (currentUser.user_metadata?.full_name as string | undefined) ??
+        "Komet Explorer"
 
-    const handlePostComment = () => {
+    // ── Post a top-level comment ──────────────────────────────────────────────
+    const handlePostComment = async () => {
         if (!newComment.trim()) return
+        setIsPosting(true)
 
-        const comment: CommentType = {
-            id: Date.now(),
-            author: { name: "KometExplorer" },
-            time: "Just now",
-            content: newComment,
-            likes: 1,
-            userVote: 'up', // Auto-upvote own comment
-            replies: []
-        }
-
-        setComments([comment, ...comments])
-        setNewComment("")
-    }
-
-    const handlePostReply = (parentId: number, content: string) => {
-        const reply: CommentType = {
-            id: Date.now(),
-            author: { name: "KometExplorer" },
-            time: "Just now",
-            content: content,
-            likes: 1,
-            userVote: 'up',
-            replies: []
-        }
-
-        const addReplyRecursive = (items: CommentType[]): CommentType[] => {
-            return items.map(item => {
-                if (item.id === parentId) {
-                    return { ...item, replies: [reply, ...(item.replies || [])] }
-                }
-                if (item.replies) {
-                    return { ...item, replies: addReplyRecursive(item.replies) }
-                }
-                return item
+        const { data, error } = await supabase
+            .from("discussion_posts")
+            .insert({
+                topic_id: topic.id,
+                parent_id: null,
+                author_id: currentUser.id,
+                content: newComment.trim(),
             })
+            .select(`
+        id, topic_id, parent_id, author_id, content, likes, created_at, updated_at,
+        users ( id, full_name, username )
+      `)
+            .single()
+
+        setIsPosting(false)
+
+        if (error) {
+            toast.error("Failed to post. You may need Book Club access.")
+            console.error(error)
+            return
         }
 
-        setComments(addReplyRecursive(comments))
+        // Optimistically prepend to flat list, renest
+        const newNode: PostNode = { ...(data as unknown as DbPost), replies: [], userVote: undefined }
+        setPosts((prev) => [newNode, ...prev])
+        setNewComment("")
         toast.success("Transmission sent!")
     }
 
-    const handleDiscussionVote = (type: 'up' | 'down') => {
-        if (discussionUserVote === type) {
-            setDiscussionUserVote(undefined)
-            setDiscussionLikes((prev: number) => type === 'up' ? prev - 1 : prev + 1)
-        } else {
-            const diff = discussionUserVote ? 2 : 1
-            if (type === 'up') {
-                setDiscussionLikes((prev: number) => prev + diff)
-            } else {
-                setDiscussionLikes((prev: number) => prev - diff)
-            }
-            setDiscussionUserVote(type)
-        }
-    }
-
-    const handleCommentVote = (commentId: number, type: 'up' | 'down') => {
-        const updateVoteRecursive = (items: CommentType[]): CommentType[] => {
-            return items.map(c => {
-                if (c.id === commentId) {
-                    let newLikes = c.likes;
-                    let newVote = c.userVote;
-
-                    if (c.userVote === type) {
-                        newVote = undefined;
-                        newLikes = type === 'up' ? c.likes - 1 : c.likes + 1;
-                    } else {
-                        const diff = c.userVote ? 2 : 1;
-                        newLikes = type === 'up' ? c.likes + diff : c.likes - diff;
-                        newVote = type;
-                    }
-                    return { ...c, likes: newLikes, userVote: newVote };
-                }
-                if (c.replies) {
-                    return { ...c, replies: updateVoteRecursive(c.replies) }
-                }
-                return c;
+    // ── Post a reply ──────────────────────────────────────────────────────────
+    const handlePostReply = async (parentId: string, content: string) => {
+        const { data, error } = await supabase
+            .from("discussion_posts")
+            .insert({
+                topic_id: topic.id,
+                parent_id: parentId,
+                author_id: currentUser.id,
+                content: content.trim(),
             })
+            .select(`
+        id, topic_id, parent_id, author_id, content, likes, created_at, updated_at,
+        users ( id, full_name, username )
+      `)
+            .single()
+
+        if (error) {
+            toast.error("Failed to post reply. You may need Book Club access.")
+            console.error(error)
+            return
         }
-        setComments(updateVoteRecursive(comments))
+
+        const newReply: PostNode = { ...(data as unknown as DbPost), replies: [], userVote: undefined }
+
+        const insertReply = (nodes: PostNode[]): PostNode[] =>
+            nodes.map((n) => {
+                if (n.id === parentId) return { ...n, replies: [...n.replies, newReply] }
+                return { ...n, replies: insertReply(n.replies) }
+            })
+
+        setPosts((prev) => insertReply(prev))
+        toast.success("Reply sent!")
     }
+
+    // ── Vote on a post ────────────────────────────────────────────────────────
+    const handleVote = async (postId: string, type: "up" | "down") => {
+        const currentVote = userVotes[postId]
+
+        // Toggle off if same vote
+        if (currentVote === type) {
+            const { error } = await supabase
+                .from("discussion_votes")
+                .delete()
+                .eq("post_id", postId)
+                .eq("user_id", currentUser.id)
+
+            if (error) { toast.error("Vote failed"); return }
+
+            setUserVotes((prev) => { const next = { ...prev }; delete next[postId]; return next })
+            updatePostLikes(postId, type === "up" ? -1 : 1, undefined)
+        } else {
+            // Upsert vote
+            const { error } = await supabase
+                .from("discussion_votes")
+                .upsert({ post_id: postId, user_id: currentUser.id, vote_type: type }, { onConflict: "post_id,user_id" })
+
+            if (error) { toast.error("Vote failed"); return }
+
+            const diff = currentVote ? (type === "up" ? 2 : -2) : (type === "up" ? 1 : -1)
+            setUserVotes((prev) => ({ ...prev, [postId]: type }))
+            updatePostLikes(postId, diff, type)
+        }
+    }
+
+    const updatePostLikes = (postId: string, delta: number, newVote: "up" | "down" | undefined) => {
+        const update = (nodes: PostNode[]): PostNode[] =>
+            nodes.map((n) => {
+                if (n.id === postId) return { ...n, likes: n.likes + delta, userVote: newVote }
+                return { ...n, replies: update(n.replies) }
+            })
+        setPosts((prev) => update(prev))
+    }
+
+    const totalPosts = countAllPosts(posts)
 
     return (
         <div className="min-h-screen bg-background text-foreground">
@@ -262,73 +353,46 @@ export default function DiscussionThreadClient({ discussion }: { discussion: any
                     <span className="mr-2 group-hover:-translate-x-1 transition-transform">←</span> Back to Discussions
                 </Link>
 
-                {/* Main Discussion Post (Reddit Style) */}
+                {/* Main Topic Card */}
                 <div className="flex gap-4 mb-2">
-                    {/* Vote Column */}
-                    <div className="flex flex-col items-center gap-1 w-12 pt-2 hidden sm:flex">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn(
-                                "h-10 w-10 hover:bg-transparent transition-colors",
-                                discussionUserVote === 'up' ? "text-orange-500" : "text-muted-foreground hover:text-orange-500"
-                            )}
-                            onClick={() => handleDiscussionVote('up')}
-                        >
-                            <ArrowUp className="w-7 h-7" />
-                        </Button>
-                        <span className={cn(
-                            "text-lg font-bold",
-                            discussionUserVote === 'up' ? "text-orange-500" : discussionUserVote === 'down' ? "text-blue-500" : ""
-                        )}>
-                            {discussionLikes}
-                        </span>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn(
-                                "h-10 w-10 hover:bg-transparent transition-colors",
-                                discussionUserVote === 'down' ? "text-blue-500" : "text-muted-foreground hover:text-blue-500"
-                            )}
-                            onClick={() => handleDiscussionVote('down')}
-                        >
-                            <ArrowDown className="w-7 h-7" />
-                        </Button>
-                    </div>
-
-                    {/* Content Column */}
                     <div className="flex-1">
                         <Card className="bg-card/50 backdrop-blur border-border overflow-hidden">
                             <div className="p-4 sm:p-8">
-                                {/* Post Header */}
+                                {/* Topic Header */}
                                 <div className="flex items-center text-xs text-muted-foreground mb-4 gap-2">
                                     <div className="flex items-center gap-2">
                                         <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center text-xs font-bold text-primary border border-primary/30">
-                                            {discussion.author.name.charAt(0)}
+                                            K
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-foreground">u/{discussion.author.name}</span>
-                                            <span>{discussion.lastReply.time}</span>
+                                            <span className="font-bold text-foreground">Kane's Komet</span>
+                                            <span>
+                                                {topic.last_activity_at ? timeAgo(topic.last_activity_at) : "New room"}
+                                            </span>
                                         </div>
                                     </div>
+                                    <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-secondary bg-secondary/10 px-2 py-0.5 rounded border border-secondary/20">
+                                        {topic.category}
+                                    </span>
                                 </div>
 
                                 {/* Title & Body */}
-                                <h1 className="text-2xl md:text-3xl font-bold mb-6 leading-tight tracking-tight">{discussion.title}</h1>
-                                <div className="prose prose-invert max-w-none text-muted-foreground mb-8 text-lg leading-relaxed">
-                                    <p>I just finished 'Cosmic Drift' and that ending completely blew my mind! The twist was unexpected but made so much sense in hindsight. What did you all think?</p>
-                                    <p className="mt-4">Currently re-reading Chapter 12 to see if I missed any clues. The character development of Zara was also top-tier.</p>
-                                </div>
+                                <h1 className="text-2xl md:text-3xl font-bold mb-4 leading-tight tracking-tight">{topic.title}</h1>
+                                {topic.description && (
+                                    <div className="prose prose-invert max-w-none text-muted-foreground mb-8 text-lg leading-relaxed">
+                                        <p>{topic.description}</p>
+                                    </div>
+                                )}
 
                                 {/* Action Bar */}
                                 <div className="flex items-center gap-4 text-muted-foreground text-sm border-t border-border pt-4">
                                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/30 rounded-full">
                                         <MessageSquare className="w-4 h-4" />
-                                        <span className="font-medium">{discussion.stats.replies} Comments</span>
+                                        <span className="font-medium">{totalPosts} Comments</span>
                                     </div>
-                                    <Button variant="ghost" size="icon" className="h-9 w-9 ml-auto rounded-full">
-                                        <MoreHorizontal className="w-4 h-4" />
-                                    </Button>
+                                    <div className="text-xs">
+                                        {topic.member_count} Explorers
+                                    </div>
                                 </div>
                             </div>
                         </Card>
@@ -337,7 +401,7 @@ export default function DiscussionThreadClient({ discussion }: { discussion: any
                         <div className="mt-8 mb-10">
                             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                                 <span>Comment as</span>
-                                <span className="text-primary font-bold">KometExplorer</span>
+                                <span className="text-primary font-bold">{myDisplayName}</span>
                             </div>
                             <Card className="p-4 bg-card/30 border-dashed border-2">
                                 <Textarea
@@ -347,7 +411,12 @@ export default function DiscussionThreadClient({ discussion }: { discussion: any
                                     onChange={(e) => setNewComment(e.target.value)}
                                 />
                                 <div className="flex justify-end pt-2 border-t border-border/50">
-                                    <Button onClick={handlePostComment} disabled={!newComment.trim()} className="px-8 font-bold tracking-widest text-xs h-9">
+                                    <Button
+                                        onClick={handlePostComment}
+                                        disabled={!newComment.trim() || isPosting}
+                                        className="px-8 font-bold tracking-widest text-xs h-9"
+                                    >
+                                        {isPosting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                                         PUBLISH SIGNAL
                                     </Button>
                                 </div>
@@ -357,24 +426,30 @@ export default function DiscussionThreadClient({ discussion }: { discussion: any
                         {/* Comments List */}
                         <div className="space-y-6">
                             <div className="flex items-center gap-2 mb-8 border-b border-border pb-4">
-                                <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Pulse Order:</span>
-                                <select className="bg-transparent text-primary font-bold text-sm tracking-wider uppercase focus:outline-none cursor-pointer">
-                                    <option>Priority (Best)</option>
-                                    <option>Fresh (New)</option>
-                                    <option>Intensity (Top)</option>
-                                </select>
+                                <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                                    {totalPosts} Transmission{totalPosts !== 1 ? "s" : ""}
+                                </span>
                             </div>
 
-                            <div className="space-y-8 pb-20">
-                                {comments.map((comment) => (
-                                    <CommentItem
-                                        key={comment.id}
-                                        comment={comment}
-                                        onVote={handleCommentVote}
-                                        onReply={handlePostReply}
-                                    />
-                                ))}
-                            </div>
+                            {posts.length === 0 ? (
+                                <div className="text-center py-16 text-muted-foreground">
+                                    <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                    <p className="text-lg font-display tracking-wide">Be the first to transmit</p>
+                                    <p className="text-sm mt-1">Share your thoughts above to start the conversation.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-8 pb-20">
+                                    {posts.map((post) => (
+                                        <CommentItem
+                                            key={post.id}
+                                            post={post}
+                                            currentUser={currentUser}
+                                            onVote={handleVote}
+                                            onReply={handlePostReply}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -383,6 +458,6 @@ export default function DiscussionThreadClient({ discussion }: { discussion: any
     )
 }
 
-import { cn } from "@/lib/utils"
-import { toast } from "sonner"
-
+function countAllPosts(nodes: PostNode[]): number {
+    return nodes.reduce((acc, n) => acc + 1 + countAllPosts(n.replies), 0)
+}

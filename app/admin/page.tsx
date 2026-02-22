@@ -1,15 +1,41 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { mockAdminUsers } from "@/lib/mock-admin-data"
-import { mockBooks } from "@/lib/mock-books"
-import { mockBookClubSelections } from "@/lib/mock-book-club-data"
-import { TrendingUp, BookOpen, Calendar, MessageSquare, ArrowRight, LayoutDashboard, Star, Users } from "lucide-react"
+import { TrendingUp, BookOpen, Calendar, MessageSquare, ArrowRight, Star, Users, Crown } from "lucide-react"
 import Link from "next/link"
+import { createClient } from "@/lib/supabase/server"
 
-export default function AdminDashboard() {
-  const recentUsers = mockAdminUsers.slice(0, 5)
-  const currentSelection = mockBookClubSelections.find((s) => s.status === "current")
-  const currentBook = currentSelection ? mockBooks.find((b) => b.id === currentSelection.bookId) : null
+export default async function AdminDashboard() {
+  const supabase = await createClient()
+
+  // 1. Fetch Counts
+  const { count: usersCount } = await supabase.from('users').select('*', { count: 'exact', head: true })
+  const { count: booksCount } = await supabase.from('books').select('*', { count: 'exact', head: true })
+  const { count: selectionCount } = await supabase.from('book_club_selections').select('*', { count: 'exact', head: true })
+  const { count: eventCount } = await supabase.from('book_club_events').select('*', { count: 'exact', head: true })
+  const { count: topicCount } = await supabase.from('discussion_topics').select('*', { count: 'exact', head: true })
+
+  // 2. Fetch Recent Users snapshot
+  const { data: recentUsersRaw } = await supabase
+    .from('users')
+    .select(`
+      id,
+      full_name,
+      display_name,
+      email,
+      last_active_at,
+      created_at,
+      user_subscriptions (plan)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  const recentUsers = (recentUsersRaw || []).map(u => ({
+    id: u.id,
+    name: u.full_name || u.display_name || "Unknown Traveler",
+    email: u.email,
+    subscription: (u.user_subscriptions as any)?.[0]?.plan || 'free',
+    lastActive: u.last_active_at || u.created_at
+  }))
 
   const adminNavCards = [
     {
@@ -20,7 +46,7 @@ export default function AdminDashboard() {
       color: "text-primary",
       bgColor: "bg-primary/10",
       borderColor: "border-primary/30",
-      count: mockBooks.length
+      count: booksCount || 0
     },
     {
       title: "Monthly Selection",
@@ -30,7 +56,7 @@ export default function AdminDashboard() {
       color: "text-secondary",
       bgColor: "bg-secondary/10",
       borderColor: "border-secondary/30",
-      count: mockBookClubSelections.length
+      count: selectionCount || 0
     },
     {
       title: "Discussion Topics",
@@ -40,6 +66,7 @@ export default function AdminDashboard() {
       color: "text-primary",
       bgColor: "bg-primary/10",
       borderColor: "border-primary/30",
+      count: topicCount || 0
     },
     {
       title: "Events",
@@ -49,6 +76,7 @@ export default function AdminDashboard() {
       color: "text-secondary",
       bgColor: "bg-secondary/10",
       borderColor: "border-secondary/30",
+      count: eventCount || 0
     },
     {
       title: "Identity Hub",
@@ -58,6 +86,7 @@ export default function AdminDashboard() {
       color: "text-primary",
       bgColor: "bg-primary/10",
       borderColor: "border-primary/30",
+      count: usersCount || 0
     },
   ]
 
@@ -71,10 +100,7 @@ export default function AdminDashboard() {
           </h1>
           <p className="text-base md:text-lg text-muted-foreground text-center md:text-left">Manage your Komet bookstore ecosystem</p>
         </div>
-
       </div>
-
-
 
       {/* Navigation Shell Grid */}
       <div className="mb-12">
@@ -94,15 +120,9 @@ export default function AdminDashboard() {
                   <p className="text-sm text-muted-foreground leading-relaxed mb-4">{card.description}</p>
 
                   <div className="flex items-center justify-between mt-auto">
-                    {card.count !== undefined ? (
-                      <span className="text-xs font-medium px-2 py-1 bg-muted rounded-full">
-                        {card.count} Items
-                      </span>
-                    ) : (
-                      <span className="text-xs font-medium px-2 py-1 bg-muted rounded-full">
-                        Manage
-                      </span>
-                    )}
+                    <span className="text-xs font-medium px-2 py-1 bg-muted rounded-full">
+                      {card.count} Items
+                    </span>
                     <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </div>
 
@@ -117,12 +137,10 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-
-
-      {/* Recent Users - Reduced height */}
+      {/* Recent Users - Community Snapshot */}
       <Card className="p-4 md:p-6 bg-card/50 backdrop-blur mt-8 border-border/50">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="font-display text-2xl tracking-wide uppercase leading-none">Community Snapshot</h2>
+          <h2 className="font-display text-2xl tracking-wide uppercase leading-none text-primary">Community Snapshot</h2>
           <Button size="sm" variant="outline" className="bg-transparent" asChild>
             <Link href="/admin/users">All Users</Link>
           </Button>
@@ -137,23 +155,28 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {recentUsers.map((user) => (
-                <tr key={user.id} className="border-b border-border/50 last:border-0">
+              {recentUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="py-8 text-center text-muted-foreground italic">No explorer transmissions detected</td>
+                </tr>
+              ) : recentUsers.map((user) => (
+                <tr key={user.id} className="border-b border-border/50 last:border-0 hover:bg-primary/5 transition-colors group">
                   <td className="py-4">
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium">{user.name}</span>
+                      <span className="text-sm font-medium group-hover:text-primary transition-colors">{user.name}</span>
                       <span className="text-xs text-muted-foreground truncate max-w-[150px] md:max-w-none">{user.email}</span>
                     </div>
                   </td>
                   <td className="py-4">
                     <span
-                      className={`text-[10px] uppercase tracking-tighter px-2 py-0.5 rounded font-bold ${user.subscription === "premium" ? "bg-primary/20 text-primary border border-primary/20" : "bg-muted text-muted-foreground border border-border"}`}
+                      className={`text-[10px] uppercase tracking-tighter px-2 py-0.5 rounded font-bold flex items-center gap-1 w-fit ${user.subscription === "premium" ? "bg-primary/20 text-primary border border-primary/20" : "bg-muted text-muted-foreground border border-border"}`}
                     >
+                      {user.subscription === "premium" && <Crown className="w-2.5 h-2.5" />}
                       {user.subscription}
                     </span>
                   </td>
                   <td className="py-4 text-xs text-muted-foreground text-right">
-                    {user.lastActive.toLocaleDateString()}
+                    {new Date(user.lastActive).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })}
                   </td>
                 </tr>
               ))}
@@ -164,4 +187,3 @@ export default function AdminDashboard() {
     </div>
   )
 }
-

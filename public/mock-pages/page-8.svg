@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+  <defs>
+    <linearGradient id="pageBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1814"/>
+      <stop offset="100%" stop-color="#141210"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="800" fill="url(#pageBg)" rx="4"/>
+  <rect x="30" y="30" width="540" height="740" fill="none" stroke="#3a3530" stroke-width="1" rx="2"/>
+  <text x="60" y="100" font-family="Georgia, serif" font-size="18" fill="#d4cec2">Communication was slow, painstaking. Each exchange</text>
+  <text x="60" y="132" font-family="Georgia, serif" font-size="18" fill="#d4cec2">took hours as Zara worked to bridge the gap between</text>
+  <text x="60" y="164" font-family="Georgia, serif" font-size="18" fill="#d4cec2">human language and pure energy. But gradually, a</text>
+  <text x="60" y="196" font-family="Georgia, serif" font-size="18" fill="#d4cec2">picture emerged of a civilization older than humanity</text>
+  <text x="60" y="228" font-family="Georgia, serif" font-size="18" fill="#d4cec2">by countless millennia.</text>
+  <text x="50%" y="570" text-anchor="middle" font-family="Georgia, serif" font-size="14" fill="#8a8070">— 8 —</text>
+</svg>

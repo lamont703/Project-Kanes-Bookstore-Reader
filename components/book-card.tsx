@@ -24,6 +24,7 @@ export function BookCard({ book }: BookCardProps) {
   const handleAddToCart = () => {
     addToCart({
       id: book.id,
+      variantId: currentVariant.id || "",
       title: book.title,
       price: currentVariant.price,
       coverImage: book.coverImage,

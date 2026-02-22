@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+  <defs>
+    <linearGradient id="pageBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1814"/>
+      <stop offset="100%" stop-color="#141210"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="800" fill="url(#pageBg)" rx="4"/>
+  <rect x="30" y="30" width="540" height="740" fill="none" stroke="#3a3530" stroke-width="1" rx="2"/>
+  <text x="50%" y="80" text-anchor="middle" font-family="Georgia, serif" font-size="28" font-weight="bold" fill="#e8e2d6">Chapter 2: First Contact</text>
+  <text x="60" y="140" font-family="Georgia, serif" font-size="18" fill="#d4cec2">The ship altered course, diving deeper into the</text>
+  <text x="60" y="172" font-family="Georgia, serif" font-size="18" fill="#d4cec2">nebula&apos;s glowing embrace. Outside the viewports,</text>
+  <text x="60" y="204" font-family="Georgia, serif" font-size="18" fill="#d4cec2">violet and blue clouds swirled in patterns that</text>
+  <text x="60" y="236" font-family="Georgia, serif" font-size="18" fill="#d4cec2">seemed almost deliberate, as if the nebula itself</text>
+  <text x="60" y="268" font-family="Georgia, serif" font-size="18" fill="#d4cec2">was alive.</text>
+  <text x="60" y="300" font-family="Georgia, serif" font-size="18" fill="#d4cec2"></text>
+  <text x="60" y="332" font-family="Georgia, serif" font-size="18" fill="#d4cec2">Zara hadn&apos;t slept in thirty-six hours. The signal</text>
+  <text x="60" y="364" font-family="Georgia, serif" font-size="18" fill="#d4cec2">had become her obsession, its patterns weaving through</text>
+  <text x="60" y="396" font-family="Georgia, serif" font-size="18" fill="#d4cec2">her dreams even in the brief moments she closed</text>
+  <text x="60" y="428" font-family="Georgia, serif" font-size="18" fill="#d4cec2">her eyes.</text>
+  <text x="50%" y="570" text-anchor="middle" font-family="Georgia, serif" font-size="14" fill="#8a8070">— 6 —</text>
+</svg>

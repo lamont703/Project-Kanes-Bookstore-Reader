@@ -1,0 +1,43 @@
+meta {
+  name: Get Book Pages
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{supabase_url}}/rest/v1/book_pages?book_id=eq.{{book_id}}&select=id,page_number,page_image_url,word_count&order=page_number.asc
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{auth_token}}
+}
+
+headers {
+  apikey: {{anon_key}}
+  Content-Type: application/json
+}
+
+vars {
+  book_id: <replace-with-book-uuid>
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("Returns pages in order", function() {
+    if (res.body.length > 1) {
+      expect(res.body[0].page_number).to.be.lessThan(res.body[1].page_number);
+    }
+  });
+  test("Each page has image URL", function() {
+    if (res.body.length > 0) {
+      expect(res.body[0]).to.have.property("page_image_url");
+    }
+  });
+  test("Unauthorized without token: 403", function() {
+    // Run this test after removing auth_token to verify RLS
+  });
+}

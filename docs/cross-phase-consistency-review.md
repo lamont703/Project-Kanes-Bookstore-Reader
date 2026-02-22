@@ -36,10 +36,10 @@
 
 **Why it matters:** The reader component needs to be designed to either (a) show illustrations as full-page breaks between chapters, (b) show them inline within chapter text, or (c) some other approach. This affects both the database schema and the frontend reader component.
 
-**Question 1.1:** The current plan says illustrations will be shown as full-page images between chapters (e.g., after Chapter 3, you see a full-page illustration, then Chapter 4 begins). Is this correct? Or should illustrations sometimes appear within a chapter (inline with text)?
+**Question 1.1:** The current plan says illustrations will be shown as full-page images between chapters (e.g., after Chapter 3, you see a full-page illustration, then Chapter 4 begins). Is this correct? Or should illustrations sometimes appear within a chapter (inline with text)? 
 
 **Your answer:**
-
+i actually just spoke to the client for this project and we are going to use a different method of storing the books in the database and displaying them in the reader. So the admin is going to upload the book cover with a standard size format for all books. The admin is also going to upload the book in a pdf format. The pdf book will likely have multiple pdf pages and inline illustrations. So we will need to extract the text from the pdf and the illustrations from the pdf. We need to make sure the illustrations are displayed in the reader in the correct order and in the correct position and on the corresponding page from the pdf. We need to update this across all of the phase 1-4 documents to maintain consistency. we will not use chapters to store the text in the database instead we should use the pdf pages to store the text in the database. the illustrations are mostly thumbnail sized images and rarely take up a full page. They are displayed inline with the text. 
 ---
 
 ### Finding 1.2: PDF Extraction Tool
@@ -54,11 +54,12 @@
 **Question 1.2a:** Do the books follow a consistent chapter format (e.g., every chapter starts with "CHAPTER 1" or "Chapter One" as a heading)? This helps us decide if we can auto-detect chapters or if the admin needs to manually split them.
 
 **Your answer:**
+i actually just spoke to the client for this project and we are going to use a different method of storing the books in the database and displaying them in the reader. So the admin is going to upload the book cover with a standard size format for all books. The admin is also going to upload the book in a pdf format. The pdf book will likely have multiple pdf pages and inline illustrations. So we will need to extract the text from the pdf and the illustrations from the pdf. We need to make sure the illustrations are displayed in the reader in the correct order and in the correct position and on the corresponding page from the pdf. We need to update this across all of the phase 1-4 documents to maintain consistency. we will not use chapters to store the text in the database instead we should use the pdf pages to store the text in the database. the illustrations are mostly thumbnail sized images and rarely take up a full page. They are displayed inline with the text. 
 
 **Question 1.2b:** For illustrations in the PDF — are they full-page images (easy to detect automatically) or are they mixed in with text on the same page? This affects how we extract them.
 
 **Your answer:**
-
+i actually just spoke to the client for this project and we are going to use a different method of storing the books in the database and displaying them in the reader. So the admin is going to upload the book cover with a standard size format for all books. The admin is also going to upload the book in a pdf format. The pdf book will likely have multiple pdf pages and inline illustrations. So we will need to extract the text from the pdf and the illustrations from the pdf. We need to make sure the illustrations are displayed in the reader in the correct order and in the correct position and on the corresponding page from the pdf. We need to update this across all of the phase 1-4 documents to maintain consistency. we will not use chapters to store the text in the database instead we should use the pdf pages to store the text in the database. the illustrations are mostly thumbnail sized images and rarely take up a full page. They are displayed inline with the text. 
 ---
 
 ### Finding 1.3: Illustrator Field Visibility
@@ -73,7 +74,7 @@
 **Question 1.3:** Confirming: the illustrator name should *never* be shown to customers — it's purely for internal records? Or would you like to show it on the book detail page at some point?
 
 **Your answer:**
-
+I would like to show the illustrator on the book detail page. 
 ---
 
 ## 2. Book Variants, Pricing & Inventory
@@ -90,7 +91,7 @@
 **Question 2.1:** Should shipping be included in the order total for physical items? If yes, is $5.99 flat rate correct? Or is shipping a separate charge handled outside the app (e.g., through email coordination)?
 
 **Your answer:**
-
+yes shipping should be included in the order total for physical items. The flat rate of $5.99 is correct. 
 ---
 
 ### Finding 2.2: Can Users Buy Multiple Quantities of the Same Book?
@@ -105,7 +106,7 @@
 **Question 2.2:** Can a user buy more than one copy of a physical book (Paper Book or Komet Card) in a single order? For example, buying 2 copies of the same Komet Card as gifts? Or is every purchase always 1 copy per variant?
 
 **Your answer:**
-
+good question. The user can only buy one copy of the ebook as it will only be available to read in the book reader. However when it comes to the physical books paper and Komet card users should be able to by as many as they want. 
 ---
 
 ### Finding 2.3: Ebook-Only Library Access
@@ -119,7 +120,7 @@
 **Question 2.3:** Confirming: if a user buys only the Paper Book or Komet Card, they do NOT get digital reading access in the app? They'd need to separately purchase the ebook to read it digitally?
 
 **Your answer:**
-
+if a user purchases the paper book they do not get digital access. If they purchase the Komet Card they do get digital access. 
 ---
 
 ## 3. Dealer Codes (Promo Codes)
@@ -136,11 +137,12 @@
 **Question 3.1a:** Does the 35% discount apply to *all* items in the cart, including physical books? Or only to ebooks?
 
 **Your answer:**
+The 35% discount applies to all items in the cart including physical books and komet cards. 
 
 **Question 3.1b:** Can a user use their *own* dealer code on their *own* purchases? Or can they only share it with others?
 
 **Your answer:**
-
+they can only share it with others. they can not use their own dealer code on their own purchases.
 ---
 
 ### Finding 3.2: Dealer Code Management — Stripe or Custom?
@@ -155,7 +157,7 @@
 **Question 3.2:** The plan is to manage dealer codes entirely in our own database (not through Stripe's coupon system). Stripe will just see the final discounted price in the PaymentIntent. Is this correct?
 
 **Your answer:**
-
+This is a good question. Can you tell me if we plan to use that same dearler code in a different application managed by the same Stripe account what would you recommend?
 ---
 
 ## 4. Subscription & Billing
@@ -174,7 +176,7 @@
 **Question 4.1:** This is a technical implementation detail, but do you have a preference? Option A (one-time charge + delayed subscription) is simpler to implement. Option B (single Stripe Subscription with phases) keeps everything in one Stripe object. We recommend Option A unless you have a reason to prefer B.
 
 **Your answer:**
-
+Option A sounds the best by delaying the first invoice for 30 days. 
 ---
 
 ### Finding 4.2: What Happens to Physical Perks (T-shirt, Gift)?
@@ -189,7 +191,7 @@
 **Question 4.2:** After a user subscribes and provides their t-shirt size and mailing address, how does the team know to ship the t-shirt and gift? Is this handled manually (e.g., admin checks a list of new subscribers), or should the system send a notification/email to the team?
 
 **Your answer:**
-
+the admin plans to handle this mostly manually for now. we just need to make sure that the admin's gohighlevel account is updated with the user's t-shirt size and mailing address. 
 ---
 
 ### Finding 4.3: Re-subscribing After Cancellation
@@ -204,7 +206,7 @@
 **Question 4.3:** When a user cancels and later re-subscribes, what are the terms? Do they pay the $49.99 initial fee again? Do they pick 2 more free books? Does their old dealer code come back or do they get a new one?
 
 **Your answer:**
-
+yes if a user cancels and re-subscribes they will have to pay the $49.99 initial fee again and they will get 2 more free books. their old dealer code will come back. 
 ---
 
 ## 5. User Roles & Admin Levels
@@ -221,7 +223,7 @@
 **Question 5.1:** Should all admins have the same level of access? Or should there be a difference between the owner and team admins? For example, should only the owner be able to add/remove other admins?
 
 **Your answer:**
-
+for now all admins will have the same level of access. 
 ---
 
 ## 6. Community & Discussions
@@ -238,7 +240,7 @@
 **Question 6.1:** Confirming: regular premium members can only post/reply within topics that admins create. They cannot create new discussion topics themselves. Correct?
 
 **Your answer:**
-
+this is correct
 ---
 
 ### Finding 6.2: Discussion Categories
@@ -252,7 +254,7 @@
 **Question 6.2:** Are the discussion categories (`General`, `Book Club`, `Sci-Fi`, `Fantasy`, `News`) intentional, or should they match the book genres? Or should they be a different list entirely?
 
 **Your answer:**
-
+the book genres are what we should use for the discussion categories. 
 ---
 
 ### Finding 6.3: Discussion Nesting Depth
@@ -267,7 +269,7 @@
 **Question 6.3:** Should replies be limited to 2 levels deep (a post and its direct replies), or should users be able to reply to replies (creating deeper threads)?
 
 **Your answer:**
-
+2 levels deep is fine.
 ---
 
 ## 7. Events & RSVPs
@@ -285,7 +287,7 @@
 **Question 7.1:** Can free users (non-premium accounts) RSVP to public events? Or is RSVPing restricted to premium members only?
 
 **Your answer:**
-
+yes free users can rsvp to public events. 
 ---
 
 ### Finding 7.2: Event Visibility
@@ -300,7 +302,7 @@
 **Question 7.2:** Confirming: some events are "private" (only visible to premium members) and some are "public" (visible to everyone). The admin decides this per event. Correct?
 
 **Your answer:**
-
+yes correct. 
 ---
 
 ## 8. Cart & Guest Users
@@ -317,7 +319,7 @@
 **Question 8.1:** When a guest (not logged in) adds items to their cart and then creates an account or logs in, should their cart items automatically transfer to their new account?
 
 **Your answer:**
-
+yes they should transfer. 
 ---
 
 ## 9. GoHighLevel Integration
@@ -334,7 +336,7 @@
 **Question 9.1:** For GoHighLevel integration, should we call GoHighLevel's API directly from our Edge Functions (we push data to GHL), or should GHL subscribe to webhooks from our system? We recommend direct API calls for reliability.
 
 **Your answer:**
-
+direct api calls from our edge functions is fine. 
 ---
 
 ### Finding 9.2: GoHighLevel Contact Creation Timing
@@ -346,7 +348,7 @@
 **Question 9.2:** Should a GoHighLevel contact be created for *every* new user who registers (including free accounts)? Or only when they become a premium subscriber?
 
 **Your answer:**
-
+for every new user who registers including free accounts.
 ---
 
 ## 10. Shipping & Tax
@@ -362,7 +364,7 @@
 **Question 10.1:** Confirming: GST is always 5% regardless of the customer's location? No need for location-based tax calculation?
 
 **Your answer:**
-
+yes correct. 
 ---
 
 ### Finding 10.2: Shipping Address Requirement
@@ -374,7 +376,7 @@
 **Question 10.2:** Should the checkout flow skip the shipping address section if the cart contains only ebooks (digital items)?
 
 **Your answer:**
-
+yes correct. 
 ---
 
 ## 11. Data Model vs. API Contract Alignment
@@ -389,7 +391,7 @@
 **Question 11.1:** Since all books in the library remain forever (even after cancellation or ban), is the `is_permanent` field still needed? Or can we simplify by removing it and just assuming all library entries are permanent?
 
 **Your answer:**
-
+we can simplify by removing it and just assuming all library entries are permanent.
 ---
 
 ### Finding 11.2: `published_year` Index in Data Model
@@ -439,7 +441,7 @@ Both the API design (Phase 3) and backend architecture (Phase 4) include a clear
 **Question 12.1:** Should book detail pages update in real-time (SSR — always shows the latest data like stock status) or can they be cached for a period (ISR — updates every few minutes, faster performance)? We recommend ISR with a 5-minute revalidation period.
 
 **Your answer:**
-
+isr with a 5 minute revalidation period is fine. 
 ---
 
 ## 13. Naming & Terminology Consistency
@@ -461,7 +463,7 @@ These terms are used somewhat interchangeably across docs:
 - (c) "Premium Membership" (formal)
 
 **Your answer:**
-
+Kane's Komet Book Club gives users Premium Access. 
 ---
 
 ### Finding 13.2: "Komet Card" Spelling
@@ -523,4 +525,101 @@ For quick reference, here are all questions that need your response:
 
 ---
 
-> **Next Steps**: After you answer these questions, we will update every affected document to ensure perfect consistency across all phases. Then the documentation will be fully locked and ready for the backend coding phase.
+## 15. Follow-Up Questions (Based on Your Answers)
+
+Based on your responses above, here are follow-up questions to finalize a few remaining details before we lock the documentation:
+
+### Follow-Up 3.2: Dealer Code System — Our Recommendation
+
+You asked: *"Can you tell me if we plan to use that same dealer code in a different application managed by the same Stripe account what would you recommend?"*
+
+**Our recommendation: Hybrid approach (Custom DB + Stripe Promotion Codes)**
+
+Since the dealer code may be used across multiple apps on the same Stripe account, we recommend:
+
+1. **Create the code in Stripe's Promotion Code system** when a premium member subscribes — this makes the code available to any app connected to the same Stripe account. Stripe handles the discount application at payment time.
+2. **Also track usage in our custom `promo_codes` / `promo_code_usages` tables** — this gives us dealer credit attribution (who generated how many sales), automatic deactivation when the dealer cancels or is banned, and detailed analytics that Stripe's promotion system doesn't provide.
+3. **At checkout**: Our Edge Function validates the code in our DB first (to check active status, prevent self-use, etc.), then applies the Stripe Promotion Code to the PaymentIntent so Stripe sees the discount natively.
+
+**Benefits of this hybrid approach:**
+- ✅ Dealer codes work across any app on the same Stripe account
+- ✅ We retain full control over deactivation, self-use prevention, and dealer credit tracking
+- ✅ Stripe's dashboard accurately reflects the discount (not just a reduced price with no context)
+- ✅ No duplication of discount logic — Stripe handles the actual money math
+
+**Question FU-3.2:** Does this hybrid approach (our DB for tracking + Stripe for the actual discount) work for you? Or would you prefer to keep it 100% custom (our DB only, Stripe just sees the final discounted price)?
+
+**Your answer:**
+yes the hybrid approach works for us
+---
+
+### Follow-Up 1.1: Page-Based Content — Clarifications
+
+Your answer about switching from chapters to pages is a significant architectural change. A few clarifications:
+
+**Question FU-1.1a:** When we extract text and images from each PDF page, should we try to preserve the *exact visual layout* of the PDF page (like a PDF viewer would show it), or is it okay to extract the text and images and *reflow* them into our reader's own layout (like a Kindle does)? Reflowed text is better for mobile devices and accessibility, but loses the original page formatting.
+
+**Your answer:**
+i would like to preserve the exact visual layout of the PDF page
+
+**Question FU-1.1b:** Should the reader still show "Page 1 of 45" navigation (mimicking the PDF page structure), or should it flow continuously like a web page where users scroll through the content?
+
+**Your answer:**
+the reader should show "Page 1 of 45" navigation (mimicking the PDF page structure)
+
+**Question FU-1.1c:** For highlighting and bookmarking — should these features still work at the text/paragraph level (as they currently do in the reader), or should they work at the page level (e.g., "bookmark page 12")?
+
+**Your answer:**
+the text highlighting should work at the text/paragraph level (as they currently do in the reader) and bookmarks should work at the page level (e.g., "bookmark page 12")
+---
+
+### Follow-Up 2.3: Komet Card Digital Access
+
+You said: *"If they purchase the Komet Card they do get digital access."*
+
+**Question FU-2.3a:** Just to confirm — when a user buys a Komet Card, the system should automatically add the ebook version of that book to their digital library (same as if they bought the ebook directly)? They get both the physical Komet Card shipped AND the digital version to read in the app?
+
+**Your answer:**
+yes they get both the physical Komet Card shipped AND the digital version to read in the app
+---
+
+### Follow-Up 4.3: Re-subscription Book Accumulation
+
+You said: *"they will get 2 more free books"* when re-subscribing.
+
+**Question FU-4.3a:** This means a user could theoretically accumulate unlimited free books by subscribing ($49.99), picking 2 free books, cancelling, then re-subscribing, picking 2 more, etc. Each cycle costs $49.99 but gets 2 books that might be worth more. Is this acceptable, or should there be a limit (e.g., the 2-book signup perk is a one-time offer)?
+
+**Your answer:**
+the 2 free books will be ebooks and therefore wont lose any money on this. so since they are ebooks it is fine to let them accumulate
+---
+
+### Follow-Up 2.2: Quantity Rules Clarification
+
+You said ebooks are limited to 1 copy, but physical books allow unlimited quantities.
+
+**Question FU-2.2a:** If a user already owns the ebook (in their library), can they still buy Paper Book or Komet Card copies of the same book? For example: "I already read this digitally, now I want to buy 3 Komet Cards as gifts."
+
+**Your answer:**
+yes they can still buy Paper Book or Komet Card copies of the same book
+---
+
+## Summary: Follow-Up Questions — All Answered ✅
+
+| # | Topic | Answer |
+|---|---|---|
+| FU-3.2 | Dealer code system | ✅ Hybrid approach (DB + Stripe Promotion Codes) confirmed |
+| FU-1.1a | Page content rendering | ✅ Preserve exact PDF page layout |
+| FU-1.1b | Page navigation | ✅ Page-by-page ("Page 1 of 45") navigation |
+| FU-1.1c | Highlights/bookmarks | ✅ Highlights at text/paragraph level; Bookmarks at page level |
+| FU-2.3a | Komet Card digital access | ✅ Physical card shipped + ebook added to digital library |
+| FU-4.3a | Re-subscribe book accumulation | ✅ Unlimited accumulation is fine (ebooks have no marginal cost) |
+| FU-2.2a | Physical purchase after ebook owned | ✅ Users can buy physical copies of books they already own digitally |
+
+---
+
+> **All questions answered. All documentation has been updated to reflect these decisions.** The following documents have been finalized:
+> - `backend-data-model-recommendation.md` — Data model updated
+> - `phase3-api-design-technical.md` — API contract updated
+> - `phase3-api-design-plain-english.md` — Plain English API doc updated
+> - `phase4-backend-architecture-technical.md` — Backend architecture updated
+> - `phase4-backend-architecture-plain-english.md` — Plain English architecture updated

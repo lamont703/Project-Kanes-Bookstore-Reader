@@ -1,0 +1,42 @@
+meta {
+  name: Validate Promo Code
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{supabase_url}}/functions/v1/validate-promo
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{auth_token}}
+}
+
+headers {
+  apikey: {{anon_key}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "code": "KANE-EXAMPLE-1234"
+  }
+}
+
+tests {
+  test("Status is 200 for valid code", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("Returns discount percentage", function() {
+    expect(res.body).to.have.property("discount_percent");
+    expect(res.body.discount_percent).to.equal(35);
+  });
+  test("Self-use returns 422", function() {
+    // Test with user's own code — should return 422 BUSINESS_RULE_VIOLATION
+  });
+  test("Inactive code returns 422", function() {
+    // Test with deactivated code — should return 422 BUSINESS_RULE_VIOLATION
+  });
+}

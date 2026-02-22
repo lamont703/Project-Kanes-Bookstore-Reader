@@ -32,7 +32,7 @@ The Kane's Komet Book Reader is a **digital bookstore + book club platform** wit
 | Domain | Tables |
 |---|---|
 | **Users & Auth** | `users`, `user_subscriptions` |
-| **Catalog & Content** | `books`, `book_chapters`, `book_illustrations` |
+| **Catalog & Content** | `books`, `book_pages`, `book_illustrations` |
 | **Commerce** | `cart_items`, `orders`, `order_items`, `user_library`, `promo_codes`, `promo_code_usages` |
 | **Book Club** | `book_club_selections`, `book_club_events`, `event_rsvps` |
 | **Community** | `discussion_topics`, `discussion_posts`, `discussion_votes` |
@@ -48,10 +48,16 @@ The Kane's Komet Book Reader is a **digital bookstore + book club platform** wit
 - **No refunds**: All sales are final.
 - **GoHighLevel**: Handles all outbound email notifications (order confirmations, subscription emails, event reminders, etc.).
 - **No Ratings or Reviews**: The rating and review feature has been completely eliminated from the platform. The `rating` field has been removed from the data model and all UI components.
-- **PDF → Text extraction**: Admin uploads PDFs and a standard-sized book cover; a tool extracts text into chapters. Illustrations are stored separately and shown as full-page images between chapters.
-- **Book Variants**: Each book can be purchased as an **ebook** (digital), **Paper Book** (physical), or **Komet Card** (physical). 
-- **Digital vs Physical**: Only the ebook version is readable within the application. Paper Books and Komet Cards are physical items that require a shipping address and will be shipped to the user.
-- **Dealer codes**: Every premium member receives a unique code (`KANE-NAME-PHONE` format) worth 35% off at checkout. Usage is tracked for dealer credit.
+- **PDF → Text extraction**: Admin uploads PDFs and a standard-sized book cover; a tool extracts text and inline illustrations from the PDF, stored page by page. Illustrations are thumbnail-sized and displayed inline with text at their original positions.
+- **Book Variants**: Each book can be purchased as an **ebook** (digital), **Paper Book** (physical), or **Komet Card** (physical + digital access). 
+- **Digital vs Physical**: The ebook variant grants digital reading access. The Komet Card grants both physical delivery AND digital reading access. Paper Book purchases are physical-only — no digital access.
+- **Shipping**: $5.99 flat-rate shipping is added to orders containing physical items (Paper Book or Komet Card). Ebook-only orders skip shipping.
+- **Illustrator**: The illustrator name is shown publicly on the book detail page.
+- **Dealer codes**: Every premium member receives a unique code (`KANE-NAME-PHONE` format) worth 35% off all items at checkout (ebooks, Paper Books, Komet Cards). Users cannot use their own dealer code on their own purchases. Usage is tracked for dealer credit. Hybrid system: tracked in our DB for attribution + synced with Stripe Promotion Codes for cross-app compatibility.
+- **Re-subscription**: Users who cancel and re-subscribe pay $49.99 again, pick 2 more free books, and their existing dealer code is reactivated.
+- **GoHighLevel**: Contact created for every new user (including free accounts). T-shirt size and mailing address synced to GHL for premium subscribers. Admin handles physical fulfillment manually.
+- **Guest cart transfer**: When a guest creates an account or logs in, their session-based cart items automatically transfer to their user account.
+- **Naming convention**: The membership product is called "Kane's Komet Book Club" and grants "Premium Access." Internal/backend uses `premium` as the plan identifier.
 - **Cross-device sync**: Reading progress, highlights, bookmarks, and settings persist server-side.
 - **Caps**: 10 highlights per book, 10 bookmarks per book (all users).
 
@@ -94,7 +100,7 @@ Extends Supabase `auth.users`. This is the application profile table.
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
 | `title` | `TEXT` | No | — | |
 | `author` | `TEXT` | No | — | Single author per book |
-| `illustrator` | `TEXT` | Yes | — | Internal record-keeping only |
+| `illustrator` | `TEXT` | Yes | — | Shown on book detail page (public-facing) |
 | `description` | `TEXT` | Yes | — | |
 | `genre` | `genre_enum` | No | — | Fixed list, developer-managed |
 | `cover_image_url` | `TEXT` | Yes | — | Supabase Storage URL |
@@ -129,33 +135,37 @@ Stores the different purchase options for each book.
 
 ---
 
-### 2.4 `book_chapters`
+### 2.4 `book_pages`
 
-Stores extracted text from PDF uploads, one row per chapter.
+Stores page content from PDF uploads, one row per PDF page. The exact visual layout of the original PDF is preserved as a rendered page image, while extracted text is stored separately for search indexing.
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
 | `book_id` | `UUID` FK | No | — | → `books.id` |
-| `chapter_number` | `INTEGER` | No | — | |
-| `title` | `TEXT` | No | — | |
-| `content` | `TEXT` | No | — | Full chapter text (extracted from PDF) |
-| `word_count` | `INTEGER` | No | `0` | Derived on insert |
+| `page_number` | `INTEGER` | No | — | Corresponds to the original PDF page number |
+| `page_image_url` | `TEXT` | No | — | Supabase Storage URL to the rendered page image (preserves exact PDF layout) |
+| `content` | `TEXT` | Yes | — | Extracted plain text for search/indexing (not displayed directly) |
+| `word_count` | `INTEGER` | No | `0` | Derived on insert from `content` |
+
+**Note**: The reader displays `page_image_url` to preserve the exact visual layout of the original PDF. The `content` field holds extracted text for full-text search indexing only. Page navigation shows "Page X of Y" to mimic the PDF page structure.
 
 ---
 
 ### 2.5 `book_illustrations`
 
-Stores images extracted from PDFs, displayed as full-page images between chapters/sections.
+Stores images extracted from PDFs, displayed inline with text at their original positions. Illustrations are typically thumbnail-sized and embedded within pages.
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
 | `book_id` | `UUID` FK | No | — | → `books.id` |
 | `image_url` | `TEXT` | No | — | Supabase Storage URL |
-| `display_after_chapter` | `INTEGER` | No | — | Show this image after chapter N (0 = before chapter 1, i.e. frontispiece) |
+| `page_number` | `INTEGER` | No | — | The PDF page this illustration belongs to |
+| `position_index` | `INTEGER` | No | `0` | Order within the page (0-based). Used to place the image at the correct position relative to surrounding text. |
 | `caption` | `TEXT` | Yes | — | Optional alt text / description |
-| `sort_order` | `INTEGER` | No | `0` | If multiple illustrations after the same chapter |
+| `width` | `INTEGER` | Yes | — | Original image width in pixels (for responsive sizing) |
+| `height` | `INTEGER` | Yes | — | Original image height in pixels (for responsive sizing) |
 | `created_at` | `TIMESTAMPTZ` | No | `now()` | |
 
 ---
@@ -189,7 +199,7 @@ One subscription per user. Stripe handles recurring billing.
 
 ### 2.7 `promo_codes`
 
-Every premium member receives a unique dealer code. Fixed 35% discount.
+Every premium member receives a unique dealer code. Fixed 35% discount. Hybrid system: tracked in our DB for attribution + synced with Stripe Promotion Codes for cross-app compatibility.
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -197,16 +207,20 @@ Every premium member receives a unique dealer code. Fixed 35% discount.
 | `owner_id` | `UUID` FK | No | — | → `users.id` (the dealer/premium member) |
 | `code` | `TEXT` | No | — | Unique. Format: `KANE-{NAME}-{PHONE_LAST4}` e.g., `KANE-EVANS-4821` |
 | `discount_percent` | `INTEGER` | No | `35` | Always 35% |
-| `is_active` | `BOOLEAN` | No | `true` | Deactivated when owner's subscription is cancelled |
+| `is_active` | `BOOLEAN` | No | `true` | Deactivated on cancel/ban; reactivated on re-subscribe |
+| `stripe_promotion_code_id` | `TEXT` | Yes | — | Stripe Promotion Code ID (for cross-app discount validation) |
 | `total_uses` | `INTEGER` | No | `0` | Denormalized counter |
 | `created_at` | `TIMESTAMPTZ` | No | `now()` | |
 
 **Unique constraint**: `(code)` — each code must be globally unique.
 
 **Rules**:
-- Applies to book purchases at checkout only (not subscription fees).
+- Applies to all items at checkout (ebooks, Paper Books, Komet Cards) — not subscription fees.
+- **Self-use prevention**: A user cannot use their own dealer code on their own purchases.
 - Can be used by multiple people, multiple times.
 - Deactivated when the owning premium member cancels or is banned.
+- **Reactivated** when the owner re-subscribes (same code, not a new one).
+- Also created as a Stripe Promotion Code so it can be validated across other apps on the same Stripe account.
 
 ---
 
@@ -252,22 +266,27 @@ Tracks every use of a dealer code for dealer credit attribution.
 | `status` | `order_status_enum` | No | `'pending'` | pending, confirmed, fulfilled |
 | `subtotal` | `NUMERIC(10,2)` | No | — | Sum of items before discount/tax |
 | `discount_amount` | `NUMERIC(10,2)` | No | `0` | From dealer code (35%) |
+| `shipping_amount` | `NUMERIC(10,2)` | No | `0` | $5.99 flat rate if order contains physical items; $0 for ebook-only |
 | `tax_amount` | `NUMERIC(10,2)` | No | — | Flat 5% GST on (subtotal - discount) |
-| `total` | `NUMERIC(10,2)` | No | — | subtotal - discount + tax |
+| `total` | `NUMERIC(10,2)` | No | — | subtotal - discount + shipping + tax |
+| `has_physical_items` | `BOOLEAN` | No | `false` | Derived at checkout — determines if shipping is required |
 | `promo_code_id` | `UUID` FK | Yes | — | → `promo_codes.id` (if dealer code was used) |
 | `stripe_payment_intent_id` | `TEXT` | Yes | — | Stripe PaymentIntent ID |
-| `shipping_name` | `TEXT` | Yes | — | |
-| `shipping_email` | `TEXT` | Yes | — | |
-| `shipping_address` | `TEXT` | Yes | — | |
-| `shipping_city` | `TEXT` | Yes | — | |
-| `shipping_state` | `TEXT` | Yes | — | |
-| `shipping_zip` | `TEXT` | Yes | — | |
+| `shipping_name` | `TEXT` | Yes | — | Required only if `has_physical_items = true` |
+| `shipping_email` | `TEXT` | Yes | — | Required only if `has_physical_items = true` |
+| `shipping_address` | `TEXT` | Yes | — | Required only if `has_physical_items = true` |
+| `shipping_city` | `TEXT` | Yes | — | Required only if `has_physical_items = true` |
+| `shipping_state` | `TEXT` | Yes | — | Required only if `has_physical_items = true` |
+| `shipping_zip` | `TEXT` | Yes | — | Required only if `has_physical_items = true` |
 | `placed_at` | `TIMESTAMPTZ` | No | `now()` | |
 
 **Business rules**:
 - All sales are final — no refunds, no cancellations.
 - Removed `cancelled` from order status enum.
-- A user cannot purchase a book they already own (checked against `user_library`).
+- A user cannot purchase an ebook they already own (checked against `user_library`).
+- Ebooks: quantity capped at 1 per variant. Physical items (Paper Book, Komet Card): unlimited quantity.
+- Shipping address required only for orders containing physical items.
+- Order total formula: `subtotal - discount + shipping + tax`.
 
 ---
 
@@ -287,7 +306,7 @@ Tracks every use of a dealer code for dealer credit attribution.
 
 ### 2.12 `user_library`
 
-Tracks which books a user owns/has access to and the source of access.
+Tracks which books a user owns/has access to and the source of access. All library entries are permanent — books are never removed.
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
@@ -295,16 +314,17 @@ Tracks which books a user owns/has access to and the source of access.
 | `user_id` | `UUID` FK | No | — | → `users.id` |
 | `book_id` | `UUID` FK | No | — | → `books.id` |
 | `source` | `library_source_enum` | No | — | purchase, subscription_signup, book_club_monthly |
-| `is_permanent` | `BOOLEAN` | No | — | `true` for purchases & signup picks; `false` for monthly picks |
 | `acquired_at` | `TIMESTAMPTZ` | No | `now()` | |
 
 **Unique constraint**: `(user_id, book_id)`
 
+**Removed**: `is_permanent` column — all library entries are permanent by design, so this field was unnecessary.
+
 **Business rules**:
-- `purchase` → permanent. Books bought at checkout.
+- `purchase` → permanent. Books bought at checkout (ebook or Komet Card purchase).
 - `subscription_signup` → permanent. The 2 free books picked during signup.
-- `book_club_monthly` → **permanent**. Monthly picks remain in library even if subscription cancelled/expired. Users simply stop receiving *new* picks after cancellation.
-- **Ebook Only**: Only the `ebook` variant is added to the digital `user_library`. Physical purchases (Paper/Komet Card) are tracked in `orders` but not readable in the app.
+- `book_club_monthly` → permanent. Monthly picks remain in library even if subscription cancelled/expired. Users simply stop receiving *new* picks after cancellation.
+- **Digital access sources**: Ebook purchases AND Komet Card purchases both add the book to `user_library`. Paper Book purchases are tracked in `orders` only — no digital reading access.
 - Books acquired from ANY source remain in the library forever, including after a ban.
 
 ---
@@ -316,7 +336,7 @@ Tracks which books a user owns/has access to and the source of access.
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
 | `user_id` | `UUID` FK | No | — | → `users.id` |
 | `book_id` | `UUID` FK | No | — | → `books.id` |
-| `current_chapter` | `INTEGER` | No | `0` | |
+| `current_page` | `INTEGER` | No | `0` | Corresponds to `book_pages.page_number` |
 | `progress_percent` | `NUMERIC(5,2)` | No | `0` | 0–100 |
 | `last_read_at` | `TIMESTAMPTZ` | No | `now()` | |
 
@@ -333,8 +353,8 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
 | `user_id` | `UUID` FK | No | — | → `users.id` |
 | `book_id` | `UUID` FK | No | — | → `books.id` |
-| `chapter_index` | `INTEGER` | No | — | |
-| `paragraph_index` | `INTEGER` | No | — | |
+| `page_number` | `INTEGER` | No | — | Corresponds to `book_pages.page_number` |
+| `paragraph_index` | `INTEGER` | No | — | Position within the page |
 | `text` | `TEXT` | No | — | Selected text |
 | `color` | `highlight_color_enum` | No | `'yellow'` | yellow, green, blue, pink |
 | `note` | `TEXT` | Yes | — | Optional annotation |
@@ -348,31 +368,36 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 
 ### 2.15 `bookmarks`
 
+Bookmarks work at the **page level** (e.g., "bookmark page 12"), not at the text/paragraph level.
+
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
 | `user_id` | `UUID` FK | No | — | → `users.id` |
 | `book_id` | `UUID` FK | No | — | → `books.id` |
-| `chapter_index` | `INTEGER` | No | — | |
-| `paragraph_index` | `INTEGER` | No | — | |
+| `page_number` | `INTEGER` | No | — | Corresponds to `book_pages.page_number` |
 | `label` | `TEXT` | Yes | — | User-defined label |
 | `created_at` | `TIMESTAMPTZ` | No | `now()` | |
 
 **Cap**: 10 bookmarks per book per user. Enforced via app-level check before INSERT.
 
+**Note**: Unlike highlights (which capture specific text at the paragraph level), bookmarks simply mark an entire page.
+
 ---
 
 ### 2.16 `reading_settings`
+
+Stores per-user reader preferences. Since the reader displays page images (rendered PDF pages) rather than re-flowed text, text-formatting settings (font size, font family, line height, text alignment) are not applicable. Only zoom level and background theme are configurable.
 
 | Column | Type | Nullable | Default | Notes |
 |---|---|---|---|---|
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
 | `user_id` | `UUID` FK | No | — | → `users.id`, UNIQUE |
-| `font_size` | `INTEGER` | No | `18` | px |
-| `font_family` | `TEXT` | No | `'Georgia'` | |
-| `theme` | `reading_theme_enum` | No | `'dark'` | dark, light, sepia |
-| `line_height` | `NUMERIC(3,1)` | No | `1.8` | |
+| `zoom` | `INTEGER` | No | `100` | Zoom percentage: 75, 100, 125, 150 |
+| `theme` | `reading_theme_enum` | No | `'dark'` | Background around page image: dark, light, sepia |
 | `updated_at` | `TIMESTAMPTZ` | No | `now()` | |
+
+**Removed fields** (text-formatting controls — not applicable for page-image rendering): `font_size`, `font_family`, `line_height`.
 
 ---
 
@@ -425,7 +450,7 @@ Syncs across devices. Debounce client writes to every 30 seconds.
 |---|---|---|---|---|
 | `id` | `UUID` PK | No | `gen_random_uuid()` | |
 | `event_id` | `UUID` FK | No | — | → `book_club_events.id` |
-| `user_id` | `UUID` FK | No | — | → `users.id` (**account required** — no guest RSVPs) |
+| `user_id` | `UUID` FK | No | — | → `users.id` (**account required** — no guest RSVPs). Free users can RSVP to public events; premium users can RSVP to all events. |
 | `name` | `TEXT` | No | — | |
 | `email` | `TEXT` | No | — | |
 | `phone` | `TEXT` | Yes | — | |
@@ -528,8 +553,8 @@ CREATE TYPE event_type_enum AS ENUM ('virtual', 'in_person');
 CREATE TYPE event_status_enum AS ENUM ('upcoming', 'past', 'cancelled');
 CREATE TYPE rsvp_status_enum AS ENUM ('confirmed', 'cancelled');
 
--- Community
-CREATE TYPE discussion_category_enum AS ENUM ('General', 'Book Club', 'Sci-Fi', 'Fantasy', 'News');
+-- Community (discussion categories match the book genres)
+CREATE TYPE discussion_category_enum AS ENUM ('Crime', 'Children', 'PTP', 'Spiritual', 'Adult', 'Sports', 'Self-Help', 'Cooking');
 CREATE TYPE vote_type_enum AS ENUM ('up', 'down');
 ```
 
@@ -560,7 +585,7 @@ users 1 ──── * discussion_votes
 users 1 ──── * promo_code_usages (as buyer)
 
 books 1 ──── * book_variants
-books 1 ──── * book_chapters
+books 1 ──── * book_pages
 books 1 ──── * book_illustrations
 books 1 ──── * user_library
 books 1 ──── * reading_progress
@@ -591,7 +616,7 @@ discussion_posts 1 ──── * discussion_votes
 | Table | Index | Type | Rationale |
 |---|---|---|---|
 | `books` | `(genre, status)` | B-tree | Browse page genre filter |
-| `books` | `(published_year DESC)` | B-tree | "Newest" sort |
+| `book_pages` | `(book_id, page_number)` | B-tree + Unique | Page loading in correct order |
 | `books` | `(series_name, series_order)` | B-tree | Series label & ordering |
 | `books` | `GIN(to_tsvector(title || ' ' || author))` | Full-text | Search bar |
 | `book_variants` | `(book_id, format)` | Unique | Ensure one format per book |
@@ -606,7 +631,7 @@ discussion_posts 1 ──── * discussion_votes
 | `bookmarks` | `(user_id, book_id)` | B-tree | Reader sidebar |
 | `book_club_selections` | `(status)` | B-tree | Current selection lookup |
 | `book_club_events` | `(status, date)` | B-tree | Events listing |
-| `book_illustrations` | `(book_id, display_after_chapter, sort_order)` | B-tree | Reader illustration loading |
+| `book_illustrations` | `(book_id, page_number, position_index)` | B-tree | Reader inline illustration loading |
 | `discussion_topics` | `(is_pinned DESC, last_activity_at DESC)` | B-tree | Sorted topic list |
 | `discussion_posts` | `(topic_id, created_at)` | B-tree | Thread loading |
 | `discussion_votes` | `(post_id, user_id)` | Unique | Vote dedup |
@@ -630,9 +655,10 @@ discussion_posts 1 ──── * discussion_votes
 | `promo_codes.total_uses` | COUNT of `promo_code_usages` for code | Trigger on insert |
 | `orders.subtotal` | SUM(`order_items.unit_price * quantity`) | Computed at order creation |
 | `orders.discount_amount` | `subtotal * 0.35` if promo code applied, else 0 | Computed at order creation |
+| `orders.shipping_amount` | `$5.99` if order contains any physical items, else `$0` | Computed at order creation |
 | `orders.tax_amount` | `(subtotal - discount_amount) * 0.05` (flat GST) | Computed at order creation |
-| `orders.total` | `subtotal - discount_amount + tax_amount` | Computed at order creation |
-| `book_chapters.word_count` | COUNT of words in `content` | Computed on insert |
+| `orders.total` | `subtotal - discount_amount + shipping_amount + tax_amount` | Computed at order creation |
+| `book_pages.word_count` | COUNT of words in `content` | Computed on insert |
 
 ---
 
@@ -641,22 +667,25 @@ discussion_posts 1 ──── * discussion_votes
 | Entity | Rule | Implementation |
 |---|---|---|
 | `book_variants.price` | Must be > 0 | CHECK constraint |
-| `books.page_count` | Must be > 0 | CHECK constraint |
+| `promo_codes` (self-use) | `used_by_user_id ≠ promo_codes.owner_id` | Edge Function check |
 | `cart_items.quantity` | Must be ≥ 1 | CHECK constraint |
 | `order_items.quantity` | Must be ≥ 1 | CHECK constraint |
 | `order_items.unit_price` | Must be ≥ 0 | CHECK constraint |
 | `reading_progress.progress_percent` | Must be 0–100 | CHECK constraint |
-| `reading_settings.font_size` | Must be 12–32 | CHECK constraint |
-| `reading_settings.line_height` | Must be 1.0–3.0 | CHECK constraint |
+| `reading_settings.zoom` | Must be one of: 75, 100, 125, 150 | CHECK constraint |
 | `highlights.text` | Must not be empty | CHECK constraint |
 | `highlights` | Max 10 per (user_id, book_id) | App-level check before INSERT |
 | `bookmarks` | Max 10 per (user_id, book_id) | App-level check before INSERT |
 | `user_subscriptions.selected_book_ids` | Array length must be exactly 2 (when premium) | App-level |
 | `book_club_selections` | Only one `status = 'current'` at a time | Trigger or app-level |
 | `users.email` | Valid email format | Supabase auth handles this |
+
+> **Removed**: `reading_settings.font_size` (12–32) and `reading_settings.line_height` (1.0–3.0) validation rules — these fields were removed when reading settings were simplified to zoom + theme only.
 | `users.date_of_birth` | Required to access `is_age_restricted` books (≥18) | Edge Function |
 | `event_rsvps` | One RSVP per user per event | UNIQUE constraint on `(event_id, user_id)` |
-| `cart_items` | Cannot add book already in `user_library` | App-level check before INSERT |
+| `cart_items` | Cannot add ebook already in `user_library` | App-level check before INSERT |
+| `cart_items` (ebook) | Quantity must be exactly 1 for ebook variants | App-level + CHECK constraint |
+| `cart_items` (physical) | Quantity ≥ 1 (no upper limit) for Paper Book / Komet Card | CHECK constraint |
 | `discussion_posts` (edit) | Can only edit within 15 minutes of `created_at` | Edge Function |
 | `discussion_posts` (create) | User must have active premium subscription | Edge Function |
 | `promo_codes.code` | Must be unique | UNIQUE constraint |
@@ -671,7 +700,7 @@ discussion_posts 1 ──── * discussion_votes
 |---|---|---|---|---|
 | `users` | Own row only | — | Own row only | — |
 | `books` | Published only | — | — | — |
-| `book_chapters` | Only for owned books (in `user_library`) | — | — | — |
+| `book_pages` | Only for owned books (in `user_library`) | — | — | — |
 | `book_illustrations` | SELECT for all books currently in their library | — | — | — |
 | `cart_items` | Own/Session rows | Own/Session rows | Own/Session rows | Own/Session rows |
 | `orders` | Own rows | Own rows | — | — |
@@ -685,7 +714,7 @@ discussion_posts 1 ──── * discussion_votes
 | `promo_codes` | Own code | — | — | — |
 | `book_club_selections` | All | — | — | — |
 | `book_club_events` | Public events only | — | — | — |
-| `event_rsvps` | — | — | — | — |
+| `event_rsvps` | Own rows | Own rows (public events only) | Own rows | Own rows |
 | `discussion_topics` | None | — | — | — |
 | `discussion_posts` | None | — | — | — |
 | `discussion_votes` | — | — | — | — |
@@ -706,7 +735,7 @@ All of the above, **plus**:
 | Table | Access |
 |---|---|
 | `books` | SELECT published only |
-| `book_chapters` | SELECT for **all** books currently in their library |
+| `book_pages` | SELECT for **all** books currently in their library |
 | `book_illustrations` | SELECT for all books currently in their library |
 | `user_library` | SELECT own rows |
 | `reading_progress` | SELECT/INSERT/UPDATE own rows |
@@ -781,12 +810,12 @@ All queries filter `WHERE deleted_at IS NULL` by default. RLS policies include t
 
 | Concern | Recommendation |
 |---|---|
-| **PDF → Text extraction** | Use a server-side tool (e.g., pdf-parse, pdfjs-dist) in an Edge Function or background job. Extract text per chapter and images per illustration. |
-| **Image/file storage** | Use Supabase Storage buckets for cover images, book PDFs, and extracted illustrations. Store only URLs in the database. |
-| **Book content storage** | Store chapters as separate rows in `book_chapters` for lazy loading in the reader. |
+| **PDF → Page rendering** | Render each PDF page to a high-resolution image (WebP) for layout-faithful display in the reader. Also extract plain text per page for full-text search indexing. Store rendered page images in Supabase Storage. |
+| **Image/file storage** | Use Supabase Storage buckets for cover images, book PDFs, rendered page images, and extracted inline illustrations. Store only URLs in the database. |
+| **Book content storage** | Store pages as separate rows in `book_pages` for lazy loading in the reader. Each row contains a `page_image_url` (rendered page) and `content` (extracted text for search). One row per PDF page. |
 | **Full-text search** | Use PostgreSQL `tsvector` + GIN index for book search. |
 | **Reading data sync** | Debounce reading progress writes from the client (every 30 seconds) to avoid excessive DB writes. |
-| **Discussion threading** | Self-referencing `parent_id` works well for 2-level nesting (as implemented). |
+| **Discussion threading** | Self-referencing `parent_id` with 2-level nesting maximum (post → reply, no reply-to-reply). |
 | **Denormalized counters** | `attendee_count`, `post_count`, `likes`, `total_uses` — updated via DB triggers. |
 | **Pagination** | All list endpoints use cursor-based pagination. |
 | **Promo code validation** | Fast lookup via unique index on `code`. |
@@ -805,22 +834,34 @@ All queries filter `WHERE deleted_at IS NULL` by default. RLS policies include t
 | **Free/Guest users** | Both can browse books and add to cart. Only logged-in users can checkout. Free readers can also read purchased books and customize reader. Guests/Free users cannot access discussions (hidden), events, or book club perks. |
 | **Banning** | Banned users keep **all** books in their library (purchased + picks). Lose community access. Subscription auto-cancelled. |
 | **Privacy** | Only `display_name` is public (in discussions). All other profile data is private. |
-| **Stripe billing** | $49.99 first month → $3.99/month from month 2. No pause—cancel only. |
-| **Dealer codes** | Format: `KANE-{NAME}-{PHONE_LAST4}`. 35% off book purchases. Multi-use, multi-person. Tracks usage for dealer credit. |
+| **Stripe billing** | $49.99 one-time charge + $3.99/month subscription (first invoice delayed 30 days). No pause—cancel only. |
+| **Re-subscription** | Re-subscribers pay $49.99 again, pick 2 more free books, and their existing dealer code is reactivated. |
+| **Dealer codes** | Format: `KANE-{NAME}-{PHONE_LAST4}`. 35% off all items (ebooks, Paper Books, Komet Cards). Multi-use, multi-person. Self-use prevented. Hybrid: tracked in DB + synced as Stripe Promotion Codes. |
 | **2 free books** | Picked at signup. Stay in library forever even after cancellation. |
 | **Monthly pick** | Auto-added to all premium libraries. **Permanent access** (retained after cancellation). |
 | **All sales final** | No refunds on book purchases. |
-| **No duplicate purchases** | User cannot buy a book they already own. |
-| **Content pipeline** | Admin uploads PDF + standard cover image → extraction tool → chapters stored as text + illustrations stored as images. |
-| **Illustrations** | Full-page images shown between chapters in the reader. |
-| **Highlight/bookmark cap** | 10 highlights + 10 bookmarks per book per user. |
+| **No duplicate ebook purchases** | User cannot buy an ebook variant of a book they already own. Physical variants can still be purchased. |
+| **Quantity rules** | Ebooks: 1 copy max. Paper Books and Komet Cards: unlimited quantity per order. |
+| **Content pipeline** | Admin uploads PDF + standard cover image → rendering tool → pages rendered as images (WebP) for layout preservation + text extracted for search indexing + inline illustrations stored as images with page positions. |
+| **Page display** | Reader shows `page_image_url` (rendered PDF page) to preserve exact original layout. "Page X of Y" navigation. |
+| **Illustrations** | Thumbnail-sized inline images displayed within pages at their original PDF positions. |
+| **Highlights** | Work at the text/paragraph level — users select specific text within a page. |
+| **Bookmarks** | Work at the page level — users bookmark entire pages (e.g., "bookmark page 12"). |
+| **Komet Card** | Purchasing a Komet Card grants both physical delivery AND digital reading access (added to `user_library`). |
+| **Re-subscription accumulation** | Unlimited. Users can re-subscribe and pick 2 more free ebooks each cycle. Since free picks are ebooks (zero marginal cost), this is acceptable. |
+| **Shipping** | $5.99 flat rate for orders with physical items. Ebook-only orders skip shipping address and fee. |
+| **Illustrator** | Shown publicly on the book detail page (not internal-only). |
+| **Highlight/bookmark caps** | 10 highlights per book (text-level) + 10 bookmarks per book (page-level) per user. |
 | **Comment editing** | 15-minute edit window. Delete anytime. |
-| **Discussions** | Premium-only. Admin creates topics. Admin-only moderation. Hidden from free users. |
-| **Events** | No capacity limit. Account required for RSVP. No calendar invites. |
-| **Email** | GoHighLevel handles all outbound emails. No in-app notifications. |
-| **Genres** | Fixed list, developer-managed. PTP = "Prayers, Thoughts, and Poetry". |
+| **Discussions** | Premium-only. Admin creates topics. Categories match book genres. 2-level nesting (post → reply). Hidden from free users. |
+| **Events** | No capacity limit. Account required for RSVP. Free users can RSVP to public events; premium can RSVP to all. No calendar invites. |
+| **Email** | GoHighLevel handles all outbound emails. Contact created for ALL users (free + premium). No in-app notifications. |
+| **Guest cart transfer** | Guest cart items auto-transfer to user account on signup/login. |
+| **Genres** | Fixed list, developer-managed. PTP = "Prayers, Thoughts, and Poetry". Also used as discussion categories. |
 | **Stock** | Admin-managed boolean per variant. Out-of-stock variants (e.g., Paper Book) are visible but disabled for purchase, while other available variants (e.g., ebook) remain purchasable. |
 | **Series** | Label on book card (e.g., "Brute Syndicate #3"). No dedicated series page. |
+| **Naming** | Product: "Kane's Komet Book Club." Tier: "Premium Access." Internal enum: `premium`. |
+| **Book detail pages** | ISR (Incremental Static Regeneration) with 5-minute revalidation. |
 
 ---
 
@@ -857,8 +898,7 @@ All queries filter `WHERE deleted_at IS NULL` by default. RLS policies include t
         │                 └── 1:* ── order_items ── books
         │
         ├──── 1:* ──── user_library ──── books
-        │                 ├── source (purchase/signup/monthly)
-        │                 └── is_permanent
+        │                 └── source (purchase/signup/monthly)
         │
         ├──── 1:* ──── reading_progress ── books
         ├──── 1:* ──── highlights ──────── books (max 10/book)
@@ -880,12 +920,12 @@ All queries filter `WHERE deleted_at IS NULL` by default. RLS policies include t
 │  illustrator      │
 │  series_name      │
 │  series_order     │
-│  is_in_stock      │
 │  is_age_restricted│
 └───────┬──────────┘
         │
-        ├──── 1:* ──── book_chapters
-        ├──── 1:* ──── book_illustrations
+        ├──── 1:* ──── book_variants (is_in_stock per variant)
+        ├──── 1:* ──── book_pages
+        ├──── 1:* ──── book_illustrations (inline, per page)
         ├──── 1:* ──── book_club_selections
         └──── 1:* ──── discussion_topics (optional FK)
 ```
@@ -903,7 +943,7 @@ All queries filter `WHERE deleted_at IS NULL` by default. RLS policies include t
 | Bookmarks | `komet_bookmarks_*` | `bookmarks` |
 | Reading settings | `komet_reading_settings` | `reading_settings` |
 | Book catalog | `mock-books.ts` | `books` |
-| Book content | `mock-book-content.ts` | `book_chapters` + `book_illustrations` |
+| Book content | `mock-book-content.ts` | `book_pages` + `book_illustrations` |
 | User library | `mock-user-data.ts` | `user_library` |
 | User admin data | `mock-admin-data.ts` | `users` + `user_subscriptions` |
 | Book club data | `mock-book-club-data.ts` | `book_club_selections`, `book_club_events`, `discussion_topics` |

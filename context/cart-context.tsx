@@ -4,7 +4,8 @@ import React, { createContext, useContext, useState, useEffect } from "react"
 import type { BookFormat } from "@/lib/mock-books"
 
 export interface CartItem {
-    id: string
+    id: string        // book_id (UUID from Supabase)
+    variantId: string  // book_variants.id (UUID from Supabase)
     title: string
     price: number
     coverImage: string
@@ -46,6 +47,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setItems((prev) => {
             const existing = prev.find((item) => item.id === newItem.id && item.format === newItem.format)
             if (existing) {
+                // Ebooks: cap at 1; physical formats allow multiple
+                if (newItem.format === "ebook") return prev
                 return prev.map((item) =>
                     (item.id === newItem.id && item.format === newItem.format)
                         ? { ...item, quantity: item.quantity + 1 }

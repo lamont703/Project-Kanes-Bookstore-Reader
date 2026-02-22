@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { mockBooks, GENRES } from "@/lib/mock-books"
+import { GENRES } from "@/lib/mock-books"
 import {
   Search,
   Plus,
@@ -30,50 +31,80 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 
-// Mocked status mapping since the base interface doesn't have it
-const booksWithStatus = mockBooks.map((book, index) => ({
-  ...book,
-  status: index % 4 === 0 ? "Draft" : "Published",
-  createdAt: new Date(2024, 0, 1 + index).toLocaleDateString()
-}))
-
 export default function AdminBooksPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedGenre, setSelectedGenre] = useState("All")
   const [isLoading, setIsLoading] = useState(true)
   const [sortOrder, setSortOrder] = useState<"title" | "price">("title")
+  const [books, setBooks] = useState<any[]>([])
+  const supabase = createClient()
 
   // Delete Modal State
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [bookToDelete, setBookToDelete] = useState<typeof booksWithStatus[0] | null>(null)
+  const [bookToDelete, setBookToDelete] = useState<any | null>(null)
 
   useEffect(() => {
-    // Simulate initial loading
-    const timer = setTimeout(() => setIsLoading(false), 1200)
-    return () => clearTimeout(timer)
+    fetchBooks()
   }, [])
 
-  const handleDeleteClick = (book: typeof booksWithStatus[0]) => {
+  async function fetchBooks() {
+    setIsLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from("books")
+        .select("*, book_variants(*)")
+        .order("title")
+
+      if (error) throw error
+      setBooks(data || [])
+    } catch (error: any) {
+      toast.error("Failed to fetch cosmic library catalog")
+      console.error(error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteClick = (book: any) => {
     setBookToDelete(book)
     setIsDeleteDialogOpen(true)
   }
 
-  const confirmDelete = () => {
-    toast.success(`${bookToDelete?.title} has been purged from reality`)
-    setIsDeleteDialogOpen(false)
-    setBookToDelete(null)
+  const confirmDelete = async () => {
+    if (!bookToDelete) return
+
+    try {
+      const { error } = await supabase
+        .from("books")
+        .delete()
+        .eq("id", bookToDelete.id)
+
+      if (error) throw error
+
+      toast.success(`${bookToDelete.title} has been purged from reality`)
+      setBooks(books.filter(b => b.id !== bookToDelete.id))
+    } catch (err: any) {
+      toast.error("Failed to delete volume")
+    } finally {
+      setIsDeleteDialogOpen(false)
+      setBookToDelete(null)
+    }
   }
 
-  const filteredBooks = booksWithStatus.filter((book) => {
+  const filteredBooks = books.filter((book) => {
     const matchesSearch =
       searchQuery === "" ||
       book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       book.author.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesGenre = selectedGenre === "All" || book.genre === selectedGenre
     return matchesSearch && matchesGenre
-  }).sort((a, b) => {
+  }).sort((a: any, b: any) => {
     if (sortOrder === "title") return a.title.localeCompare(b.title)
-    if (sortOrder === "price") return a.price - b.price
+    if (sortOrder === "price") {
+      const aPrice = a.book_variants?.[0]?.price || 0
+      const bPrice = b.book_variants?.[0]?.price || 0
+      return aPrice - bPrice
+    }
     return 0
   })
 
@@ -103,7 +134,7 @@ export default function AdminBooksPage() {
           <h1 className="font-display text-4xl md:text-5xl tracking-wider mb-2 leading-tight">
             <span className="text-primary">CATALOG</span> <span className="text-secondary">MANAGEMENT</span>
           </h1>
-          <p className="text-base md:text-lg text-muted-foreground">{booksWithStatus.length} Komet volumes in the library</p>
+          <p className="text-base md:text-lg text-muted-foreground">{books.length} Komet volumes in the library</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
 
@@ -304,7 +335,7 @@ export default function AdminBooksPage() {
 
       {/* Footer Info */}
       <div className="mt-6 flex flex-col sm:flex-row justify-between items-center text-xs text-muted-foreground gap-4">
-        <p>Showing {filteredBooks.length} of {booksWithStatus.length} total books</p>
+        <p>Showing {filteredBooks.length} of {books.length} total books</p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" disabled className="bg-transparent border-border/30">Previous</Button>
           <Button variant="outline" size="sm" disabled className="bg-transparent border-border/30">Next</Button>

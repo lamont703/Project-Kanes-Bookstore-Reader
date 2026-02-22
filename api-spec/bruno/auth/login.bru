@@ -1,0 +1,33 @@
+meta {
+  name: Login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{supabase_url}}/auth/v1/token?grant_type=password
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  apikey: {{anon_key}}
+}
+
+body:json {
+  {
+    "email": "testuser@example.com",
+    "password": "SecurePass123!"
+  }
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("Returns access_token", function() {
+    expect(res.body).to.have.property("access_token");
+    bru.setVar("auth_token", res.body.access_token);
+  });
+}

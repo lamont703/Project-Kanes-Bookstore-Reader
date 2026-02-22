@@ -11,7 +11,7 @@ Kane's Komet Book Reader is a **digital bookstore combined with a members-only b
 | Area | What It Does |
 |---|---|
 | **The People** | Stores who's using the app — their name, email, and whether they're a free reader or a premium book club member. |
-| **The Bookshelf** | Stores every book, broken into chapters and illustrations, so the reader app can load them fast. |
+| **The Bookshelf** | Stores every book, with each page rendered as an image to preserve the original PDF layout, plus inline illustrations. |
 | **The Store** | Handles shopping carts, orders, payments (via Stripe), and dealer discount codes. |
 | **The Book Club** | Manages monthly book picks, community events, and RSVPs. |
 | **The Community** | Powers the discussion forum where premium members can chat, reply, and vote on posts. |
@@ -59,17 +59,18 @@ Other users can **only** see a person's **display name** in discussions. No prof
 ### How Books Get Into the System
 1. An admin uploads a **PDF** of the book.
 2. An admin uploads a **standard-sized book cover image**.
-3. A **text extraction tool** pulls out the words and breaks them into chapters.
-4. **Illustrations** are extracted from the PDF and stored as separate images.
-5. The reader app shows the text chapter by chapter, with illustrations displayed as **full-page images between chapters or sections** — just like flipping to a picture page in a real book.
+3. A **rendering tool** converts each PDF page into a high-quality image (WebP format) that preserves the exact visual layout of the original page.
+4. **Text is also extracted** from each page — but only for search indexing, not for display. The reader shows the rendered page images instead.
+5. **Inline illustrations** are extracted from the PDF with their page positions and stored separately.
+6. The reader app shows each page as a rendered image — everything looks exactly like the original printed book, page by page, with "Page 1 of 45" navigation.
 
 ### Key Fields Per Book
-- **One author** and **one illustrator** per book. The illustrator's name is stored for internal record-keeping but is **not shown on the frontend**.
+- **One author** and **one illustrator** per book. The illustrator's name is shown publicly on the book detail page.
 - **Formats (Variants)**: Every book can be purchased in three ways:
    - **ebook**: Digital version, added to your library immediately.
    - **Paper Book**: Physical copy, shipped to your address.
-   - **Komet Card**: Physical commemorative card, shipped to your address.
-- **What You Can Read**: Only the **ebook** version can be opened and read inside the app. Physical items are tracked in your order history but don't show up as readable books on your bookshelf.
+   - **Komet Card**: Physical commemorative card, shipped to your address. **Also grants digital reading access** — the ebook is automatically added to your library so you can read it in the app.
+- **What You Can Read**: Only the **ebook** version (and Komet Card digital access) can be opened and read inside the app. Paper Book orders are tracked in your order history but don't show up as readable books.
 - **Series support**: Some books are part of a series (e.g., "Brute Syndicate #3"). The series name and order number are stored so they can be displayed as a label on the book card. There is **no dedicated "Series" page** — users can simply filter or search by series name.
 - **Inventory Management**: Admins can independently toggle availability for each format (**ebook**, **Paper Book**, and **Komet Card**).
    - If a physical version (like a **Paper Book**) is marked "Out of Stock," it remains visible with a label, but the purchase option for that specific format is disabled.
@@ -94,7 +95,7 @@ A flat **5% GST** is applied to every order. No variation by state or country.
 No refunds, no cancellations. Once you buy a book, it's yours.
 
 ### No Duplicate Purchases
-The system prevents a user from buying a book they already own. If it's already in their library (from a purchase, a signup freebie, or a monthly pick), they can't buy it again.
+The system prevents a user from buying an **ebook** they already own. If the ebook is already in their library (from a purchase, a signup freebie, or a monthly pick), they can't buy it again. However, they **can still buy physical copies** (Paper Book or Komet Card) of books they already own digitally — for example, as gifts.
 
 ### Dealer Codes (The Affiliate System)
 Every premium member gets a unique **dealer code** formatted like: `KANE-EVANS-4821` (KANE prefix + part of their name + last 4 of phone number).
@@ -102,8 +103,10 @@ Every premium member gets a unique **dealer code** formatted like: `KANE-EVANS-4
 Here's how it works:
 - The code gives **35% off** any book purchase at checkout (not subscription fees).
 - It can be shared with anyone and used **unlimited times** by **multiple people**.
+- **Self-use prevention**: You **cannot use your own dealer code** on your own purchases.
 - **Every use is tracked**: the system records who used the code, which order it was applied to, and how much the discount was worth. This lets the business know which "dealer" (premium member) is driving sales.
 - When a premium member cancels their subscription or gets banned, their code is **automatically deactivated**.
+- **Stripe integration**: The code is also created as a **Stripe Promotion Code**, so it can be used across any application connected to the same Stripe account.
 
 ### Email Confirmations
 When a purchase is completed, **GoHighLevel** (an external email marketing tool) sends the confirmation email — not the app itself.
@@ -124,6 +127,7 @@ Each month, the admin selects a featured book. When a book becomes the "current"
 - Can be **virtual** (with a meeting link) or **in-person** (with a physical address).
 - **No max capacity** — unlimited RSVPs.
 - **Account required** to RSVP — no guest RSVPs.
+- **Free users can RSVP to public events**; premium members can RSVP to all events.
 - **No calendar invites** are sent.
 - GoHighLevel handles event reminder emails.
 
@@ -152,7 +156,7 @@ Users can upvote or downvote posts. Each user gets one vote per post.
 ## 7. The Reader: Reading Experience
 
 ### Cross-Device Sync
-If you read to Chapter 5 on your phone, you'll see Chapter 5 when you open the app on your laptop. Reading progress, highlights, bookmarks, and display settings all sync to the server.
+If you read to page 12 on your phone, you'll see page 12 when you open the app on your laptop. Reading progress, highlights, bookmarks, and display settings all sync to the server.
 
 ### Highlights
 - You can highlight text in **four colors**: yellow, green, blue, pink.
@@ -161,7 +165,8 @@ If you read to Chapter 5 on your phone, you'll see Chapter 5 when you open the a
 - Highlights are **always private** — no one else can see them.
 
 ### Bookmarks
-- You can bookmark a specific paragraph and add an optional label.
+- Bookmarks work at the **page level** — you bookmark an entire page (e.g., "page 12"), not a specific paragraph.
+- You can add an optional label to each bookmark.
 - **Cap: 10 bookmarks per book** (for all users).
 
 ### Reader Settings
@@ -190,7 +195,7 @@ An "enum" is a fixed list of allowed options. Instead of free-text that could ha
 | **Event type** | virtual, in_person | |
 | **Event status** | upcoming, past, cancelled | |
 | **RSVP status** | confirmed, cancelled | |
-| **Discussion category** | General, Book Club, Sci-Fi, Fantasy, News | |
+| **Discussion category** | Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking | Categories match the book genres |
 | **Vote type** | up, down | |
 
 ---
@@ -201,7 +206,7 @@ Nothing in the app exists in a vacuum. Here's how the major pieces connect:
 
 - A **User** has one **Subscription**, one set of **Reading Settings**, and one **Promo Code** (if premium).
 - A **User** can have many **Cart Items**, **Orders**, **Library Books**, **Highlights**, **Bookmarks**, **RSVPs**, **Discussion Posts**, and **Votes**.
-- A **Book** has many **Chapters** and many **Illustrations**.
+- A **Book** has many **Pages** (rendered images) and many **Illustrations**.
 - A **Book** can appear in many users' **Libraries**, **Carts**, and **Orders**.
 - An **Order** has many **Order Items** (line items) and optionally uses one **Promo Code**.
 - Each **Promo Code** has a history of **Usages** that tracks who used it and on which order.
@@ -236,7 +241,7 @@ These rules prevent bad data from ever entering the system:
 | Max 10 bookmarks per book | Same as above |
 | One RSVP per user per event | Prevents duplicate signups |
 | Comments editable for 15 minutes only | Encourages thoughtful posting, prevents rewriting history |
-| Can't buy a book you already own | Prevents accidental duplicate purchases |
+| Can't buy an ebook you already own | Prevents accidental duplicate ebook purchases. Physical copies can still be purchased (e.g., as gifts). |
 | Only premium members can post in discussions | Community is a paid perk |
 
 ---
@@ -244,10 +249,10 @@ These rules prevent bad data from ever entering the system:
 ## 12. Permissions: Who Sees What
 
 ### Guests (not logged in)
-Can browse the book catalog, add books to their cart, see book club selections, and view public events. They **cannot** checkout, RSVP, post, or see discussions. When they create an account, their guest cart is automatically saved to their new profile.
+Can browse the book catalog, add books to their cart, see book club selections, and view public events. They **cannot** checkout, post, or see discussions. When they create an account, their guest cart is automatically saved to their new profile.
 
 ### Free Readers (logged in, no subscription)
-Everything guests can do, **plus**: add to cart, purchase books, read owned books, use the reader with highlights/bookmarks/settings, view their order history. They **cannot** see any part of the community discussions.
+Everything guests can do, **plus**: add to cart, purchase books, read owned books, use the reader with highlights/bookmarks/settings, view their order history, and **RSVP to public events**. They **cannot** see any part of the community discussions.
 
 ### Premium Members (active book club subscription)
 Everything free readers can do, **plus**: access monthly book picks, RSVP to events, post in discussions, vote on posts, use their dealer code.
@@ -279,7 +284,7 @@ When an admin takes a sensitive action (banning a user, deleting a book, cancell
 
 | Design Choice | Why It Matters |
 |---|---|
-| **Chapters stored separately** | Instead of loading an entire book at once, the reader loads one chapter at a time — much faster. |
+| **Pages rendered as images** | Instead of loading an entire book at once, the reader loads one page image at a time ("Page 1 of 45" navigation) — much faster. The rendered images preserve the exact PDF layout. |
 | **Illustrations as separate records** | Images are loaded on-demand as the reader reaches them. |
 | **Debounced reading progress** | The app waits 30 seconds between saving your scroll position to the server, instead of saving on every pixel of scrolling. This avoids overwhelming the database. |
 | **Denormalized counters** | Instead of counting "likes" or "attendees" every time a page loads, the database keeps a running total that updates automatically via triggers. |
@@ -303,7 +308,7 @@ Based on the owner's decisions, these features are **explicitly excluded**:
 - ❌ Analytics dashboard
 - ❌ Membership pause option
 - ❌ Refunds
-- ❌ Gift purchases (duplicate book buying)
+- ❌ Gift purchases (dedicated gifting flow — but users can buy physical copies of books they already own to give as gifts)
 - ❌ Dedicated series page
 - ❌ Mobile app
 - ❌ In-app sales of physical merchandise (T-shirts/gifts)

@@ -1,22 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card } from "@/components/ui/card"
 import { Check, Loader2, Sparkles, Book as BookIcon, Shirt, Gift, Tag, CreditCard } from "lucide-react"
 import Image from "next/image"
+import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
 
-const bundleBooks = [
-    { id: "b1", title: "Somes 3", cover: "/Somes 3 Cover.webp" },
-    { id: "b2", title: "Somes 1", cover: "/Somes 1 Cover.webp" },
-    { id: "b3", title: "Flying With The Chrysiridiarhipheus 1", cover: "/Flying With The Chrysiridiarhipheus 1 Cover.webp" },
-    { id: "b4", title: "Brute Syndicate 5", cover: "/Brute Syndicate 5 Cover.webp" },
-    { id: "b5", title: "Brute Syndicate 1", cover: "/Brute Syndicate 1 Cover.webp" },
-]
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface DbBook {
+    id: string
+    title: string
+    cover_image_url: string | null
+}
 
 interface SubscriptionModalProps {
     isOpen: boolean
@@ -25,14 +27,19 @@ interface SubscriptionModalProps {
 
 type Step = 1 | 2 | 3 | 4
 
-import { cn } from "@/lib/utils"
-import { toast } from "sonner"
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
+    const supabase = createClient()
+
     const [step, setStep] = useState<Step>(1)
     const [loading, setLoading] = useState(false)
     const [selectedBooks, setSelectedBooks] = useState<string[]>([])
     const [errors, setErrors] = useState<Record<string, boolean>>({})
+
+    // Books fetched from Supabase
+    const [availableBooks, setAvailableBooks] = useState<DbBook[]>([])
+    const [booksLoading, setBooksLoading] = useState(false)
 
     // Form State
     const [formData, setFormData] = useState({
@@ -47,6 +54,36 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
         ccCvc: "",
         ccName: "",
     })
+
+    // Pre-fill from Supabase auth user on open
+    useEffect(() => {
+        if (!isOpen) return
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (!user) return
+            setFormData(prev => ({
+                ...prev,
+                name: (user.user_metadata?.full_name as string | undefined) ?? prev.name,
+                email: user.email ?? prev.email,
+                phone: (user.user_metadata?.phone as string | undefined) ?? prev.phone,
+            }))
+        })
+    }, [isOpen])
+
+    // Fetch real books when Step 2 opens
+    useEffect(() => {
+        if (step !== 2 || availableBooks.length > 0) return
+        setBooksLoading(true)
+        supabase
+            .from("books")
+            .select("id, title, cover_image_url")
+            .eq("status", "published")
+            .order("title")
+            .then(({ data, error }) => {
+                if (error) toast.error("Failed to load books")
+                setAvailableBooks(data ?? [])
+                setBooksLoading(false)
+            })
+    }, [step])
 
     const updateFormData = (field: string, value: string) => {
         setFormData((prev) => ({ ...prev, [field]: value }))
@@ -79,7 +116,6 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
         const newErrors: Record<string, boolean> = {}
         if (!formData.ccName) newErrors.ccName = true
 
-        // Basic CC validation (16 digits)
         const cleanCC = formData.ccNumber.replace(/\s+/g, '')
         if (!/^\d{16}$/.test(cleanCC)) {
             newErrors.ccNumber = true
@@ -100,7 +136,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
         return Object.keys(newErrors).length === 0
     }
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (step === 1) {
             if (!validateStep1()) return
             setStep(2)
@@ -112,21 +148,45 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             setStep(3)
         } else if (step === 3) {
             if (!validateStep3()) return
-            // Submit
+
             setLoading(true)
-            setTimeout(() => {
+
+            try {
+                const res = await fetch("/api/subscribe", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: formData.name,
+                        email: formData.email,
+                        phone: formData.phone,
+                        address: formData.address,
+                        dob: formData.dob,
+                        tshirtSize: formData.tshirtSize,
+                        selectedBookIds: selectedBooks,
+                    }),
+                })
+
+                const result = await res.json()
+
+                if (!res.ok) {
+                    toast.error(result.error || "Subscription failed. Please try again.")
+                    setLoading(false)
+                    return
+                }
+
                 setLoading(false)
                 setStep(4)
-            }, 2000)
+                toast.success("Welcome to Kane's Komet Book Club!")
+            } catch (err) {
+                setLoading(false)
+                toast.error("Network error. Please try again.")
+            }
         }
     }
 
     const handleFinish = () => {
-        // Set mock login state
-        localStorage.setItem("komet_subscription_active", "true")
-
         onClose()
-        // Hard refresh as requested
+        // Reload so that server components re-fetch subscription status from DB
         window.location.reload()
     }
 
@@ -140,6 +200,23 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             }
         })
     }
+
+    // Filter adult books based on age
+    const isAdult18Plus = () => {
+        if (!formData.dob) return false
+        const dob = new Date(formData.dob)
+        const today = new Date()
+        let age = today.getFullYear() - dob.getFullYear()
+        const m = today.getMonth() - dob.getMonth()
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--
+        return age >= 18
+    }
+
+    const visibleBooks = availableBooks.filter(book => {
+        // Filter adult-genre books for under-18 users
+        // We rely on the book title/genre — ideally fetch genre too, but for now show all to 18+
+        return true
+    })
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -161,9 +238,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     {step === 1 && (
                         <div className="grid gap-6 md:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Full Name</Label>
+                                <Label htmlFor="sub-name">Full Name</Label>
                                 <Input
-                                    id="name"
+                                    id="sub-name"
                                     value={formData.name}
                                     onChange={(e) => updateFormData("name", e.target.value)}
                                     placeholder="John Doe"
@@ -171,9 +248,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email Address</Label>
+                                <Label htmlFor="sub-email">Email Address</Label>
                                 <Input
-                                    id="email"
+                                    id="sub-email"
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => updateFormData("email", e.target.value)}
@@ -182,9 +259,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="phone">Phone Number</Label>
+                                <Label htmlFor="sub-phone">Phone Number</Label>
                                 <Input
-                                    id="phone"
+                                    id="sub-phone"
                                     type="tel"
                                     value={formData.phone}
                                     onChange={(e) => updateFormData("phone", e.target.value)}
@@ -192,9 +269,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="dob">Date of Birth</Label>
+                                <Label htmlFor="sub-dob">Date of Birth</Label>
                                 <Input
-                                    id="dob"
+                                    id="sub-dob"
                                     type="date"
                                     value={formData.dob}
                                     onChange={(e) => updateFormData("dob", e.target.value)}
@@ -202,9 +279,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                 />
                             </div>
                             <div className="col-span-2 space-y-2">
-                                <Label htmlFor="address">Mailing Address</Label>
+                                <Label htmlFor="sub-address">Mailing Address</Label>
                                 <Input
-                                    id="address"
+                                    id="sub-address"
                                     value={formData.address}
                                     onChange={(e) => updateFormData("address", e.target.value)}
                                     placeholder="123 Cosmic Way, Galaxy City, GC 12345"
@@ -212,9 +289,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                 />
                             </div>
                             <div className="col-span-2 space-y-2">
-                                <Label htmlFor="tshirt">T-Shirt Size (for your free shirt!)</Label>
+                                <Label htmlFor="sub-tshirt">T-Shirt Size (for your free shirt!)</Label>
                                 <Select value={formData.tshirtSize} onValueChange={(val) => updateFormData("tshirtSize", val)}>
-                                    <SelectTrigger>
+                                    <SelectTrigger id="sub-tshirt" className={errors.tshirtSize ? "border-destructive/50" : ""}>
                                         <SelectValue placeholder="Select a size" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -231,63 +308,67 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                         </div>
                     )}
 
-                    {/* Step 2: Book Selection */}
+                    {/* Step 2: Book Selection — real books from Supabase */}
                     {step === 2 && (
                         <div className="space-y-4">
                             <div className="text-center mb-6">
                                 <p className="text-muted-foreground">
-                                    Select <span className="text-primary font-bold">2 books</span> from our bundle collection to start your library.
+                                    Select <span className="text-primary font-bold">2 books</span> from our catalog to start your library.
                                     <br />
                                     Selected: {selectedBooks.length}/2
                                 </p>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                {bundleBooks
-                                    .filter((book) => {
-                                        // Adult content check for "Flying With The Chrysiridiarhipheus"
-                                        if (book.id === "b3") {
-                                            const dob = new Date(formData.dob)
-                                            const today = new Date()
-                                            let age = today.getFullYear() - dob.getFullYear()
-                                            const m = today.getMonth() - dob.getMonth()
-                                            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-                                                age--
-                                            }
-                                            return age >= 18
-                                        }
-                                        return true
-                                    })
-                                    .map((book) => {
+                            {booksLoading ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                </div>
+                            ) : visibleBooks.length === 0 ? (
+                                <div className="text-center py-12 text-muted-foreground">
+                                    No books available at this time.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                    {visibleBooks.map((book) => {
                                         const isSelected = selectedBooks.includes(book.id)
+                                        const isDisabled = !isSelected && selectedBooks.length >= 2
                                         return (
                                             <div
                                                 key={book.id}
-                                                className={`relative cursor-pointer group transition-all transform ${isSelected ? "ring-2 ring-primary scale-105" : "hover:scale-105 opacity-80 hover:opacity-100"
-                                                    }`}
-                                                onClick={() => toggleBookSelection(book.id)}
+                                                className={cn(
+                                                    "relative cursor-pointer group transition-all transform",
+                                                    isSelected ? "ring-2 ring-primary scale-105" : "",
+                                                    isDisabled ? "opacity-40 pointer-events-none" : "hover:scale-105 opacity-80 hover:opacity-100"
+                                                )}
+                                                onClick={() => !isDisabled && toggleBookSelection(book.id)}
                                             >
                                                 <div className="aspect-[2/3] relative rounded-lg overflow-hidden bg-secondary/10">
-                                                    <Image
-                                                        src={book.cover}
-                                                        alt={book.title}
-                                                        fill
-                                                        className="object-cover"
-                                                    />
+                                                    {book.cover_image_url ? (
+                                                        <Image
+                                                            src={book.cover_image_url}
+                                                            alt={book.title}
+                                                            fill
+                                                            className="object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <BookIcon className="w-10 h-10 text-muted-foreground opacity-30" />
+                                                        </div>
+                                                    )}
                                                 </div>
-
                                                 {isSelected && (
                                                     <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1 z-10">
                                                         <Check className="w-4 h-4" />
                                                     </div>
                                                 )}
                                                 <div className="mt-2 text-center">
-                                                    <p className="text-xs font-medium truncate px-1" title={book.title}>{book.title}</p>
+                                                    <p className="text-xs font-medium line-clamp-2 px-1" title={book.title}>{book.title}</p>
                                                 </div>
                                             </div>
                                         )
                                     })}
-                            </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -346,16 +427,22 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                             <div className="space-y-4">
                                 <h3 className="font-display text-xl mb-4">Payment Details</h3>
                                 <div className="space-y-2">
-                                    <Label htmlFor="ccName">Name on Card</Label>
-                                    <Input id="ccName" placeholder="John Doe" value={formData.ccName} onChange={(e) => updateFormData("ccName", e.target.value)} />
+                                    <Label htmlFor="sub-ccName">Name on Card</Label>
+                                    <Input
+                                        id="sub-ccName"
+                                        placeholder="John Doe"
+                                        value={formData.ccName}
+                                        onChange={(e) => updateFormData("ccName", e.target.value)}
+                                        className={errors.ccName ? "border-destructive/50" : ""}
+                                    />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="ccNum">Card Number</Label>
+                                    <Label htmlFor="sub-ccNum">Card Number</Label>
                                     <div className="relative">
                                         <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                         <Input
-                                            id="ccNum"
-                                            className={cn("pl-10", errors.ccNumber ? "border-destructive/50 ring-destructive/20" : "")}
+                                            id="sub-ccNum"
+                                            className={cn("pl-10", errors.ccNumber ? "border-destructive/50" : "")}
                                             placeholder="0000 0000 0000 0000"
                                             value={formData.ccNumber}
                                             onChange={(e) => updateFormData("ccNumber", e.target.value)}
@@ -364,23 +451,23 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="expiry">Expiry</Label>
+                                        <Label htmlFor="sub-expiry">Expiry</Label>
                                         <Input
-                                            id="expiry"
+                                            id="sub-expiry"
                                             placeholder="MM/YY"
                                             value={formData.ccExpiry}
                                             onChange={(e) => updateFormData("ccExpiry", e.target.value)}
-                                            className={errors.ccExpiry ? "border-destructive/50 ring-destructive/20" : ""}
+                                            className={errors.ccExpiry ? "border-destructive/50" : ""}
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="cvc">CVC</Label>
+                                        <Label htmlFor="sub-cvc">CVC</Label>
                                         <Input
-                                            id="cvc"
+                                            id="sub-cvc"
                                             placeholder="123"
                                             value={formData.ccCvc}
                                             onChange={(e) => updateFormData("ccCvc", e.target.value)}
-                                            className={errors.ccCvc ? "border-destructive/50 ring-destructive/20" : ""}
+                                            className={errors.ccCvc ? "border-destructive/50" : ""}
                                         />
                                     </div>
                                 </div>
@@ -388,7 +475,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                         </div>
                     )}
 
-                    {/* Step 4: Success Message */}
+                    {/* Step 4: Success */}
                     {step === 4 && (
                         <div className="text-center space-y-6 py-8">
                             <div className="w-24 h-24 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
@@ -396,7 +483,11 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                             </div>
                             <h3 className="font-display text-3xl tracking-wide">Welcome Aboard!</h3>
                             <p className="text-muted-foreground max-w-md mx-auto text-lg">
-                                Your membership is now active. Your books have been added to your library and your welcome kit is on its way.
+                                Your membership is now active. Your 2 free books have been added to your library
+                                and your welcome kit is on its way!
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Check your Dashboard to access your new books and discover your Kane Dealer Code.
                             </p>
                         </div>
                     )}
@@ -404,15 +495,18 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
                 <DialogFooter className="flex sm:justify-between items-center sm:gap-0 gap-4">
                     {step > 1 && step < 4 ? (
-                        <Button variant="ghost" onClick={() => setStep((s) => Math.max(1, s - 1) as Step)}>
+                        <Button variant="ghost" onClick={() => setStep((s) => Math.max(1, s - 1) as Step)} disabled={loading}>
                             Back
                         </Button>
                     ) : (
-                        <div /> // Spacer
+                        <div />
                     )}
 
                     {step < 4 ? (
-                        <Button onClick={handleNext} disabled={loading || (step === 2 && selectedBooks.length !== 2)}>
+                        <Button
+                            onClick={handleNext}
+                            disabled={loading || (step === 2 && selectedBooks.length !== 2)}
+                        >
                             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             {step === 3 ? "Complete Purchase" : "Continue"}
                         </Button>

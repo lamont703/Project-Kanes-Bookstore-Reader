@@ -21,7 +21,7 @@ export interface DiscussionTopic {
   id: string
   title: string
   description: string
-  category: "General" | "Book Club" | "Sci-Fi" | "Fantasy" | "News"
+  category: "General" | "Book Club" | "News" | "Crime" | "Children" | "PTP" | "Spiritual" | "Adult" | "Sports" | "Self-Help" | "Cooking"
   bookId?: string // Link to a specific cosmic volume
   isPinned: boolean
   isFeatured: boolean
@@ -217,9 +217,9 @@ export const mockDiscussionTopics: DiscussionTopic[] = [
   },
   {
     id: "topic-3",
-    title: "Quantum Mechanics in Hard Sci-Fi",
-    description: "A specialized room for discussing the scientific accuracy of quantum tropes in our favorite volumes.",
-    category: "Sci-Fi",
+    title: "Brute Syndicate: Crime & Justice",
+    description: "A specialized room for discussing the themes of crime, corruption, and street-level justice across the Komet catalog.",
+    category: "Crime",
     isPinned: false,
     isFeatured: true,
     postCount: 89,
@@ -253,6 +253,7 @@ export const mockEvents: BookClubEvent[] = [
     coverImage: "/cosmic-sci-fi-book-cover.jpg",
     attendees: 128,
     status: "upcoming",
+    isPublic: true,
   },
   {
     id: "event-2",
@@ -265,6 +266,7 @@ export const mockEvents: BookClubEvent[] = [
     coverImage: "/thriller-heist-book-cover.jpg",
     attendees: 45,
     status: "upcoming",
+    isPublic: true,
   },
   {
     id: "event-3",
@@ -277,6 +279,7 @@ export const mockEvents: BookClubEvent[] = [
     coverImage: "/dark-mystery-book-cover.jpg",
     attendees: 76,
     status: "past",
+    isPublic: true,
   },
   {
     id: "event-4",
@@ -289,5 +292,6 @@ export const mockEvents: BookClubEvent[] = [
     coverImage: "/romantic-fantasy-book-cover.jpg",
     attendees: 32,
     status: "upcoming",
+    isPublic: false,
   },
 ]

@@ -1,26 +1,84 @@
 import { Button } from "@/components/ui/button"
-import { mockDiscussions } from "@/lib/mock-book-club-data"
 import Link from "next/link"
 import { SiteHeader } from "@/components/site-header"
 import DiscussionThreadClient from "../discussion-thread-client"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 
 export default async function DiscussionThreadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const discussion = mockDiscussions.find((d) => d.id === id)
+  const supabase = await createClient()
 
-  if (!discussion) {
+  // Auth check
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect(`/login?redirect=/book-club/discussions/${id}`)
+
+  // Fetch the topic
+  const { data: topic, error: topicError } = await supabase
+    .from("discussion_topics")
+    .select("*, books(title, cover_image_url)")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .single()
+
+  if (topicError || !topic) {
     return (
       <div className="min-h-screen">
         <SiteHeader />
         <div className="container mx-auto px-4 py-8 text-center">
           <h1 className="text-3xl font-bold mb-4">Discussion not found</h1>
+          <p className="text-muted-foreground mb-6">This room may have been removed or you may not have access.</p>
           <Link href="/book-club/discussions">
-            <Button>Back to discussions</Button>
+            <Button>Back to Discussions</Button>
           </Link>
         </div>
       </div>
     )
   }
 
-  return <DiscussionThreadClient discussion={discussion} />
+  // Fetch top-level posts (flat fetch — client will display nested via parent_id)
+  const { data: posts } = await supabase
+    .from("discussion_posts")
+    .select(`
+      id,
+      topic_id,
+      parent_id,
+      author_id,
+      content,
+      likes,
+      created_at,
+      updated_at,
+      users (
+        id,
+        full_name,
+        username
+      )
+    `)
+    .eq("topic_id", id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+
+  // Fetch current user's votes for this topic's posts
+  const postIds = (posts ?? []).map(p => p.id)
+  let userVotes: Record<string, "up" | "down"> = {}
+  if (postIds.length > 0) {
+    const { data: votes } = await supabase
+      .from("discussion_votes")
+      .select("post_id, vote_type")
+      .eq("user_id", user.id)
+      .in("post_id", postIds)
+
+    for (const v of votes ?? []) {
+      userVotes[v.post_id] = v.vote_type as "up" | "down"
+    }
+  }
+
+  return (
+    <DiscussionThreadClient
+      topic={topic}
+      initialPosts={posts ?? []}
+      currentUser={user}
+      initialUserVotes={userVotes}
+    />
+  )
 }

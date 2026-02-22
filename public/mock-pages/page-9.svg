@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+  <defs>
+    <linearGradient id="pageBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1814"/>
+      <stop offset="100%" stop-color="#141210"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="800" fill="url(#pageBg)" rx="4"/>
+  <rect x="30" y="30" width="540" height="740" fill="none" stroke="#3a3530" stroke-width="1" rx="2"/>
+  <text x="60" y="100" font-family="Georgia, serif" font-size="18" fill="#d4cec2">The Luminari had watched civilizations rise and fall</text>
+  <text x="60" y="132" font-family="Georgia, serif" font-size="18" fill="#d4cec2">across the galaxy, never interfering, always observing.</text>
+  <text x="60" y="164" font-family="Georgia, serif" font-size="18" fill="#d4cec2">But something about humanity had caught their</text>
+  <text x="60" y="196" font-family="Georgia, serif" font-size="18" fill="#d4cec2">attention—perhaps it was our music, they suggested,</text>
+  <text x="60" y="228" font-family="Georgia, serif" font-size="18" fill="#d4cec2">or our stories.</text>
+  <text x="50%" y="570" text-anchor="middle" font-family="Georgia, serif" font-size="14" fill="#8a8070">— 9 —</text>
+</svg>

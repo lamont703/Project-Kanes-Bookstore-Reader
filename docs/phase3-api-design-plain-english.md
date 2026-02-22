@@ -93,7 +93,7 @@ Here's how each section of your app will talk to the backend:
 - **Guests** (not logged in): The cart is saved to the server using a temporary session ID. When they create an account, the cart transfers to their new profile.
 - **Logged-in users**: The cart is saved to the server under their user account. It follows them across all devices.
 - **Adding to cart**: The frontend sends the book ID, format (ebook/paper/Komet Card), and quantity. The backend saves it.
-- **Smart checks**: The backend will refuse to add a book if the user already owns it, or if that format is out of stock.
+- **Smart checks**: The backend will refuse to add an ebook that the user already owns, or if that format is out of stock. Ebook quantity is capped at 1; physical formats (Paper Book, Komet Card) allow multiple copies. Users who already own the ebook can still purchase Paper Book or Komet Card copies (e.g., as gifts).
 
 ---
 
@@ -102,14 +102,14 @@ Here's how each section of your app will talk to the backend:
 **What happens today:** The checkout page simulates a purchase with a `setTimeout` — no real payment happens.
 
 **What the API does:**
-1. The frontend sends: shipping info + Stripe payment token + optional dealer code.
+1. The frontend sends: shipping info (only if physical items are in the cart) + Stripe payment token + optional dealer code.
 2. The backend does several things in one coordinated operation:
    - Validates the cart and checks stock.
-   - If a dealer code is provided, validates it and applies the 35% discount.
-   - Calculates the subtotal, discount, 5% GST tax, and final total.
+   - If a dealer code is provided, validates it (including preventing self-use) and applies the 35% discount to all items.
+   - Calculates the subtotal, discount, $5.99 flat-rate shipping (if physical items present), 5% GST tax, and final total.
    - Charges the customer via Stripe.
    - Creates the order record in the database.
-   - For any ebooks purchased, immediately adds them to the user's digital library.
+   - For any ebooks or Komet Cards purchased, immediately adds the book to the user's digital library.
    - Clears the cart.
    - Triggers GoHighLevel to send a confirmation email.
 3. The frontend receives the confirmed order details.
@@ -117,8 +117,9 @@ Here's how each section of your app will talk to the backend:
 **What can go wrong:**
 - Empty cart → "Your cart is empty."
 - Invalid dealer code → "This code is no longer active."
+- Using your own dealer code → "You cannot use your own dealer code."
 - Stripe payment fails → "Payment could not be processed."
-- Book already owned → "You already own this book."
+- Ebook already owned → "You already own this ebook."
 
 ---
 
@@ -128,9 +129,10 @@ Here's how each section of your app will talk to the backend:
 
 **What the API does:**
 - **Library**: Fetches all books you own from the server, along with how you got each one (purchased, signup freebie, or monthly book club pick).
-- **Reading progress**: As you read, the app saves your position (current chapter + percentage) to the server every 30 seconds. When you open the app on another device, it picks up exactly where you left off.
-- **Highlights**: When you highlight text, it's saved to the server with the color and optional note. Limited to 10 per book.
-- **Bookmarks**: Same idea — saved to the server, limited to 10 per book.
+- **Reading experience**: The reader displays each page as a rendered image that preserves the exact visual layout of the original PDF — everything looks exactly like the printed book. Navigation shows "Page 1 of 45" style pagination.
+- **Reading progress**: As you read, the app saves your position (current page + percentage) to the server every 30 seconds. When you open the app on another device, it picks up exactly where you left off.
+- **Highlights**: When you highlight text, it's saved to the server with the color and optional note. Highlights work at the text/paragraph level (you select specific text on a page). Limited to 10 per book.
+- **Bookmarks**: Bookmarks work at the page level — you simply bookmark an entire page (e.g., "page 12"). Saved to the server, limited to 10 per book.
 - **Reader settings**: Your font size, font choice, theme (dark/light/sepia), and line height are saved server-side so they follow you everywhere.
 
 ---
@@ -140,8 +142,9 @@ Here's how each section of your app will talk to the backend:
 **What happens today:** The subscription modal in `subscription-modal.tsx` simulates a purchase.
 
 **What the API does:**
-- **Subscribe**: The frontend sends the Stripe payment info, the 2 chosen free books, t-shirt size, and mailing address. The backend creates a Stripe subscription ($49.99 first month, $3.99/month after), adds the 2 books to the library, generates a unique dealer code, and triggers a welcome email.
+- **Subscribe**: The frontend sends the Stripe payment info, the 2 chosen free books, t-shirt size, and mailing address. The backend creates a one-time $49.99 Stripe charge, then a $3.99/month subscription (first invoice delayed 30 days), adds the 2 books to the library, generates a unique dealer code (also created in Stripe as a Promotion Code for cross-app use), syncs t-shirt size and address to GoHighLevel, and triggers a welcome email.
 - **Cancel**: The frontend sends a cancellation request. The backend cancels the Stripe subscription, deactivates the dealer code, but **keeps all books in the library**.
+- **Re-subscribe**: Users who return pay $49.99 again, pick 2 more free books, and their existing dealer code is reactivated (same code, not a new one).
 - **Check status**: The frontend can ask "Is this user premium?" and gets back the subscription plan, status, and dates.
 
 ---
@@ -149,7 +152,8 @@ Here's how each section of your app will talk to the backend:
 ### 4.7 Dealer Codes (The Affiliate System)
 
 **What the API does:**
-- **At checkout**: When a buyer enters a dealer code like `KANE-EVANS-4821`, the frontend sends it to the backend for validation. The backend checks if the code exists, is active, and the owning premium member isn't banned. If valid, it returns "35% off."
+- **At checkout**: When a buyer enters a dealer code like `KANE-EVANS-4821`, the frontend sends it to the backend for validation. The backend checks if the code exists, is active, the owning premium member isn't banned, and the user isn't trying to use their own code. If valid, it returns "35% off all items."
+- **Self-use prevention**: A user cannot apply their own dealer code to their own purchases — they can only share it with others.
 - **For the dealer**: A premium member can view their own code and see how many times it's been used.
 
 ---
@@ -159,7 +163,7 @@ Here's how each section of your app will talk to the backend:
 **What the API does:**
 - **Monthly selections**: The frontend fetches the list of past, current, and upcoming monthly book picks. This is public — anyone can see what the book club is reading.
 - **Events**: The frontend fetches upcoming and past events. Guests and free users only see public events. Premium members see all events.
-- **RSVPs**: A logged-in user can RSVP to an event. The backend ensures you can only RSVP once per event.
+- **RSVPs**: A logged-in user can RSVP to an event. Free users can RSVP to public events; premium users can RSVP to all events. The backend ensures you can only RSVP once per event.
 
 ---
 
@@ -169,8 +173,8 @@ Here's how each section of your app will talk to the backend:
 
 **What the API does:**
 - **Access control**: If you're not a premium member, the backend returns a "Forbidden" error — the entire discussions section is invisible to free users.
-- **Topics**: Premium members can browse discussion topics (created by admins). Each topic shows its title, category, post count, and member count.
-- **Posts & Replies**: Premium members can create posts, reply to other posts, and vote (upvote/downvote). Each user gets one vote per post.
+- **Topics**: Premium members can browse discussion topics (created by admins). Each topic has a category that matches the book genres (Crime, Children, PTP, etc.) and shows its title, post count, and member count.
+- **Posts & Replies**: Premium members can create posts, reply to other posts (2 levels deep max: post → reply), and vote (upvote/downvote). Each user gets one vote per post.
 - **Editing**: You can edit your own comment within 15 minutes. After that, it's locked forever.
 - **Deleting**: You can delete your own comment anytime. Admins can delete any comment.
 - **Privacy**: Only your display name is shown — no email, no profile picture, nothing else.
@@ -254,7 +258,7 @@ Here's how each piece of your current frontend will transition to using real API
 | What You Have Now | Where It Lives | What Replaces It |
 |---|---|---|
 | Hardcoded book list | `lib/mock-books.ts` | API call: "Get all books" |
-| Hardcoded book content (chapters) | `lib/mock-book-content.ts` | API call: "Get chapters for this book" |
+| Hardcoded book content (pages) | `lib/mock-book-content.ts` | API call: "Get pages for this book" |
 | Hardcoded user library & orders | `lib/mock-user-data.ts` | API calls: "Get my library" and "Get my orders" |
 | Hardcoded admin users | `lib/mock-admin-data.ts` | API call: "Get all users" (admin) |
 | Hardcoded book club data | `lib/mock-book-club-data.ts` | API calls: "Get selections," "Get events," "Get topics" |
@@ -281,7 +285,7 @@ The API enforces strict rules about who can access what. This is handled through
 | User Type | What They Can Access via API |
 |---|---|
 | **Guest** (no account) | Browse books, view public events, manage a temporary cart |
-| **Free Reader** (logged in) | Everything above + purchase books, read owned books, highlights, bookmarks, reader settings, order history, profile |
+| **Free Reader** (logged in) | Everything above + purchase books, read owned books, highlights, bookmarks, reader settings, order history, profile, RSVP to public events |
 | **Premium Member** | Everything above + discussions, all events, event RSVPs, book club picks, dealer code |
 | **Banned User** | Read owned books only (highlights, bookmarks, settings still work). Everything else blocked. |
 | **Admin** | Full control over everything |
@@ -319,7 +323,7 @@ Several design decisions keep the API responsive as the platform grows:
 | **Cursor-based paging** | More efficient than "page 1, page 2" for large datasets |
 | **Debounced reading progress** | Your reading position saves every 30 seconds, not on every scroll |
 | **Database indexes** | Special "shortcuts" so common lookups (search, genre filter, cart) are instant |
-| **Lazy chapter loading** | The reader loads one chapter at a time instead of the entire book |
+| **Lazy page loading** | The reader loads one page at a time instead of the entire book |
 | **Rate limiting** | Prevents abuse (e.g., max 10 login attempts per minute per IP) |
 
 ---

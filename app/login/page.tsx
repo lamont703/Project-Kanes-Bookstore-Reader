@@ -13,11 +13,19 @@ import { ShoppingCart } from "lucide-react"
 
 import { toast } from "sonner"
 
+import { createClient } from "@/lib/supabase/client"
+
 function AuthContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectPath = searchParams.get("redirect") || "/"
   const message = searchParams.get("message")
+  const supabase = createClient()
+
+  // Login State
+  const [loginEmail, setLoginEmail] = useState("demo@komet.com")
+  const [loginPassword, setLoginPassword] = useState("password")
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   // Registration State
   const [regData, setRegData] = useState({
@@ -29,19 +37,30 @@ function AuthContent() {
     confirmPassword: ""
   })
   const [errors, setErrors] = useState<Record<string, boolean>>({})
+  const [isRegistering, setIsRegistering] = useState(false)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Mock login
-    localStorage.setItem("komet_subscription_active", "true")
-    setTimeout(() => {
-      window.dispatchEvent(new Event("storage"))
+    setIsLoggingIn(true)
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password: loginPassword,
+    })
+
+    if (error) {
+      toast.error(error.message)
+      setIsLoggingIn(false)
+    } else {
+      toast.success("Welcome back, Explorer!")
       router.push(redirectPath)
-    }, 100)
+      router.refresh()
+    }
   }
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsRegistering(true)
     const newErrors: Record<string, boolean> = {}
 
     if (regData.password.length < 8) {
@@ -56,14 +75,34 @@ function AuthContent() {
 
     setErrors(newErrors)
 
-    if (Object.keys(newErrors).length === 0) {
-      // Mock registration
-      localStorage.setItem("komet_subscription_active", "true")
-      toast.success("Account created successfully!")
-      setTimeout(() => {
-        window.dispatchEvent(new Event("storage"))
-        router.push(redirectPath)
-      }, 100)
+    if (Object.keys(newErrors).length > 0) {
+      setIsRegistering(false)
+      return
+    }
+
+    const [firstName, ...lastNameParts] = regData.name.split(' ')
+    const lastName = lastNameParts.join(' ')
+
+    const { error } = await supabase.auth.signUp({
+      email: regData.email,
+      password: regData.password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          phone: regData.phone,
+          dob: regData.dob
+        }
+      }
+    })
+
+    if (error) {
+      toast.error(error.message)
+      setIsRegistering(false)
+    } else {
+      toast.success("Account created! Check your email to confirm.")
+      router.push("/login?message=check-email")
+      setIsRegistering(false)
     }
   }
 
@@ -118,16 +157,16 @@ function AuthContent() {
                   <label className="text-sm font-medium text-muted-foreground" htmlFor="login-email">
                     EMAIL
                   </label>
-                  <Input id="login-email" type="email" placeholder="you@komet.explorer" required defaultValue="demo@komet.com" />
+                  <Input id="login-email" type="email" placeholder="you@komet.explorer" required value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground" htmlFor="login-password">
                     PASSWORD
                   </label>
-                  <Input id="login-password" type="password" placeholder="••••••••" required defaultValue="password" />
+                  <Input id="login-password" type="password" placeholder="••••••••" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} />
                 </div>
-                <Button className="w-full text-lg py-6 font-display tracking-wider" size="lg">
-                  LOGIN TO KANE'S KOMETS
+                <Button className="w-full text-lg py-6 font-display tracking-wider" size="lg" disabled={isLoggingIn}>
+                  {isLoggingIn ? "TRANSMITTING..." : "LOGIN TO KANE'S KOMETS"}
                 </Button>
               </form>
             </TabsContent>
@@ -211,8 +250,8 @@ function AuthContent() {
                     onChange={e => setRegData({ ...regData, confirmPassword: e.target.value })}
                   />
                 </div>
-                <Button className="w-full text-lg py-6 font-display tracking-wider" size="lg">
-                  CREATE ACCOUNT
+                <Button className="w-full text-lg py-6 font-display tracking-wider" size="lg" disabled={isRegistering}>
+                  {isRegistering ? "CREATING SIGNAL..." : "CREATE ACCOUNT"}
                 </Button>
               </form>
             </TabsContent>

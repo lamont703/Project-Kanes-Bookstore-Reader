@@ -10,6 +10,7 @@ import { BookFormat } from "@/lib/mock-books"
 interface AddToCartButtonProps {
     book: {
         id: string
+        variantId: string
         title: string
         price: number
         coverImage: string
@@ -25,6 +26,7 @@ export function AddToCartButton({ book, disabled }: AddToCartButtonProps) {
     const handleAddToCart = () => {
         addToCart({
             id: book.id,
+            variantId: book.variantId,
             title: book.title,
             price: book.price,
             coverImage: book.coverImage,

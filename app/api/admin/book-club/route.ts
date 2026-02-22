@@ -1,0 +1,108 @@
+import { NextRequest, NextResponse } from "next/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
+
+// Guard: Verify Admin Role
+async function verifyAdmin() {
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() { return cookieStore.getAll() },
+                setAll() { },
+            },
+        }
+    )
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+
+    const admin = createAdminClient()
+    const { data } = await admin
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single()
+
+    if (data?.role !== "admin") return null
+    return user
+}
+
+export async function GET(request: NextRequest) {
+    const adminUser = await verifyAdmin()
+    if (!adminUser) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    const admin = createAdminClient()
+
+    // Fetch all selections with book titles
+    const { data: selections, error } = await admin
+        .from("book_club_selections")
+        .select(`
+            *,
+            books (id, title, author, cover_image_url)
+        `)
+        .order("year", { ascending: false })
+        .order("month", { ascending: false })
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({ selections })
+}
+
+export async function POST(request: NextRequest) {
+    const adminUser = await verifyAdmin()
+    if (!adminUser) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    const body = await request.json()
+    const admin = createAdminClient()
+
+    // 1. If this is being set to 'current', demote any other 'current' selections to 'past'
+    if (body.status === 'current') {
+        await admin
+            .from('book_club_selections')
+            .update({ status: 'past' })
+            .eq('status', 'current')
+    }
+
+    // 2. Insert or Update (Upsert based on Month/Year unique constraint)
+    const { data, error } = await admin
+        .from("book_club_selections")
+        .upsert({
+            book_id: body.book_id,
+            month: body.month,
+            year: body.year,
+            theme: body.theme,
+            description: body.description,
+            status: body.status || 'upcoming',
+            discussion_date: body.discussion_date || null,
+            updated_at: new Date().toISOString()
+        }, { onConflict: "month,year" })
+        .select()
+        .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({ selection: data })
+}
+
+export async function DELETE(request: NextRequest) {
+    const adminUser = await verifyAdmin()
+    if (!adminUser) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get("id")
+
+    if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 })
+
+    const admin = createAdminClient()
+    const { error } = await admin
+        .from("book_club_selections")
+        .delete()
+        .eq("id", id)
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+}

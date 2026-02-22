@@ -126,7 +126,7 @@ kane-komet-book-reader/
 │   │   ├── 00001_create_enums.sql                #    All enum types
 │   │   ├── 00002_create_users_table.sql          #    users table
 │   │   ├── 00003_create_books_tables.sql         #    books, book_variants,
-│   │   │                                         #    book_chapters, book_illustrations
+│   │   │                                         #    book_pages, book_illustrations
 │   │   ├── 00004_create_commerce_tables.sql      #    cart_items, orders, order_items,
 │   │   │                                         #    user_library, promo_codes,
 │   │   │                                         #    promo_code_usages
@@ -152,7 +152,7 @@ kane-komet-book-reader/
 │   │
 │   ├── seed/                         #    Seed data for development/testing
 │   │   ├── 01_users.sql              #    Test users (admin + readers)
-│   │   ├── 02_books.sql              #    Books + variants + chapters
+│   │   ├── 02_books.sql              #    Books + variants + pages
 │   │   ├── 03_book_club.sql          #    Selections + events
 │   │   ├── 04_discussions.sql        #    Topics + sample posts
 │   │   └── 05_promo_codes.sql        #    Test dealer codes
@@ -174,17 +174,19 @@ kane-komet-book-reader/
 │   │   │   ├── handler.ts            #    Business logic orchestration
 │   │   │   ├── stripe-ops.ts         #    Stripe PaymentIntent creation
 │   │   │   ├── order-ops.ts          #    Order + order_items creation
-│   │   │   ├── library-ops.ts        #    Add ebooks to user_library
-│   │   │   ├── promo-ops.ts          #    Promo code validation & usage tracking
+│   │   │   ├── library-ops.ts        #    Add ebooks + Komet Card purchases to user_library
+│   │   │   ├── shipping-ops.ts       #    Determine shipping requirement ($5.99 flat rate)
+│   │   │   ├── promo-ops.ts          #    Promo code validation, self-use prevention, & usage tracking
 │   │   │   └── email-ops.ts          #    GoHighLevel order confirmation trigger
 │   │   │
 │   │   ├── subscribe/                #    POST /functions/v1/subscribe
 │   │   │   ├── index.ts              #    Entry point
 │   │   │   ├── handler.ts            #    Business logic orchestration
-│   │   │   ├── stripe-ops.ts         #    Stripe Subscription creation
+│   │   │   ├── stripe-ops.ts         #    One-time $49.99 charge + $3.99/mo Subscription (first invoice delayed 30 days)
 │   │   │   ├── subscription-ops.ts   #    user_subscriptions upsert
 │   │   │   ├── library-ops.ts        #    Add 2 selected books to library
-│   │   │   ├── promo-ops.ts          #    Generate dealer code
+│   │   │   ├── promo-ops.ts          #    Generate dealer code (DB + Stripe Promotion Code)
+│   │   │   ├── ghl-ops.ts            #    Sync t-shirt size + mailing address to GoHighLevel
 │   │   │   └── email-ops.ts          #    GoHighLevel welcome email trigger
 │   │   │
 │   │   ├── cancel-subscription/      #    POST /functions/v1/cancel-subscription
@@ -202,8 +204,9 @@ kane-komet-book-reader/
 │   │   ├── upload-book/              #    POST /functions/v1/upload-book
 │   │   │   ├── index.ts
 │   │   │   ├── handler.ts
-│   │   │   ├── pdf-parser.ts         #    PDF → text extraction
-│   │   │   └── image-extractor.ts    #    PDF → illustration extraction
+│   │   │   ├── pdf-parser.ts         #    PDF → page rendering (WebP images for layout preservation)
+│   │   │   ├── text-extractor.ts     #    PDF → text extraction per page (for search indexing only)
+│   │   │   └── image-extractor.ts    #    PDF → inline illustration extraction (with page positions)
 │   │   │
 │   │   ├── stripe-webhook/           #    POST /functions/v1/stripe-webhook
 │   │   │   ├── index.ts
@@ -326,7 +329,9 @@ CREATE TYPE selection_status_enum AS ENUM ('current', 'upcoming', 'past');
 CREATE TYPE event_type_enum AS ENUM ('virtual', 'in_person');
 CREATE TYPE event_status_enum AS ENUM ('upcoming', 'past', 'cancelled');
 CREATE TYPE rsvp_status_enum AS ENUM ('confirmed', 'cancelled');
-CREATE TYPE discussion_category_enum AS ENUM ('General', 'Book Club', 'Sci-Fi', 'Fantasy', 'News');
+CREATE TYPE discussion_category_enum AS ENUM (
+  'Crime', 'Children', 'PTP', 'Spiritual', 'Adult', 'Sports', 'Self-Help', 'Cooking'
+);
 CREATE TYPE vote_type_enum AS ENUM ('up', 'down');
 
 COMMIT;
@@ -476,15 +481,15 @@ CREATE POLICY "Anyone can read published books"
   USING (status = 'published' AND deleted_at IS NULL);
 ```
 
-**Book chapters — ownership gated:**
+**Book pages — ownership gated:**
 ```sql
-CREATE POLICY "Owners can read book chapters"
-  ON public.book_chapters FOR SELECT
+CREATE POLICY "Owners can read book pages"
+  ON public.book_pages FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.user_library
       WHERE user_id = auth.uid()
-      AND book_id = book_chapters.book_id
+      AND book_id = book_pages.book_id
     )
   );
 ```
@@ -527,10 +532,10 @@ Edge Functions handle **multi-step operations** that require orchestration acros
 | Operation | Route | Why |
 |---|---|---|
 | List books, get profile, update settings | PostgREST (`/rest/v1/`) | Simple CRUD, RLS-protected |
-| Checkout | Edge Function | Orchestrates: validate cart → Stripe charge → create order → add to library → clear cart → email |
-| Subscribe | Edge Function | Orchestrates: Stripe subscription → update DB → add books → generate promo → email |
+| Checkout | Edge Function | Orchestrates: validate cart → check promo (prevent self-use) → determine shipping → Stripe charge → create order → add ebooks + Komet Cards to library → clear cart → email |
+| Subscribe | Edge Function | Orchestrates: $49.99 one-time Stripe charge → $3.99/mo Stripe subscription (delayed 30 days) → update DB → add books → generate promo (DB + Stripe) → sync GHL → email |
 | Ban user | Edge Function | Orchestrates: ban flag → cancel Stripe → deactivate promo → email |
-| Upload book | Edge Function | Orchestrates: parse PDF → extract text → extract images → create chapters/illustrations |
+| Upload book | Edge Function | Orchestrates: render PDF pages as images (WebP) → extract text per page for search → extract inline illustrations with positions → store page images in Storage → create pages/illustrations in DB |
 | Stripe webhook | Edge Function | Routes webhook events → updates order/subscription/promo status |
 | Validate promo | Edge Function | Multi-table query + business rule validation |
 
@@ -610,7 +615,7 @@ export const checkoutSchema = z.object({
     city: z.string().min(1, 'City is required'),
     state: z.string().length(2, 'Use 2-letter state code'),
     zip: z.string().regex(/^\d{5}$/, 'Valid 5-digit ZIP required'),
-  }),
+  }).optional(), // Only required when cart contains physical items
   stripe_payment_method_id: z.string().startsWith('pm_'),
 });
 ```
@@ -757,7 +762,8 @@ CREATE TRIGGER on_auth_user_created
 |---|---|---|
 | `book-covers` | Public read, admin write | Standard-sized book cover images (`.webp`, `.jpg`) |
 | `book-pdfs` | Private (admin only) | Original uploaded PDF files |
-| `book-illustrations` | Authenticated read (library owners), admin write | Extracted illustration images |
+| `book-pages` | Authenticated read (library owners), admin write | Rendered page images (WebP) preserving exact PDF layout |
+| `book-illustrations` | Authenticated read (library owners), admin write | Extracted inline illustration images |
 | `avatars` | Private (own user), admin read | User profile images |
 
 ### Storage Policies
@@ -798,7 +804,7 @@ CREATE POLICY "Library owners can view illustrations"
 
 | Trigger | Edge Function | GHL API Action |
 |---|---|---|
-| User registration | Auth trigger → `ghl-sync` | Create contact |
+| User registration | Auth trigger → `ghl-sync` | Create contact (ALL users — free + premium) |
 | Order confirmed | `checkout` → `email-ops` | Send order confirmation |
 | Subscription created | `subscribe` → `email-ops` | Send premium welcome |
 | Subscription cancelled | `cancel-subscription` | Send cancellation email |
@@ -835,6 +841,7 @@ GHL_WEBHOOK_URL=https://...
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 GST_TAX_RATE=0.05
 DEALER_DISCOUNT_PERCENT=35
+FLAT_SHIPPING_RATE=5.99
 ```
 
 ---
@@ -891,7 +898,7 @@ npm run dev
 | **Reading progress writes** | Client-side debounce (30s) | Reduces DB writes by ~60x vs. every scroll |
 | **Pagination** | Cursor-based on all list endpoints | Avoids `OFFSET` performance degradation |
 | **Denormalized counters** | DB triggers for `attendee_count`, `post_count`, `likes`, `total_uses` | Avoids expensive `COUNT(*)` queries |
-| **Lazy chapter loading** | Chapters stored as separate rows | Frontend loads one chapter at a time |
+| **Lazy page loading** | Pages stored as separate rows, rendered as images | Frontend loads one page image at a time ("Page X of Y" navigation) |
 | **Edge Function cold starts** | Keep functions small and focused | Each function < 500 LOC, minimal imports |
 | **File storage** | Supabase Storage CDN | Cover images served from CDN edge nodes |
 | **Connection pooling** | Supabase PgBouncer (built-in) | Handles concurrent connections without overwhelming PostgreSQL |

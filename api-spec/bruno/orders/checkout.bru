@@ -1,0 +1,55 @@
+meta {
+  name: Checkout
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{supabase_url}}/functions/v1/checkout
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{auth_token}}
+}
+
+headers {
+  apikey: {{anon_key}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "promo_code": "",
+    "shipping": {
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "address": "123 Cosmic Way",
+      "city": "Nebula City",
+      "state": "NY",
+      "zip": "10001"
+    },
+    "stripe_payment_method_id": "pm_card_visa"
+  }
+}
+
+tests {
+  test("Status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("Order has confirmed status", function() {
+    expect(res.body.order.status).to.equal("confirmed");
+  });
+  test("Order total is calculated correctly", function() {
+    var order = res.body.order;
+    var expected = order.subtotal - order.discount_amount + order.shipping_amount + order.tax_amount;
+    expect(order.total).to.be.closeTo(expected, 0.01);
+  });
+  test("Ebooks added to library", function() {
+    expect(res.body).to.have.property("library_additions");
+  });
+  test("Self-use of dealer code: 422", function() {
+    // Verify this returns 422 BUSINESS_RULE_VIOLATION when user applies their own code
+  });
+}

@@ -11,12 +11,14 @@ import { Button } from "@/components/ui/button"
 
 import { ShoppingCart } from "lucide-react"
 import { useCart } from "@/context/cart-context"
+import { useAuth } from "@/context/auth-context"
 
 export function SiteHeader() {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false)
-    const [isLoggedIn, setIsLoggedIn] = React.useState(false)
-    const pathname = usePathname()
     const { cartCount } = useCart()
+    const { user, signOut } = useAuth()
+    const isLoggedIn = !!user
+    const pathname = usePathname()
     const [isBouncing, setIsBouncing] = React.useState(false)
     const prevCartCount = React.useRef(cartCount)
 
@@ -29,21 +31,8 @@ export function SiteHeader() {
         prevCartCount.current = cartCount
     }, [cartCount])
 
-    // Check login status
-    React.useEffect(() => {
-        const checkLogin = () => {
-            const active = localStorage.getItem("komet_subscription_active") === "true"
-            setIsLoggedIn(active)
-        }
-        checkLogin()
-        // Listen for storage events (optional, but good for multi-tab)
-        window.addEventListener("storage", checkLogin)
-        return () => window.removeEventListener("storage", checkLogin)
-    }, [])
-
-    const handleLogout = () => {
-        localStorage.removeItem("komet_subscription_active")
-        setIsLoggedIn(false)
+    const handleLogout = async () => {
+        await signOut()
         window.location.reload()
     }
 

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+  <defs>
+    <linearGradient id="pageBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1814"/>
+      <stop offset="100%" stop-color="#141210"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="800" fill="url(#pageBg)" rx="4"/>
+  <rect x="30" y="30" width="540" height="740" fill="none" stroke="#3a3530" stroke-width="1" rx="2"/>
+  <text x="60" y="100" font-family="Georgia, serif" font-size="18" fill="#d4cec2">Tonight was different. The ship&apos;s AI had detected</text>
+  <text x="60" y="132" font-family="Georgia, serif" font-size="18" fill="#d4cec2">something unusual—a signal, faint but unmistakable,</text>
+  <text x="60" y="164" font-family="Georgia, serif" font-size="18" fill="#d4cec2">emanating from a nearby nebula. It was the first sign</text>
+  <text x="60" y="196" font-family="Georgia, serif" font-size="18" fill="#d4cec2">of intelligent life they&apos;d encountered in three years</text>
+  <text x="60" y="228" font-family="Georgia, serif" font-size="18" fill="#d4cec2">of travel through the void.</text>
+  <text x="60" y="260" font-family="Georgia, serif" font-size="18" fill="#d4cec2"></text>
+  <text x="60" y="292" font-family="Georgia, serif" font-size="18" fill="#d4cec2">Captain Morrison had called an emergency meeting of</text>
+  <text x="60" y="324" font-family="Georgia, serif" font-size="18" fill="#d4cec2">the senior crew. Zara, despite being only twenty-three,</text>
+  <text x="60" y="356" font-family="Georgia, serif" font-size="18" fill="#d4cec2">had earned her place among them through her exceptional</text>
+  <text x="60" y="388" font-family="Georgia, serif" font-size="18" fill="#d4cec2">skill in xenolinguistics. If this signal was a message,</text>
+  <text x="60" y="420" font-family="Georgia, serif" font-size="18" fill="#d4cec2">she would be the one to decode it.</text>
+  <text x="50%" y="570" text-anchor="middle" font-family="Georgia, serif" font-size="14" fill="#8a8070">— 2 —</text>
+</svg>

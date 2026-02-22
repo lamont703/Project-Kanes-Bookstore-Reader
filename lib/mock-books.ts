@@ -4,11 +4,13 @@ export interface Book {
   id: string
   title: string
   author: string
+  illustrator?: string
   coverImage: string
   price: number // Default price (usually ebook)
   genre: string
   description: string
   variants: {
+    id?: string   // book_variants.id (UUID from Supabase)
     format: BookFormat
     price: number
     available: boolean
@@ -61,6 +63,7 @@ export const mockBooks: Book[] = [
     id: "3",
     title: "Flying With The Chrysiridiarhipheus",
     author: "Caleb V. Kaine",
+    illustrator: "Maya Solstice",
     coverImage: "/Flying With The Chrysiridiarhipheus 1 Cover.webp",
     price: 15.99,
     genre: "Children",
