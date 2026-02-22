@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { useCart } from "@/context/cart-context"
 import { ShoppingCart, Check } from "lucide-react"
 
-import { BookFormat } from "@/lib/mock-books"
+import type { BookFormat } from "@/lib/types/book"
 
 interface AddToCartButtonProps {
     book: {

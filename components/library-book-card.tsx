@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { BookOpen, Check, Clock } from "lucide-react"
-import type { Book } from "@/lib/mock-books"
-import type { UserLibraryBook } from "@/lib/mock-user-data"
+import type { Book } from "@/lib/types/book"
+import type { UserLibraryBook } from "@/lib/types/user"
 import Link from "next/link"
 import Image from "next/image"
 

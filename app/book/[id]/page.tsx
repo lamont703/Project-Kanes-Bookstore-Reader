@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation"
-import { type Book } from "@/lib/mock-books"
+import type { Book } from "@/lib/types/book"
 import { notFound as nextNotFound } from "next/navigation"
 import { SiteHeader } from "@/components/site-header"
 import { BookPurchaseSection } from "@/components/book-purchase-section"

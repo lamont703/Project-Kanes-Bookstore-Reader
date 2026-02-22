@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect } from "react"
-import type { BookFormat } from "@/lib/mock-books"
+import type { BookFormat } from "@/lib/types/book"
 
 export interface CartItem {
     id: string        // book_id (UUID from Supabase)

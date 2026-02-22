@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Book, BookFormat } from "@/lib/mock-books"
+import type { Book, BookFormat } from "@/lib/types/book"
 import { AddToCartButton } from "@/components/add-to-cart-button"
 import { Tablet, Book as BookIcon, CreditCard } from "lucide-react"
 

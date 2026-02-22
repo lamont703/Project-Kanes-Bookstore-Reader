@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Highlighter, Trash2, BookmarkCheck } from "lucide-react"
-import type { Highlight, Bookmark as BookmarkType } from "@/lib/mock-book-content"
+import type { Highlight, Bookmark as BookmarkType } from "@/lib/types/reader"
 
 interface ReadingSidebarProps {
   bookId: string

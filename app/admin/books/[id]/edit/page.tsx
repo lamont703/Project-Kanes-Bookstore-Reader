@@ -1,20 +1,30 @@
 import { BookForm } from "@/components/admin/book-form"
-import { mockBooks } from "@/lib/mock-books"
 import { Edit3 } from "lucide-react"
+import { createClient } from "@/lib/supabase/server"
+import { notFound } from "next/navigation"
 
-export default async function EditBookPage({ params }: { params: { id: string } }) {
+export default async function EditBookPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
+    const supabase = await createClient()
 
-    // In a real app, this would be a fetch. Here we use mock data.
-    const book = mockBooks.find(b => b.id === id)
+    const { data: b, error } = await supabase
+        .from("books")
+        .select(`
+            *,
+            book_variants (*)
+        `)
+        .eq("id", id)
+        .single()
 
-    if (!book) {
-        return (
-            <div className="p-8 text-center py-20">
-                <h1 className="text-4xl font-display mb-4">VOLUME NOT FOUND</h1>
-                <p className="text-muted-foreground">The ID you provided does not exist in our coordinates.</p>
-            </div>
-        )
+    if (error || !b) {
+        return notFound()
+    }
+
+    // Map Supabase data to the format expected by BookForm
+    const book = {
+        ...b,
+        status: b.status === "published" ? "Published" : "Draft",
+        price: b.book_variants?.find((v: any) => v.format === 'ebook')?.price || b.book_variants?.[0]?.price || 0
     }
 
     return (

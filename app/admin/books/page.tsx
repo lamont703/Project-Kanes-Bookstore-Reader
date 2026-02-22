@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { GENRES } from "@/lib/mock-books"
+import { GENRES } from "@/lib/types/book"
 import {
   Search,
   Plus,

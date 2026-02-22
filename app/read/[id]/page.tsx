@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client"
 import { ReadingSettingsPanel } from "@/components/reading-settings-panel"
 import { ReadingSidebar } from "@/components/reading-sidebar"
 import { useParams } from "next/navigation"
-import type { Highlight, Bookmark } from "@/lib/mock-book-content"
+import type { Highlight, Bookmark } from "@/lib/types/reader"
 import {
   saveSettings,
   getSettings,

@@ -2,12 +2,10 @@ import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ShoppingCart, Check } from "lucide-react"
-import type { Book } from "@/lib/mock-books"
+import type { Book, BookFormat } from "@/lib/types/book"
 import Link from "next/link"
 import Image from "next/image"
 import { useCart } from "@/context/cart-context"
-
-import { BookFormat } from "@/lib/mock-books"
 import { Tablet, Book as BookIcon, CreditCard } from "lucide-react"
 
 interface BookCardProps {

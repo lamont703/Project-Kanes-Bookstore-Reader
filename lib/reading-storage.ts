@@ -1,6 +1,6 @@
 "use client"
 
-import type { Highlight, Bookmark, ReadingProgress } from "./mock-book-content"
+import type { Highlight, Bookmark, ReadingProgress } from "./types/reader"
 
 const STORAGE_KEYS = {
   HIGHLIGHTS: "komet-highlights",
