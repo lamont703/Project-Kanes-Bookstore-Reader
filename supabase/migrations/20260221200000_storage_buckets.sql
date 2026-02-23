@@ -52,11 +52,13 @@ VALUES (
 -- ── book-covers: Anyone can view, only admins can upload ────────
 
 -- Public read access for book covers
+DROP POLICY IF EXISTS "public_read_covers" ON storage.objects;
 CREATE POLICY "public_read_covers"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'book-covers');
 
 -- Admins can upload/update/delete covers
+DROP POLICY IF EXISTS "admin_manage_covers" ON storage.objects;
 CREATE POLICY "admin_manage_covers"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -67,6 +69,7 @@ CREATE POLICY "admin_manage_covers"
     )
   );
 
+DROP POLICY IF EXISTS "admin_update_covers" ON storage.objects;
 CREATE POLICY "admin_update_covers"
   ON storage.objects FOR UPDATE
   USING (
@@ -77,6 +80,7 @@ CREATE POLICY "admin_update_covers"
     )
   );
 
+DROP POLICY IF EXISTS "admin_delete_covers" ON storage.objects;
 CREATE POLICY "admin_delete_covers"
   ON storage.objects FOR DELETE
   USING (
@@ -89,6 +93,7 @@ CREATE POLICY "admin_delete_covers"
 
 -- ── book-pdfs: Only admins can manage (private bucket) ──────────
 
+DROP POLICY IF EXISTS "admin_manage_pdfs" ON storage.objects;
 CREATE POLICY "admin_manage_pdfs"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -99,6 +104,7 @@ CREATE POLICY "admin_manage_pdfs"
     )
   );
 
+DROP POLICY IF EXISTS "admin_read_pdfs" ON storage.objects;
 CREATE POLICY "admin_read_pdfs"
   ON storage.objects FOR SELECT
   USING (
@@ -109,6 +115,7 @@ CREATE POLICY "admin_read_pdfs"
     )
   );
 
+DROP POLICY IF EXISTS "admin_update_pdfs" ON storage.objects;
 CREATE POLICY "admin_update_pdfs"
   ON storage.objects FOR UPDATE
   USING (
@@ -119,6 +126,7 @@ CREATE POLICY "admin_update_pdfs"
     )
   );
 
+DROP POLICY IF EXISTS "admin_delete_pdfs" ON storage.objects;
 CREATE POLICY "admin_delete_pdfs"
   ON storage.objects FOR DELETE
   USING (
@@ -131,10 +139,12 @@ CREATE POLICY "admin_delete_pdfs"
 
 -- ── book-pages: Public read, admin manage ──────────────────────
 
+DROP POLICY IF EXISTS "public_read_pages" ON storage.objects;
 CREATE POLICY "public_read_pages"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'book-pages');
 
+DROP POLICY IF EXISTS "admin_manage_pages" ON storage.objects;
 CREATE POLICY "admin_manage_pages"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -145,6 +155,7 @@ CREATE POLICY "admin_manage_pages"
     )
   );
 
+DROP POLICY IF EXISTS "admin_update_pages" ON storage.objects;
 CREATE POLICY "admin_update_pages"
   ON storage.objects FOR UPDATE
   USING (
@@ -155,6 +166,7 @@ CREATE POLICY "admin_update_pages"
     )
   );
 
+DROP POLICY IF EXISTS "admin_delete_pages" ON storage.objects;
 CREATE POLICY "admin_delete_pages"
   ON storage.objects FOR DELETE
   USING (
@@ -167,10 +179,12 @@ CREATE POLICY "admin_delete_pages"
 
 -- ── book-illustrations: Public read, admin manage ──────────────
 
+DROP POLICY IF EXISTS "public_read_illustrations" ON storage.objects;
 CREATE POLICY "public_read_illustrations"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'book-illustrations');
 
+DROP POLICY IF EXISTS "admin_manage_illustrations" ON storage.objects;
 CREATE POLICY "admin_manage_illustrations"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -181,6 +195,7 @@ CREATE POLICY "admin_manage_illustrations"
     )
   );
 
+DROP POLICY IF EXISTS "admin_update_illustrations" ON storage.objects;
 CREATE POLICY "admin_update_illustrations"
   ON storage.objects FOR UPDATE
   USING (
@@ -191,6 +206,7 @@ CREATE POLICY "admin_update_illustrations"
     )
   );
 
+DROP POLICY IF EXISTS "admin_delete_illustrations" ON storage.objects;
 CREATE POLICY "admin_delete_illustrations"
   ON storage.objects FOR DELETE
   USING (

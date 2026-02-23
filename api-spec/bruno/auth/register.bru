@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{supabase_url}}/auth/v1/signup
+  url: {{base_url}}/auth/v1/signup
   body: json
   auth: none
 }
@@ -17,7 +17,7 @@ headers {
 
 body:json {
   {
-    "email": "testuser@example.com",
+    "email": "project@kanesbookstore.innergcomplete.com",
     "password": "SecurePass123!",
     "data": {
       "full_name": "Test User",

@@ -5,19 +5,19 @@ meta {
 }
 
 get {
-  url: {{supabase_url}}/rest/v1/books?status=eq.published&select=id,title,author,illustrator,genre,cover_image_url,series_name,series_order,book_variants(format,price,is_in_stock)
+  url: {{base_url}}/rest/v1/books?genre&search
   body: none
   auth: none
+}
+
+params:query {
+  genre: 
+  search: 
 }
 
 headers {
   apikey: {{anon_key}}
   Content-Type: application/json
-}
-
-query {
-  genre: 
-  search: 
 }
 
 tests {
