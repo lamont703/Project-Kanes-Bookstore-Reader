@@ -31,14 +31,19 @@ serve(async (req: Request) => {
         }
 
         // Sync to GHL
-        // Use firstName/lastName if available, or fall back to display_name splitting
+        // Extract names from full_name or display_name
+        const fullName = (record.full_name || record.display_name || '') as string
+        const nameParts = fullName.trim().split(/\s+/)
+        const firstName = nameParts[0] || ''
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''
+
         const ghlResponse = await createOrUpdateContact({
             email: record.email as string,
-            firstName: (record.first_name || record.display_name?.split(' ')[0] || '') as string,
-            lastName: (record.last_name || record.display_name?.split(' ').slice(1).join(' ') || '') as string,
-            name: (record.full_name || record.display_name || '') as string,
+            firstName,
+            lastName,
+            name: fullName,
             phone: (record.phone || undefined) as string | undefined,
-            address1: (record.mailing_address || undefined) as string | undefined, // Added mailing address sync
+            address1: (record.mailing_address || undefined) as string | undefined,
             tags: ['app-user'],
             source: "Kane's Komet Book Reader"
         })

@@ -74,17 +74,38 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     useEffect(() => {
         if (step !== 2 || availableBooks.length > 0) return
         setBooksLoading(true)
-        supabase
+
+        // Calculate age
+        let isAdult = false
+        if (formData.dob) {
+            const birthDate = new Date(formData.dob)
+            const today = new Date()
+            let age = today.getFullYear() - birthDate.getFullYear()
+            const m = today.getMonth() - birthDate.getMonth()
+            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                age--
+            }
+            isAdult = age >= 18
+        }
+
+        let query = supabase
             .from("books")
-            .select("id, title, cover_image_url")
+            .select("id, title, cover_image_url, is_age_restricted")
             .eq("status", "published")
-            .order("title")
+            .eq("is_book_club_eligible", true)
+
+        // Apply age restriction if user is not an adult
+        if (!isAdult) {
+            query = query.eq("is_age_restricted", false)
+        }
+
+        query.order("title")
             .then(({ data, error }) => {
                 if (error) toast.error("Failed to load books")
                 setAvailableBooks(data || [])
                 setBooksLoading(false)
             })
-    }, [step, availableBooks.length, supabase])
+    }, [step, availableBooks.length, supabase, formData.dob])
 
     const updateFormData = (field: string, value: string) => {
         setFormData((prev) => ({ ...prev, [field]: value }))
@@ -122,7 +143,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 toast.error("Please select exactly 2 books")
                 return
             }
-            
+
             setLoading(true)
             try {
                 const { data: { session } } = await supabase.auth.getSession()

@@ -23,8 +23,8 @@ function AuthContent() {
   const supabase = createClient()
 
   // Login State
-  const [loginEmail, setLoginEmail] = useState("demo@komet.com")
-  const [loginPassword, setLoginPassword] = useState("password")
+  const [loginEmail, setLoginEmail] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
   const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   // Registration State
@@ -49,7 +49,11 @@ function AuthContent() {
     })
 
     if (error) {
-      toast.error(error.message)
+      if (error.message.toLowerCase().includes("email not confirmed")) {
+        toast.error("Please confirm your email before logging in. Check your inbox for the activation link!")
+      } else {
+        toast.error(error.message)
+      }
       setIsLoggingIn(false)
     } else {
       toast.success("Welcome back, Explorer!")
@@ -83,7 +87,7 @@ function AuthContent() {
     const [firstName, ...lastNameParts] = regData.name.split(' ')
     const lastName = lastNameParts.join(' ')
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: regData.email,
       password: regData.password,
       options: {
@@ -100,8 +104,15 @@ function AuthContent() {
       toast.error(error.message)
       setIsRegistering(false)
     } else {
-      toast.success("Account created! Check your email to confirm.")
-      router.push("/login?message=check-email")
+      if (data.session) {
+        toast.success("Welcome to Kane's Komets!")
+        router.push(redirectPath)
+        router.refresh()
+      } else {
+        // Fallback if email confirmation is re-enabled
+        toast.success("Account created! Check your email to confirm.")
+        router.push("/login?message=check-email")
+      }
       setIsRegistering(false)
     }
   }
@@ -130,6 +141,16 @@ function AuthContent() {
           <AlertTitle className="text-primary font-bold tracking-wide">Checkout Pending</AlertTitle>
           <AlertDescription>
             Please sign in or register to complete your purchase. Your cart items are safe!
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {message === "check-email" && (
+        <Alert className="mb-6 border-secondary/50 bg-secondary/10">
+          <ShoppingCart className="h-4 w-4 text-secondary" />
+          <AlertTitle className="text-secondary font-bold tracking-wide">VERIFY YOUR EMAIL</AlertTitle>
+          <AlertDescription>
+            We've sent a confirmation link to your inbox. Please click it to activate your account and start reading!
           </AlertDescription>
         </Alert>
       )}

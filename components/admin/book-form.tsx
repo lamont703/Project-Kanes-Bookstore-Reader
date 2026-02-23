@@ -34,6 +34,8 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
         genre: initialData?.genre || "Crime",
         price: initialData?.price || 0,
         status: initialData?.status || "Draft",
+        is_book_club_eligible: initialData?.is_book_club_eligible || false,
+        is_age_restricted: initialData?.is_age_restricted || false,
         variants: initialData?.book_variants || [
             { format: "ebook" as const, price: 0, available: true },
             { format: "paper_book" as const, price: 0, available: true },
@@ -98,21 +100,41 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
         let bookId: string | null = null
 
         try {
-            // 1. Create the book record
-            const { data: book, error: bookError } = await supabase
-                .from("books")
-                .insert({
-                    title: formData.title,
-                    author: formData.author,
-                    illustrator: formData.illustrator || null,
-                    description: formData.description,
-                    genre: formData.genre,
-                    status: formData.status === "Published" ? "published" : "draft",
-                })
-                .select()
-                .single()
+            // 1. Create or update the book record
+            const bookData = {
+                title: formData.title,
+                author: formData.author,
+                illustrator: formData.illustrator || null,
+                description: formData.description,
+                genre: formData.genre,
+                status: formData.status === "Published" ? "published" : "draft",
+                is_book_club_eligible: formData.is_book_club_eligible,
+                is_age_restricted: formData.is_age_restricted,
+            }
 
-            if (bookError) throw new Error(`Failed to create book: ${bookError.message}`)
+            let book;
+            let bookError;
+
+            if (isEdit && initialData?.id) {
+                const { data: updatedBook, error: updateError } = await supabase
+                    .from("books")
+                    .update(bookData)
+                    .eq("id", initialData.id)
+                    .select()
+                    .single()
+                book = updatedBook
+                bookError = updateError
+            } else {
+                const { data: newBook, error: insertError } = await supabase
+                    .from("books")
+                    .insert(bookData)
+                    .select()
+                    .single()
+                book = newBook
+                bookError = insertError
+            }
+
+            if (bookError) throw new Error(`Failed to save book: ${bookError.message}`)
             bookId = book.id
 
             // 2. Upload cover image to Storage
@@ -406,6 +428,28 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                 <Switch
                                     checked={formData.status === "Published"}
                                     onCheckedChange={checked => setFormData({ ...formData, status: checked ? "Published" : "Draft" })}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between pt-6 border-t border-border/50">
+                                <div className="space-y-0.5">
+                                    <Label>Book Club Eligible</Label>
+                                    <p className="text-xs text-muted-foreground">Include this in the 2nd step of the subscription signup flow</p>
+                                </div>
+                                <Switch
+                                    checked={formData.is_book_club_eligible}
+                                    onCheckedChange={checked => setFormData({ ...formData, is_book_club_eligible: checked })}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between pt-6 border-t border-border/50">
+                                <div className="space-y-0.5">
+                                    <Label>Age Restricted (18+)</Label>
+                                    <p className="text-xs text-muted-foreground">Restrict this book to adult users only</p>
+                                </div>
+                                <Switch
+                                    checked={formData.is_age_restricted}
+                                    onCheckedChange={checked => setFormData({ ...formData, is_age_restricted: checked })}
                                 />
                             </div>
 

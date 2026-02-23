@@ -232,6 +232,16 @@ export default function AdminBooksPage() {
                         <span className="text-[8px] font-bold uppercase tracking-wider bg-secondary/10 text-secondary border border-secondary/20 px-1.5 py-0.5 rounded">
                           {book.genre}
                         </span>
+                        {book.is_book_club_eligible && (
+                          <span className="text-[8px] font-bold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 px-1.5 py-0.5 rounded">
+                            Book Club
+                          </span>
+                        )}
+                        {book.is_age_restricted && (
+                          <span className="text-[8px] font-bold uppercase tracking-wider bg-destructive/20 text-destructive border border-destructive/30 px-1.5 py-0.5 rounded">
+                            18+
+                          </span>
+                        )}
                         <span className={`text-[8px] font-bold uppercase tracking-wider border px-1.5 py-0.5 rounded ${book.status === "Published" ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground border-border"
                           }`}>
                           {book.status}
@@ -239,9 +249,21 @@ export default function AdminBooksPage() {
                       </div>
                     </td>
                     <td className="p-4 hidden lg:table-cell">
-                      <span className="text-[10px] font-bold uppercase tracking-wider bg-secondary/10 text-secondary border border-secondary/20 px-2 py-0.5 rounded">
-                        {book.genre}
-                      </span>
+                      <div className="flex flex-col gap-1.5 items-start">
+                        <span className="text-[10px] font-bold uppercase tracking-wider bg-secondary/10 text-secondary border border-secondary/20 px-2 py-0.5 rounded">
+                          {book.genre}
+                        </span>
+                        {book.is_book_club_eligible && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded">
+                            Book Club
+                          </span>
+                        )}
+                        {book.is_age_restricted && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-destructive/20 text-destructive border border-destructive/30 px-2 py-0.5 rounded">
+                            18+ Restricted
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4 hidden sm:table-cell">
                       <div className="flex flex-col">
