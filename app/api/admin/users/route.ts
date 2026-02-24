@@ -64,7 +64,9 @@ export async function GET(request: NextRequest) {
                 status,
                 started_at
             ),
-            user_library (count)
+            user_library (
+                id
+            )
         `)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
@@ -86,6 +88,8 @@ export async function GET(request: NextRequest) {
         const sub = Array.isArray(u.user_subscriptions)
             ? u.user_subscriptions[0]
             : u.user_subscriptions
+
+        // Ensure libraryCount is the actual length of the returned array
         const libraryCount = Array.isArray(u.user_library)
             ? u.user_library.length
             : 0
