@@ -116,6 +116,47 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ users: filtered })
 }
 
+// ─── POST: add a book to user's library ───────────────────────────────
+export async function POST(request: NextRequest) {
+    const { user: caller, error: verifyError } = await verifyAdmin()
+    if (!caller) return NextResponse.json({ error: verifyError }, { status: 403 })
+
+    const body = await request.json() as {
+        userId: string
+        bookId: string
+    }
+
+    if (!body.userId || !body.bookId) {
+        return NextResponse.json({ error: "Missing userId or bookId" }, { status: 400 })
+    }
+
+    const admin = createAdminClient()
+
+    // check if already exists
+    const { data: existing } = await admin
+        .from("user_library")
+        .select("id")
+        .eq("user_id", body.userId)
+        .eq("book_id", body.bookId)
+        .single()
+
+    if (existing) {
+        return NextResponse.json({ error: "User already owns this book" }, { status: 400 })
+    }
+
+    const { error } = await admin
+        .from("user_library")
+        .insert({
+            user_id: body.userId,
+            book_id: body.bookId,
+            source: "admin_gift"
+        })
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    return NextResponse.json({ success: true, action: "add_to_library" })
+}
+
 // ─── PATCH: update subscription tier or ban status ────────────────────────
 export async function PATCH(request: NextRequest) {
     const { user: caller, error: verifyError } = await verifyAdmin()

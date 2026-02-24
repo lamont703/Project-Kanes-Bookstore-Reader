@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Filter, MoreVertical, Loader2, ShieldAlert, ShieldCheck, Crown, UserX } from "lucide-react"
+import { Search, Filter, MoreVertical, Loader2, ShieldAlert, ShieldCheck, Crown, UserX, Gift } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +61,10 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [newPlan, setNewPlan] = useState<"free" | "premium">("free")
   const [newRole, setNewRole] = useState<"reader" | "admin">("reader")
+  const [allBooks, setAllBooks] = useState<{ id: string, title: string }[]>([])
+  const [selectedBookId, setSelectedBookId] = useState<string>("")
+
+  const supabase = createClient()
 
   const debouncedSearch = useDebounce(searchQuery, 400)
 
@@ -82,6 +87,14 @@ export default function AdminUsersPage() {
   }, [debouncedSearch, filterTier])
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
+
+  useEffect(() => {
+    supabase.from("books")
+      .select("id, title")
+      .eq("status", "published")
+      .order("title")
+      .then(({ data }) => setAllBooks(data || []))
+  }, [supabase])
 
   // ── Manage subscription dialog ─────────────────────────────────────────────
   const openManageDialog = (user: AdminUser) => {
@@ -143,6 +156,31 @@ export default function AdminUsersPage() {
     }
 
     setIsSaving(false)
+  }
+
+  const handleGiftBook = async () => {
+    if (!selectedUser || !selectedBookId) return
+    setIsSaving(true)
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUser.id, bookId: selectedBookId }),
+      })
+      if (!res.ok) {
+        const { error } = await res.json()
+        throw new Error(error || "Failed to gift book")
+      }
+      toast.success("Book granted successfully")
+      setSelectedBookId("")
+      setUsers(prev => prev.map(u =>
+        u.id === selectedUser.id ? { ...u, booksOwned: u.booksOwned + 1 } : u
+      ))
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // ── Ban / Unban ────────────────────────────────────────────────────────────
@@ -380,6 +418,37 @@ export default function AdminUsersPage() {
                 {newRole === "admin"
                   ? "⚠️ Admins have unrestricted access to all data and admin panels."
                   : "Standard reader — no admin privileges."}
+              </p>
+            </div>
+
+            {/* Gift a Book */}
+            <div className="pt-6 border-t border-border/50 space-y-3">
+              <Label className="text-xs uppercase tracking-widest text-secondary font-bold flex items-center gap-1.5">
+                <Gift className="w-3.5 h-3.5" /> Manual Library Grant
+              </Label>
+              <div className="flex gap-2">
+                <Select value={selectedBookId} onValueChange={setSelectedBookId}>
+                  <SelectTrigger className="flex-1 bg-background/50 border-border/50 h-10">
+                    <SelectValue placeholder="Choose a book to gift..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allBooks.map(book => (
+                      <SelectItem key={book.id} value={book.id}>{book.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!selectedBookId || isSaving}
+                  onClick={handleGiftBook}
+                  className="h-10 px-4"
+                >
+                  Grant Access
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground italic">
+                This adds the selected volume directly to the user's personal library.
               </p>
             </div>
           </div>
