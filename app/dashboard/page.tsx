@@ -34,9 +34,14 @@ export default async function DashboardPage() {
   }
 
   // Fetch Reading Progress separately since there is no direct FK link for a nested join
-  const { data: progressData } = await supabase
+  const { data: progressData, error: progressError } = await supabase
     .from('reading_progress')
+    .select('*')
     .eq('user_id', user.id)
+
+  if (progressError) {
+    console.error("Error fetching progress:", progressError)
+  }
 
   // Merge library data with its corresponding progress
   const library = (libraryData || []).map(item => ({
