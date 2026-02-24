@@ -41,18 +41,32 @@ export async function handleUploadBook(
     const authClient = createAuthClient(authHeader);
 
     // ─── 0. Verify admin role ────────────────────────────────────
-    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await authClient.auth.getUser(token);
+
     if (authError || !user) {
-        throw { ...ErrorCodes.UNAUTHORIZED, message: "Invalid authentication token" };
+        console.error(`[upload-book] Auth failed: ${authError?.message || "No user found"}`);
+        throw {
+            ...ErrorCodes.UNAUTHORIZED,
+            message: authError?.message || "Invalid authentication token"
+        };
     }
 
-    const { data: profile } = await adminClient
+    console.log(`[upload-book] Authenticated user: ${user.id} (${user.email})`);
+
+    const { data: profile, error: profileError } = await adminClient
         .from("users")
         .select("role")
         .eq("id", user.id)
         .single();
 
+    if (profileError) {
+        console.error(`[upload-book] Failed to fetch profile: ${profileError.message}`);
+        throw { ...ErrorCodes.INTERNAL_ERROR, message: "Failed to verify admin status" };
+    }
+
     if (profile?.role !== "admin") {
+        console.warn(`[upload-book] Access denied for user ${user.id} (role: ${profile?.role})`);
         throw { ...ErrorCodes.FORBIDDEN, message: "Only admins can upload books" };
     }
 

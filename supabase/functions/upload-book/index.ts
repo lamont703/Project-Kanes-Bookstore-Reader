@@ -10,17 +10,20 @@ serve(async (req: Request) => {
     }
 
     try {
-        // Authenticate (Admin only)
+        // 1. Authenticate (Admin only check happens in handler)
         const authHeader = req.headers.get("Authorization");
         if (!authHeader) {
+            console.error("[upload-book] Missing Authorization header");
             return createErrorResponse(
-                ErrorCodes.UNAUTHORIZED.status,
-                ErrorCodes.UNAUTHORIZED.code,
+                ErrorCodes.UNAUTHORIZED,
                 "Missing authorization header"
             );
         }
 
-        // Only POST allowed
+        const tokenPrefix = authHeader.substring(0, 15);
+        console.log(`[upload-book] Request received. Auth prefix: ${tokenPrefix}...`);
+
+        // 2. Only POST allowed
         if (req.method !== "POST") {
             return createErrorResponse(
                 405,
@@ -29,8 +32,18 @@ serve(async (req: Request) => {
             );
         }
 
-        // Parse multipart form data (for book file and metadata)
-        const formData = await req.formData();
+        // 3. Parse multipart form data
+        let formData: FormData;
+        try {
+            formData = await req.formData();
+        } catch (formError: any) {
+            console.error(`[upload-book] FormData parsing failed: ${formError.message}`);
+            return createErrorResponse(
+                ErrorCodes.VALIDATION_ERROR,
+                `Failed to parse form data: ${formError.message}`
+            );
+        }
+
         const result = await handleUploadBook(authHeader, formData);
 
         return new Response(JSON.stringify(result), {
@@ -38,11 +51,11 @@ serve(async (req: Request) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
     } catch (error: any) {
-        console.error(`[upload-book] Error: ${error.message}`);
-        return createErrorResponse(
-            error.status || 500,
-            error.code || "INTERNAL_ERROR",
-            error.message
-        );
+        console.error(`[upload-book] Uncaught Error: ${error.message}`);
+        // Ensure we maintain the status code if provided in the error object
+        const status = error.status || 500;
+        const code = error.code || "INTERNAL_ERROR";
+
+        return createErrorResponse(status, code, error.message);
     }
 });

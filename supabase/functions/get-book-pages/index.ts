@@ -49,9 +49,11 @@ serve(async (req: Request) => {
         const adminClient = createAdminClient();
 
         // Verify user
-        const { data: { user }, error: authErr } = await authClient.auth.getUser();
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
         if (authErr || !user) {
-            return createErrorResponse(ErrorCodes.UNAUTHORIZED, "Invalid token");
+            console.error(`[get-book-pages] Auth failed: ${authErr?.message || "No user"}`);
+            return createErrorResponse(ErrorCodes.UNAUTHORIZED, authErr?.message || "Invalid token");
         }
 
         // Verify access: user must own the book, have a subscription, or be admin
