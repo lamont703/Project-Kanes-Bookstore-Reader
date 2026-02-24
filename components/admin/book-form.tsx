@@ -124,17 +124,24 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             uploadData.append("komet_card_price", String(card?.price || 0))
 
             // 2. Invoke the 'upload-book' Edge Function
-            // Explicitly pass headers to ensure Gateway authentication passes
+            // Using fetch directly to ensure absolute control over headers and avoid gateway rejections
             const { data: sessionData } = await supabase.auth.getSession()
-            const { data, error: functionError } = await supabase.functions.invoke("upload-book", {
-                body: uploadData,
+            if (!sessionData.session) throw new Error("No active session")
+
+            const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/upload-book`
+            const response = await fetch(functionUrl, {
+                method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${sessionData.session?.access_token}`,
-                    "x-anon-key": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-                }
+                    Authorization: `Bearer ${sessionData.session.access_token}`,
+                    apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                },
+                body: uploadData,
             })
 
-            if (functionError) throw new Error(functionError.message || "Edge Function failed")
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: { message: `Status ${response.status}` } }))
+                throw new Error(errorData.error?.message || "Cosmic processing failed")
+            }
 
             toast.success(isEdit ? "Volume updated successfully" : "New volume added to the cosmic library!")
             router.push("/admin/books")
