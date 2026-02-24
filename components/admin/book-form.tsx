@@ -124,9 +124,14 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             uploadData.append("komet_card_price", String(card?.price || 0))
 
             // 2. Invoke the 'upload-book' Edge Function
-            // This function handles the full pipeline: DB records, Storage, PDF parsing, and Page extraction.
+            // Explicitly pass headers to ensure Gateway authentication passes
+            const { data: sessionData } = await supabase.auth.getSession()
             const { data, error: functionError } = await supabase.functions.invoke("upload-book", {
                 body: uploadData,
+                headers: {
+                    Authorization: `Bearer ${sessionData.session?.access_token}`,
+                    "x-anon-key": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                }
             })
 
             if (functionError) throw new Error(functionError.message || "Edge Function failed")
@@ -141,274 +146,274 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
         }
     }
 
-return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="grid lg:grid-cols-3 gap-8">
-            {/* Left Column: Metadata */}
-            <div className="lg:col-span-2 space-y-6">
-                <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50">
-                    <h2 className="font-display text-2xl tracking-wide mb-6">BASIC INFORMATION</h2>
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="title">Book Title</Label>
-                            <Input
-                                id="title"
-                                placeholder="e.g., The Martian Chronicles"
-                                value={formData.title}
-                                onChange={e => setFormData({ ...formData, title: e.target.value })}
-                                className={errors.title ? "border-destructive" : ""}
-                            />
-                            {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-4">
+    return (
+        <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="grid lg:grid-cols-3 gap-8">
+                {/* Left Column: Metadata */}
+                <div className="lg:col-span-2 space-y-6">
+                    <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50">
+                        <h2 className="font-display text-2xl tracking-wide mb-6">BASIC INFORMATION</h2>
+                        <div className="space-y-6">
                             <div className="space-y-2">
-                                <Label htmlFor="author">Author</Label>
+                                <Label htmlFor="title">Book Title</Label>
                                 <Input
-                                    id="author"
-                                    placeholder="Ray Bradbury"
-                                    value={formData.author}
-                                    onChange={e => setFormData({ ...formData, author: e.target.value })}
-                                    className={errors.author ? "border-destructive" : ""}
+                                    id="title"
+                                    placeholder="e.g., The Martian Chronicles"
+                                    value={formData.title}
+                                    onChange={e => setFormData({ ...formData, title: e.target.value })}
+                                    className={errors.title ? "border-destructive" : ""}
                                 />
-                                {errors.author && <p className="text-xs text-destructive">{errors.author}</p>}
+                                {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
                             </div>
 
-                        </div>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="author">Author</Label>
+                                    <Input
+                                        id="author"
+                                        placeholder="Ray Bradbury"
+                                        value={formData.author}
+                                        onChange={e => setFormData({ ...formData, author: e.target.value })}
+                                        className={errors.author ? "border-destructive" : ""}
+                                    />
+                                    {errors.author && <p className="text-xs text-destructive">{errors.author}</p>}
+                                </div>
 
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="genre">Category</Label>
-                                <select
-                                    id="genre"
-                                    className="w-full bg-background/50 border border-border/50 rounded-md px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-primary h-10"
-                                    value={formData.genre}
-                                    onChange={e => setFormData({ ...formData, genre: e.target.value })}
-                                >
-                                    {GENRES.filter(g => g !== "All").map(genre => (
-                                        <option key={genre} value={genre}>{genre}</option>
-                                    ))}
-                                </select>
                             </div>
+
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="genre">Category</Label>
+                                    <select
+                                        id="genre"
+                                        className="w-full bg-background/50 border border-border/50 rounded-md px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-primary h-10"
+                                        value={formData.genre}
+                                        onChange={e => setFormData({ ...formData, genre: e.target.value })}
+                                    >
+                                        {GENRES.filter(g => g !== "All").map(genre => (
+                                            <option key={genre} value={genre}>{genre}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="price">Base Reference Price ($)</Label>
+                                    <Input
+                                        id="price"
+                                        type="number"
+                                        step="0.01"
+                                        value={formData.price || ""}
+                                        onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                                    />
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold">This price serves as a general reference for internal logging.</p>
+                                </div>
+                            </div>
+
                             <div className="space-y-2">
-                                <Label htmlFor="price">Base Reference Price ($)</Label>
-                                <Input
-                                    id="price"
-                                    type="number"
-                                    step="0.01"
-                                    value={formData.price || ""}
-                                    onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                                <Label htmlFor="description">Description</Label>
+                                <Textarea
+                                    id="description"
+                                    placeholder="A brief summary of the cosmic journey..."
+                                    className={`h-32 ${errors.description ? "border-destructive" : ""}`}
+                                    value={formData.description}
+                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
                                 />
-                                <p className="text-[10px] text-muted-foreground uppercase font-bold">This price serves as a general reference for internal logging.</p>
+                                {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
                             </div>
                         </div>
+                    </Card>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
-                            <Textarea
-                                id="description"
-                                placeholder="A brief summary of the cosmic journey..."
-                                className={`h-32 ${errors.description ? "border-destructive" : ""}`}
-                                value={formData.description}
-                                onChange={e => setFormData({ ...formData, description: e.target.value })}
-                            />
-                            {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
+                    <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="font-display text-2xl tracking-wide">VARIANT PRICING & INVENTORY</h2>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-secondary/10 rounded-full border border-secondary/20">
+                                <AlertCircle className="w-4 h-4 text-secondary" />
+                                <span className="text-[10px] font-bold uppercase text-secondary">Prices specific to format</span>
+                            </div>
                         </div>
-                    </div>
-                </Card>
-
-                <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="font-display text-2xl tracking-wide">VARIANT PRICING & INVENTORY</h2>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-secondary/10 rounded-full border border-secondary/20">
-                            <AlertCircle className="w-4 h-4 text-secondary" />
-                            <span className="text-[10px] font-bold uppercase text-secondary">Prices specific to format</span>
-                        </div>
-                    </div>
-                    <div className="space-y-6">
-                        {formData.variants.map((variant: any, index: number) => (
-                            <div key={variant.format} className="flex flex-col md:flex-row md:items-end gap-6 p-6 rounded-2xl bg-muted/20 border border-border/50 hover:border-primary/30 transition-all group">
-                                <div className="flex-1 space-y-3">
-                                    <div className="flex items-center gap-2">
-                                        <Label className="uppercase tracking-widest text-[10px] font-black text-muted-foreground">
-                                            {variant.format === "ebook" ? "Digital Edition" : variant.format === "paper_book" ? "Physical Copy" : "Komet Card"}
-                                        </Label>
+                        <div className="space-y-6">
+                            {formData.variants.map((variant: any, index: number) => (
+                                <div key={variant.format} className="flex flex-col md:flex-row md:items-end gap-6 p-6 rounded-2xl bg-muted/20 border border-border/50 hover:border-primary/30 transition-all group">
+                                    <div className="flex-1 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <Label className="uppercase tracking-widest text-[10px] font-black text-muted-foreground">
+                                                {variant.format === "ebook" ? "Digital Edition" : variant.format === "paper_book" ? "Physical Copy" : "Komet Card"}
+                                            </Label>
+                                        </div>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-display text-muted-foreground">$</span>
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                placeholder="0.00"
+                                                value={variant.price || ""}
+                                                onChange={(e) => {
+                                                    const newVariants = [...formData.variants]
+                                                    newVariants[index].price = parseFloat(e.target.value) || 0
+                                                    setFormData({ ...formData, variants: newVariants })
+                                                }}
+                                                className={`pl-9 h-14 text-xl font-display bg-background/50 ${errors[`price_${variant.format}`] ? "border-destructive shadow-[0_0_10px_rgba(239,68,68,0.1)]" : "focus:border-primary"}`}
+                                            />
+                                        </div>
+                                        {errors[`price_${variant.format}`] && (
+                                            <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter">{errors[`price_${variant.format}`]}</p>
+                                        )}
                                     </div>
-                                    <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-display text-muted-foreground">$</span>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="0.00"
-                                            value={variant.price || ""}
-                                            onChange={(e) => {
+                                    <div className={`flex items-center gap-4 h-14 px-5 rounded-xl border transition-all ${variant.available ? "bg-primary/5 border-primary/20" : "bg-destructive/5 border-destructive/20 opacity-60"}`}>
+                                        <div className="space-y-0.5">
+                                            <Label htmlFor={`available-${variant.format}`} className="text-[10px] font-black uppercase tracking-widest cursor-pointer block leading-none">
+                                                Availability
+                                            </Label>
+                                            <span className={`text-xs font-medium ${variant.available ? "text-primary" : "text-destructive"}`}>
+                                                {variant.available ? "IN STOCK" : "OUT OF STOCK"}
+                                            </span>
+                                        </div>
+                                        <Switch
+                                            id={`available-${variant.format}`}
+                                            checked={variant.available}
+                                            onCheckedChange={(checked) => {
                                                 const newVariants = [...formData.variants]
-                                                newVariants[index].price = parseFloat(e.target.value) || 0
+                                                newVariants[index].available = checked
                                                 setFormData({ ...formData, variants: newVariants })
                                             }}
-                                            className={`pl-9 h-14 text-xl font-display bg-background/50 ${errors[`price_${variant.format}`] ? "border-destructive shadow-[0_0_10px_rgba(239,68,68,0.1)]" : "focus:border-primary"}`}
+                                            className="data-[state=checked]:bg-primary"
                                         />
                                     </div>
-                                    {errors[`price_${variant.format}`] && (
-                                        <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter">{errors[`price_${variant.format}`]}</p>
-                                    )}
                                 </div>
-                                <div className={`flex items-center gap-4 h-14 px-5 rounded-xl border transition-all ${variant.available ? "bg-primary/5 border-primary/20" : "bg-destructive/5 border-destructive/20 opacity-60"}`}>
-                                    <div className="space-y-0.5">
-                                        <Label htmlFor={`available-${variant.format}`} className="text-[10px] font-black uppercase tracking-widest cursor-pointer block leading-none">
-                                            Availability
-                                        </Label>
-                                        <span className={`text-xs font-medium ${variant.available ? "text-primary" : "text-destructive"}`}>
-                                            {variant.available ? "IN STOCK" : "OUT OF STOCK"}
-                                        </span>
-                                    </div>
-                                    <Switch
-                                        id={`available-${variant.format}`}
-                                        checked={variant.available}
-                                        onCheckedChange={(checked) => {
-                                            const newVariants = [...formData.variants]
-                                            newVariants[index].available = checked
-                                            setFormData({ ...formData, variants: newVariants })
-                                        }}
-                                        className="data-[state=checked]:bg-primary"
+                            ))}
+                        </div>
+                    </Card>
+
+                    <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50">
+                        <h2 className="font-display text-2xl tracking-wide mb-6">FILE ASSETS</h2>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label>Cover Image (PNG/JPG)</Label>
+                                <div className="relative group cursor-pointer">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={e => handleFileChange(e, "cover")}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                     />
+                                    <div className={`h-48 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-colors ${files.cover ? "border-primary/50 bg-primary/5" : "border-border/50 hover:border-primary/30"}`}>
+                                        {files.cover ? (
+                                            <>
+                                                <ImageIcon className="w-10 h-10 text-primary mb-2" />
+                                                <p className="text-sm font-medium px-4 text-center truncate w-full">{files.cover.name}</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <UploadCloud className="w-10 h-10 text-muted-foreground mb-2" />
+                                                <p className="text-xs text-muted-foreground">Select Cover</p>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
+                                {errors.cover && <p className="text-xs text-destructive mt-2">{errors.cover}</p>}
                             </div>
-                        ))}
-                    </div>
-                </Card>
 
-                <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50">
-                    <h2 className="font-display text-2xl tracking-wide mb-6">FILE ASSETS</h2>
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label>Cover Image (PNG/JPG)</Label>
-                            <div className="relative group cursor-pointer">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={e => handleFileChange(e, "cover")}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            <div className="space-y-2">
+                                <Label>Book PDF</Label>
+                                <div className="relative group cursor-pointer">
+                                    <input
+                                        type="file"
+                                        accept="application/pdf"
+                                        onChange={e => handleFileChange(e, "pdf")}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    />
+                                    <div className={`h-48 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-colors ${files.pdf ? "border-secondary/50 bg-secondary/5" : "border-border/50 hover:border-secondary/30"}`}>
+                                        {files.pdf ? (
+                                            <>
+                                                <FileText className="w-10 h-10 text-secondary mb-2" />
+                                                <p className="text-sm font-medium px-4 text-center truncate w-full">{files.pdf.name}</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <UploadCloud className="w-10 h-10 text-muted-foreground mb-2" />
+                                                <p className="text-xs text-muted-foreground">Select PDF</p>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                                {errors.pdf && <p className="text-xs text-destructive mt-2">{errors.pdf}</p>}
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+
+                {/* Right Column: Settings */}
+                <div className="space-y-6">
+                    <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50 lg:sticky lg:top-24">
+                        <h2 className="font-display text-2xl tracking-wide mb-6">PUBLISHING</h2>
+
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label>Visibility</Label>
+                                    <p className="text-xs text-muted-foreground">Make this book public in the catalog</p>
+                                </div>
+                                <Switch
+                                    checked={formData.status === "Published"}
+                                    onCheckedChange={checked => setFormData({ ...formData, status: checked ? "Published" : "Draft" })}
                                 />
-                                <div className={`h-48 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-colors ${files.cover ? "border-primary/50 bg-primary/5" : "border-border/50 hover:border-primary/30"}`}>
-                                    {files.cover ? (
-                                        <>
-                                            <ImageIcon className="w-10 h-10 text-primary mb-2" />
-                                            <p className="text-sm font-medium px-4 text-center truncate w-full">{files.cover.name}</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <UploadCloud className="w-10 h-10 text-muted-foreground mb-2" />
-                                            <p className="text-xs text-muted-foreground">Select Cover</p>
-                                        </>
-                                    )}
-                                </div>
                             </div>
-                            {errors.cover && <p className="text-xs text-destructive mt-2">{errors.cover}</p>}
-                        </div>
 
-                        <div className="space-y-2">
-                            <Label>Book PDF</Label>
-                            <div className="relative group cursor-pointer">
-                                <input
-                                    type="file"
-                                    accept="application/pdf"
-                                    onChange={e => handleFileChange(e, "pdf")}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            <div className="flex items-center justify-between pt-6 border-t border-border/50">
+                                <div className="space-y-0.5">
+                                    <Label>Book Club Eligible</Label>
+                                    <p className="text-xs text-muted-foreground">Include this in the 2nd step of the subscription signup flow</p>
+                                </div>
+                                <Switch
+                                    checked={formData.is_book_club_eligible}
+                                    onCheckedChange={checked => setFormData({ ...formData, is_book_club_eligible: checked })}
                                 />
-                                <div className={`h-48 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-colors ${files.pdf ? "border-secondary/50 bg-secondary/5" : "border-border/50 hover:border-secondary/30"}`}>
-                                    {files.pdf ? (
-                                        <>
-                                            <FileText className="w-10 h-10 text-secondary mb-2" />
-                                            <p className="text-sm font-medium px-4 text-center truncate w-full">{files.pdf.name}</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <UploadCloud className="w-10 h-10 text-muted-foreground mb-2" />
-                                            <p className="text-xs text-muted-foreground">Select PDF</p>
-                                        </>
-                                    )}
+                            </div>
+
+                            <div className="flex items-center justify-between pt-6 border-t border-border/50">
+                                <div className="space-y-0.5">
+                                    <Label>Age Restricted (18+)</Label>
+                                    <p className="text-xs text-muted-foreground">Restrict this book to adult users only</p>
                                 </div>
+                                <Switch
+                                    checked={formData.is_age_restricted}
+                                    onCheckedChange={checked => setFormData({ ...formData, is_age_restricted: checked })}
+                                />
                             </div>
-                            {errors.pdf && <p className="text-xs text-destructive mt-2">{errors.pdf}</p>}
-                        </div>
-                    </div>
-                </Card>
-            </div>
 
-            {/* Right Column: Settings */}
-            <div className="space-y-6">
-                <Card className="p-5 md:p-8 bg-card/50 backdrop-blur border-border/50 lg:sticky lg:top-24">
-                    <h2 className="font-display text-2xl tracking-wide mb-6">PUBLISHING</h2>
-
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label>Visibility</Label>
-                                <p className="text-xs text-muted-foreground">Make this book public in the catalog</p>
-                            </div>
-                            <Switch
-                                checked={formData.status === "Published"}
-                                onCheckedChange={checked => setFormData({ ...formData, status: checked ? "Published" : "Draft" })}
-                            />
-                        </div>
-
-                        <div className="flex items-center justify-between pt-6 border-t border-border/50">
-                            <div className="space-y-0.5">
-                                <Label>Book Club Eligible</Label>
-                                <p className="text-xs text-muted-foreground">Include this in the 2nd step of the subscription signup flow</p>
-                            </div>
-                            <Switch
-                                checked={formData.is_book_club_eligible}
-                                onCheckedChange={checked => setFormData({ ...formData, is_book_club_eligible: checked })}
-                            />
-                        </div>
-
-                        <div className="flex items-center justify-between pt-6 border-t border-border/50">
-                            <div className="space-y-0.5">
-                                <Label>Age Restricted (18+)</Label>
-                                <p className="text-xs text-muted-foreground">Restrict this book to adult users only</p>
-                            </div>
-                            <Switch
-                                checked={formData.is_age_restricted}
-                                onCheckedChange={checked => setFormData({ ...formData, is_age_restricted: checked })}
-                            />
-                        </div>
-
-                        <div className="pt-6 border-t border-border/50 space-y-3">
-                            <Button
-                                type="submit"
-                                className="w-full text-lg font-display tracking-wider h-12"
-                                disabled={isUploading}
-                            >
-                                {isUploading ? <Loader className="w-5 h-5 animate-spin mr-2" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
-                                {isEdit ? "UPDATE VOLUME" : "CREATE VOLUME"}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                className="w-full text-muted-foreground hover:text-foreground"
-                                onClick={() => router.push("/admin/books")}
-                            >
-                                Cancel
-                            </Button>
-                        </div>
-
-                        {isEdit && (
-                            <div className="pt-6 border-t border-border/50">
+                            <div className="pt-6 border-t border-border/50 space-y-3">
+                                <Button
+                                    type="submit"
+                                    className="w-full text-lg font-display tracking-wider h-12"
+                                    disabled={isUploading}
+                                >
+                                    {isUploading ? <Loader className="w-5 h-5 animate-spin mr-2" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
+                                    {isEdit ? "UPDATE VOLUME" : "CREATE VOLUME"}
+                                </Button>
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    className="w-full text-destructive hover:text-white hover:bg-destructive"
+                                    className="w-full text-muted-foreground hover:text-foreground"
+                                    onClick={() => router.push("/admin/books")}
                                 >
-                                    Delete Book permanently
+                                    Cancel
                                 </Button>
                             </div>
-                        )}
-                    </div>
-                </Card>
+
+                            {isEdit && (
+                                <div className="pt-6 border-t border-border/50">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="w-full text-destructive hover:text-white hover:bg-destructive"
+                                    >
+                                        Delete Book permanently
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+                </div>
             </div>
-        </div>
-    </form>
-)
+        </form>
+    )
 }
