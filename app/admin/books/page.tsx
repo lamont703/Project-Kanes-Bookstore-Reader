@@ -56,7 +56,18 @@ export default function AdminBooksPage() {
         .order("title")
 
       if (error) throw error
-      setBooks(data || [])
+
+      // Map Supabase snake_case to frontend camelCase and correct types
+      const mappedBooks = (data || []).map((b: any) => ({
+        ...b,
+        coverImage: b.cover_image_url,
+        // Match the "Published" / "Draft" strings used in the JSX
+        catalogStatus: b.status === "published" ? "Published" : "Draft",
+        // Extract a display price from variants
+        price: b.book_variants?.find((v: any) => v.format === 'ebook')?.price || b.book_variants?.[0]?.price || 0
+      }))
+
+      setBooks(mappedBooks)
     } catch (error: any) {
       toast.error("Failed to fetch cosmic library catalog")
       console.error(error)
@@ -242,9 +253,9 @@ export default function AdminBooksPage() {
                             18+
                           </span>
                         )}
-                        <span className={`text-[8px] font-bold uppercase tracking-wider border px-1.5 py-0.5 rounded ${book.status === "Published" ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground border-border"
+                        <span className={`text-[8px] font-bold uppercase tracking-wider border px-1.5 py-0.5 rounded ${book.catalogStatus === "Published" ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground border-border"
                           }`}>
-                          {book.status}
+                          {book.catalogStatus}
                         </span>
                       </div>
                     </td>
@@ -272,7 +283,7 @@ export default function AdminBooksPage() {
                       </div>
                     </td>
                     <td className="p-4 hidden md:table-cell">
-                      {book.status === "Published" ? (
+                      {book.catalogStatus === "Published" ? (
                         <div className="flex items-center gap-1.5 text-primary">
                           <CheckCircle2 className="w-4 h-4" />
                           <span className="text-[10px] font-semibold uppercase">Published</span>
