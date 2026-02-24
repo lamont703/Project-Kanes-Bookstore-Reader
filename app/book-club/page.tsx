@@ -35,7 +35,7 @@ export default async function BookClubPage() {
     subscription = sub
   }
 
-  // Fetch Eligible Book Club Books (for the 'Pick 2' benefit)
+  // Fetch Eligible Book Club Books (for display)
   const { data: eligibleBooks } = await supabase
     .from('books')
     .select('*')

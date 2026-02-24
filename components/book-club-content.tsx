@@ -19,6 +19,12 @@ interface BookClubContentProps {
     eligibleBooks: any[]
 }
 
+const bundleBooks = [
+    { id: "00000000-0000-0000-0000-000000000004", title: "Somes 3", cover: "/Somes 3 Cover.webp" },
+    { id: "00000000-0000-0000-0000-000000000001", title: "Brute Syndicate", cover: "/Brute Syndicate 1 Cover.webp" },
+    // These might not be in the master seed but are in the mock
+    { id: "b3", title: "Flying With The Chrysiridiarhipheus 1", cover: "/Flying With The Chrysiridiarhipheus 1 Cover.webp" },
+]
 
 const bookClubBenefits = [
     {
@@ -159,6 +165,7 @@ export function BookClubContent({
                         ))}
                     </div>
                 </section>
+
                 {/* Eligible Books Display (Pick 2) */}
                 {eligibleBooks && eligibleBooks.length > 0 && (
                     <section className="mb-24 px-6 py-16 rounded-3xl bg-secondary/5 border border-secondary/20 relative overflow-hidden">
