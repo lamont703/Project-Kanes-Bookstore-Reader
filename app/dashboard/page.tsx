@@ -19,16 +19,30 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  // Fetch User Library with Book Details and Reading Progress
-  const { data: library } = await supabase
+  // Fetch User Library with Book Details
+  const { data: libraryData, error: libError } = await supabase
     .from('user_library')
     .select(`
       *,
-      books (*),
-      reading_progress:reading_progress (*)
+      books (*)
     `)
     .eq('user_id', user.id)
     .order('acquired_at', { ascending: false })
+
+  if (libError) {
+    console.error("Error fetching library:", libError)
+  }
+
+  // Fetch Reading Progress separately since there is no direct FK link for a nested join
+  const { data: progressData } = await supabase
+    .from('reading_progress')
+    .eq('user_id', user.id)
+
+  // Merge library data with its corresponding progress
+  const library = (libraryData || []).map(item => ({
+    ...item,
+    reading_progress: progressData?.filter(p => p.book_id === item.book_id) || []
+  }))
 
   // Fetch Orders with Items
   const { data: orders } = await supabase

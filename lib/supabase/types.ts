@@ -310,14 +310,14 @@ export interface Database {
                     id: string
                     user_id: string
                     book_id: string
-                    source: 'purchase' | 'subscription_signup' | 'book_club_monthly'
+                    source: 'purchase' | 'subscription_signup' | 'book_club_monthly' | 'admin_gift'
                     created_at: string
                 }
                 Insert: {
                     id?: string
                     user_id: string
                     book_id: string
-                    source: 'purchase' | 'subscription_signup' | 'book_club_monthly'
+                    source: 'purchase' | 'subscription_signup' | 'book_club_monthly' | 'admin_gift'
                     created_at?: string
                 }
                 Update: {
@@ -469,7 +469,7 @@ export interface Database {
             book_status_enum: 'draft' | 'published'
             book_format_enum: 'ebook' | 'paper_book' | 'komet_card'
             order_status_enum: 'pending' | 'confirmed' | 'fulfilled'
-            library_source_enum: 'purchase' | 'subscription_signup' | 'book_club_monthly'
+            library_source_enum: 'purchase' | 'subscription_signup' | 'book_club_monthly' | 'admin_gift'
             highlight_color_enum: 'yellow' | 'green' | 'blue' | 'pink'
             reading_theme_enum: 'dark' | 'light' | 'sepia'
         }
