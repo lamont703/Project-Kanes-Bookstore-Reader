@@ -35,6 +35,13 @@ export default async function BookClubPage() {
     subscription = sub
   }
 
+  // Fetch Eligible Book Club Books (for the 'Pick 2' benefit)
+  const { data: eligibleBooks } = await supabase
+    .from('books')
+    .select('*')
+    .eq('is_book_club_eligible', true)
+    .eq('status', 'published')
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
@@ -44,6 +51,7 @@ export default async function BookClubPage() {
         pastSelections={pastSelections}
         events={events || []}
         subscription={subscription}
+        eligibleBooks={eligibleBooks || []}
       />
     </div>
   )

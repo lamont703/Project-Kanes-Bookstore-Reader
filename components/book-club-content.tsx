@@ -16,14 +16,9 @@ interface BookClubContentProps {
     pastSelections: any[]
     events: any[]
     subscription: any
+    eligibleBooks: any[]
 }
 
-const bundleBooks = [
-    { id: "00000000-0000-0000-0000-000000000004", title: "Somes 3", cover: "/Somes 3 Cover.webp" },
-    { id: "00000000-0000-0000-0000-000000000001", title: "Brute Syndicate", cover: "/Brute Syndicate 1 Cover.webp" },
-    // These might not be in the master seed but are in the mock
-    { id: "b3", title: "Flying With The Chrysiridiarhipheus 1", cover: "/Flying With The Chrysiridiarhipheus 1 Cover.webp" },
-]
 
 const bookClubBenefits = [
     {
@@ -57,7 +52,8 @@ export function BookClubContent({
     upcomingSelections,
     pastSelections,
     events,
-    subscription
+    subscription,
+    eligibleBooks
 }: BookClubContentProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const { user } = useAuth()
@@ -163,6 +159,53 @@ export function BookClubContent({
                         ))}
                     </div>
                 </section>
+                {/* Eligible Books Display (Pick 2) */}
+                {eligibleBooks && eligibleBooks.length > 0 && (
+                    <section className="mb-24 px-6 py-16 rounded-3xl bg-secondary/5 border border-secondary/20 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-secondary/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
+
+                        <div className="relative text-center mb-16 max-w-2xl mx-auto">
+                            <h2 className="font-display text-4xl md:text-5xl tracking-wider mb-4 uppercase">
+                                CHOOSE YOUR <span className="text-secondary">2 FREE</span> E-BOOKS
+                            </h2>
+                            <p className="text-muted-foreground text-lg">
+                                When you subscribe to the Book Club, you get to instantly pick any two titles from our exclusive eligible collection to keep forever.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 md:gap-12 max-w-6xl mx-auto">
+                            {eligibleBooks.map((book) => (
+                                <div key={book.id} className="group relative">
+                                    <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:-translate-y-2 border-2 border-transparent group-hover:border-secondary/50">
+                                        <Image
+                                            src={book.cover_image_url || "/placeholder.webp"}
+                                            alt={book.title}
+                                            fill
+                                            className="object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                                            <p className="text-xs font-bold text-secondary uppercase tracking-widest mb-1">Available</p>
+                                            <h4 className="text-white font-display text-sm leading-tight">{book.title}</h4>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 text-center">
+                                        <h3 className="font-display text-base tracking-wide line-clamp-1">{book.title}</h3>
+                                        <p className="text-xs text-muted-foreground italic mt-1 font-medium">{book.author}</p>
+                                    </div>
+                                    <div className="absolute -top-3 -right-3 w-10 h-10 bg-secondary rounded-full flex items-center justify-center text-secondary-foreground shadow-lg scale-0 group-hover:scale-100 transition-transform duration-300">
+                                        <Star className="w-5 h-5 fill-current" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-16 text-center">
+                            <Button size="lg" variant="outline" className="border-secondary/50 text-secondary hover:bg-secondary hover:text-secondary-foreground" onClick={() => setIsModalOpen(true)}>
+                                View All Eligible Titles
+                            </Button>
+                        </div>
+                    </section>
+                )}
 
                 {/* Events Section */}
                 <section className="mb-16">
