@@ -13,11 +13,18 @@
 
 export interface ParsedPage {
     pageNumber: number;
-    imageData: Uint8Array;      // WebP (or SVG fallback) image bytes
-    contentType: string;        // 'image/webp' or 'image/svg+xml'
+    imageData: Uint8Array;      // Full page image (WebP/PNG/SVG)
+    contentType: string;
     width: number;
     height: number;
-    textContent: string;        // Raw text extracted during rendering pass
+    textContent: string;        // Plain text for search
+    structuredContent: {        // Ordered blocks for reflowable reader
+        type: 'text' | 'image';
+        content?: string;       // For text blocks
+        imageIndex?: number;    // For image blocks (refers to illustrations table)
+        width?: number;
+        height?: number;
+    }[];
 }
 
 export interface ParsedIllustration {
@@ -113,8 +120,43 @@ async function parseWithMuPDF(
         // Convert pixmap to PNG (WebP encoding would require additional WASM module)
         const pngData = pixmap.asPNG();
 
-        // Extract text content for search indexing
-        const textContent = page.toStructuredText("preserve-whitespace").asText();
+        // Extract structured content (text and images in order)
+        const structuredText = page.toStructuredText("preserve-whitespace");
+        const blocks: any[] = [];
+        let pagePlainText = "";
+
+        // Iterate through blocks (MuPDF identifies text, images, etc.)
+        // Note: The structure depends on the MuPDF version, but generally 
+        // follows: Blocks -> Lines -> Spans
+        const mupdfBlocks = structuredText.asJSON?.() ? JSON.parse(structuredText.asJSON()).blocks : [];
+
+        if (mupdfBlocks.length > 0) {
+            mupdfBlocks.forEach((block: any, bIdx: number) => {
+                if (block.type === 'text') {
+                    let blockText = "";
+                    block.lines.forEach((line: any) => {
+                        line.spans.forEach((span: any) => {
+                            blockText += span.text;
+                        });
+                        blockText += "\n";
+                    });
+                    blocks.push({ type: 'text', content: blockText.trim() });
+                    pagePlainText += blockText + "\n";
+                } else if (block.type === 'image') {
+                    blocks.push({
+                        type: 'image',
+                        imageIndex: bIdx,
+                        width: block.bbox[2] - block.bbox[0],
+                        height: block.bbox[3] - block.bbox[1]
+                    });
+                }
+            });
+        } else {
+            // Fallback for simple text extraction if JSON is unavailable
+            const text = structuredText.asText();
+            pagePlainText = text;
+            blocks.push({ type: 'text', content: text });
+        }
 
         pages.push({
             pageNumber: i + 1,
@@ -122,15 +164,11 @@ async function parseWithMuPDF(
             contentType: "image/png",
             width,
             height,
-            textContent,
+            textContent: pagePlainText,
+            structuredContent: blocks,
         });
 
-        // Extract inline images/illustrations
-        const images = page.toStructuredText("preserve-images");
-        // Note: Image extraction from structured text varies by MuPDF version
-        // For now, illustrations are extracted at the page level
-
-        console.log(`[pdf-parser] Page ${i + 1}/${pageCount} rendered (${width}×${height})`);
+        console.log(`[pdf-parser] Page ${i + 1}/${pageCount} processed with ${blocks.length} content blocks`);
     }
 
     return {
@@ -183,6 +221,7 @@ async function parseWithStreamParser(
             width: 612,   // Standard US Letter width in points
             height: 792,  // Standard US Letter height in points
             textContent: pageText,
+            structuredContent: [{ type: 'text', content: pageText }],
         });
     }
 

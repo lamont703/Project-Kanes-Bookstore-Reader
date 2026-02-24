@@ -437,25 +437,68 @@ export default function ReadPage() {
         <div className="flex-1 overflow-y-auto" ref={contentRef}>
           <div className={`min-h-full ${themeClasses[settings.theme]} transition-colors`}>
             <div className="container max-w-4xl mx-auto px-4 py-8">
-              {/* Page Image */}
+              {/* Content View */}
               <div key={currentPageIndex} className="animate-fade-up">
-                <div
-                  className="relative mx-auto rounded-lg overflow-hidden shadow-2xl shadow-black/30 border border-border/20"
-                  style={{
-                    maxWidth: `${(settings.zoom / 100) * 600}px`,
-                  }}
-                >
-                  {/* Page Image — preserves exact PDF layout */}
-                  <Image
-                    src={currentPage.page_image_url}
-                    alt={`Page ${currentPage.page_number}`}
-                    width={600}
-                    height={800}
-                    className="w-full h-auto block"
-                    priority
-                    unoptimized
-                  />
-                </div>
+                {settings.viewMode === "original" ? (
+                  <div
+                    className="relative mx-auto rounded-lg overflow-hidden shadow-2xl shadow-black/30 border border-border/20"
+                    style={{
+                      maxWidth: `${(settings.zoom / 100) * 800}px`,
+                    }}
+                  >
+                    {/* Page Image — preserves exact PDF layout */}
+                    <Image
+                      src={currentPage.page_image_url}
+                      alt={`Page ${currentPage.page_number}`}
+                      width={800}
+                      height={1100}
+                      className="w-full h-auto block"
+                      priority
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className={`mx-auto p-8 md:p-12 rounded-lg shadow-xl border border-border/10 transition-all duration-300 ${settings.theme === 'dark' ? 'bg-black/20' : 'bg-white/40'
+                      }`}
+                    style={{
+                      fontSize: `${settings.fontSize}px`,
+                      fontFamily: settings.fontFamily === 'serif' ? 'Georgia, serif' :
+                        settings.fontFamily === 'mono' ? 'monospace' : 'system-ui, sans-serif',
+                      lineHeight: '1.6',
+                    }}
+                  >
+                    {(() => {
+                      try {
+                        const blocks = JSON.parse(currentPage.content || "[]");
+                        if (!Array.isArray(blocks)) throw new Error();
+
+                        return blocks.map((block: any, idx: number) => {
+                          if (block.type === 'text') {
+                            return (
+                              <p key={idx} className="mb-6 whitespace-pre-wrap last:mb-0">
+                                {block.content}
+                              </p>
+                            );
+                          }
+                          if (block.type === 'image') {
+                            return (
+                              <div key={idx} className="my-8 flex justify-center">
+                                <div className="bg-muted/30 rounded p-4 text-xs text-muted-foreground border border-dashed text-center w-full max-w-sm">
+                                  Illustration Placeholder (Page {currentPage.page_number}, Index {block.imageIndex})
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        });
+                      } catch (e) {
+                        // Fallback to plain text if not JSON
+                        return <p className="whitespace-pre-wrap">{currentPage.content}</p>;
+                      }
+                    })()}
+                  </div>
+                )}
               </div>
 
               {/* Navigation */}

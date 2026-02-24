@@ -12,11 +12,17 @@ const STORAGE_KEYS = {
 export interface ReadingSettings {
   zoom: number
   theme: "light" | "dark" | "sepia"
+  fontSize: number
+  fontFamily: "serif" | "sans" | "mono"
+  viewMode: "original" | "text"
 }
 
 export const defaultSettings: ReadingSettings = {
   zoom: 100,
   theme: "dark",
+  fontSize: 18,
+  fontFamily: "serif",
+  viewMode: "original",
 }
 
 // Highlights

@@ -216,7 +216,7 @@ export async function handleUploadBook(
                     book_id: bookId,
                     page_number: page.pageNumber,
                     page_image_url: pageUrl.publicUrl,
-                    content: cleanText,
+                    content: JSON.stringify(page.structuredContent), // Store as structured JSON
                     word_count: wordCount,
                 });
 

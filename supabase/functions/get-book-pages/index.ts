@@ -112,7 +112,7 @@ serve(async (req: Request) => {
         const offset = (page - 1) * limit;
         const { data: pages, error: pageErr } = await adminClient
             .from("book_pages")
-            .select("page_number, page_image_url, word_count")
+            .select("page_number, page_image_url, content, word_count")
             .eq("book_id", bookId)
             .order("page_number", { ascending: true })
             .range(offset, offset + limit - 1);
