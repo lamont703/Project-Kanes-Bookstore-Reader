@@ -237,7 +237,8 @@ export async function handleUploadBook(
             if (pageDbError) throw pageDbError;
 
             // ── Extract illustrations from this page ──
-            const illustrations = await extractIllustrations(page, page.pageNumber);
+            // Use illustrations already extracted by the parser
+            const illustrations = parseResult.illustrations.filter(i => i.pageNumber === page.pageNumber);
 
             for (const illust of illustrations) {
                 const illustExt = illust.contentType === "image/webp" ? "webp" : "png";

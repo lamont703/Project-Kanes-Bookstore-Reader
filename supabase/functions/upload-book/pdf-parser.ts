@@ -143,12 +143,44 @@ async function parseWithMuPDF(
                     blocks.push({ type: 'text', content: blockText.trim() });
                     pagePlainText += blockText + "\n";
                 } else if (block.type === 'image') {
-                    blocks.push({
-                        type: 'image',
-                        imageIndex: bIdx,
-                        width: block.bbox[2] - block.bbox[0],
-                        height: block.bbox[3] - block.bbox[1]
-                    });
+                    // Extract the actual illustration
+                    const imgBBox = block.bbox; // [x0, y0, x1, y1]
+                    const imgWidth = Math.round(imgBBox[2] - imgBBox[0]);
+                    const imgHeight = Math.round(imgBBox[3] - imgBBox[1]);
+
+                    // Only extract significant images
+                    if (imgWidth > 30 && imgHeight > 30) {
+                        try {
+                            // Render precisely the image block to a pixmap
+                            const illustPixmap = page.toPixmap(
+                                mupdf.Matrix.identity,
+                                mupdf.ColorSpace.DeviceRGB,
+                                false,
+                                255
+                            ).clip(imgBBox);
+
+                            const illustPng = illustPixmap.asPNG();
+                            const positionIndex = illustrations.length;
+
+                            illustrations.push({
+                                pageNumber: i + 1,
+                                positionIndex,
+                                imageData: new Uint8Array(illustPng),
+                                contentType: "image/png",
+                                width: imgWidth,
+                                height: imgHeight,
+                            });
+
+                            blocks.push({
+                                type: 'image',
+                                imageIndex: positionIndex,
+                                width: imgWidth,
+                                height: imgHeight
+                            });
+                        } catch (illustErr) {
+                            console.warn(`[pdf-parser] Illustration extraction error on p${i + 1}:`, illustErr);
+                        }
+                    }
                 }
             });
         } else {

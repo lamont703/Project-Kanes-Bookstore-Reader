@@ -51,6 +51,7 @@ export default function ReadPage() {
   const [settings, setSettings] = useState<ReadingSettings>(getSettings())
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
+  const [bookIllustrations, setBookIllustrations] = useState<any[]>([])
 
   // UI state
   const [showBookmarkDialog, setShowBookmarkDialog] = useState(false)
@@ -94,6 +95,14 @@ export default function ReadPage() {
 
         setPages(pageData)
 
+        // Fetch book illustrations
+        const { data: illustData } = await supabase
+          .from("book_illustrations")
+          .select("*")
+          .eq("book_id", bookId)
+
+        if (illustData) setBookIllustrations(illustData)
+
         // Fetch user's reading progress
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
@@ -103,7 +112,7 @@ export default function ReadPage() {
             .select("current_page")
             .eq("user_id", user.id)
             .eq("book_id", bookId)
-            .single()
+            .maybeSingle()
 
           if (progress?.current_page) {
             const resumeIndex = pageData.findIndex(
@@ -482,10 +491,36 @@ export default function ReadPage() {
                             );
                           }
                           if (block.type === 'image') {
+                            const illust = bookIllustrations.find(
+                              img => img.page_number === currentPage.page_number && img.position_index === block.imageIndex
+                            );
+
+                            if (illust) {
+                              return (
+                                <div key={idx} className="my-8 flex justify-center flex-col items-center">
+                                  <div className="relative rounded-lg overflow-hidden shadow-lg border border-border/10 max-w-full">
+                                    <Image
+                                      src={illust.image_url}
+                                      alt={`Illustration on page ${currentPage.page_number}`}
+                                      width={illust.width || 600}
+                                      height={illust.height || 400}
+                                      className="max-w-full h-auto"
+                                      unoptimized
+                                    />
+                                  </div>
+                                  {illust.caption && (
+                                    <p className="mt-2 text-sm text-muted-foreground italic text-center">
+                                      {illust.caption}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            }
+
                             return (
                               <div key={idx} className="my-8 flex justify-center">
                                 <div className="bg-muted/30 rounded p-4 text-xs text-muted-foreground border border-dashed text-center w-full max-w-sm">
-                                  Illustration Placeholder (Page {currentPage.page_number}, Index {block.imageIndex})
+                                  Illustration (Loading...)
                                 </div>
                               </div>
                             );
