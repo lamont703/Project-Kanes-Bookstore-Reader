@@ -4,7 +4,7 @@ import { cookies } from "next/headers"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 // ─── Guard: verify the caller is an admin ──────────────────────────────────
-async function verifyAdmin() {
+async function verifyAdmin(): Promise<{ user: any; error?: string }> {
     const cookieStore = await cookies()
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,25 +16,29 @@ async function verifyAdmin() {
             },
         }
     )
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    // Check role via admin client (bypasses RLS so we can always read it)
+    if (authError) return { user: null, error: `Authentication failed: ${authError.message}` }
+    if (!user) return { user: null, error: "No active session found. Please log in." }
+
+    // Check role via admin client
     const admin = createAdminClient()
-    const { data } = await admin
+    const { data, error: roleError } = await admin
         .from("users")
         .select("role")
         .eq("id", user.id)
         .single()
 
-    if (data?.role !== "admin") return null
-    return user
+    if (roleError) return { user: null, error: `Role check failed: ${roleError.message}` }
+    if (data?.role !== "admin") return { user: null, error: `Access denied: User role is "${data?.role}", not "admin".` }
+
+    return { user }
 }
 
 // ─── GET: list all users with their subscription plan ─────────────────────
 export async function GET(request: NextRequest) {
-    const caller = await verifyAdmin()
-    if (!caller) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const { user: caller, error: verifyError } = await verifyAdmin()
+    if (!caller) return NextResponse.json({ error: verifyError }, { status: 403 })
 
     const admin = createAdminClient()
 
@@ -110,8 +114,8 @@ export async function GET(request: NextRequest) {
 
 // ─── PATCH: update subscription tier or ban status ────────────────────────
 export async function PATCH(request: NextRequest) {
-    const caller = await verifyAdmin()
-    if (!caller) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const { user: caller, error: verifyError } = await verifyAdmin()
+    if (!caller) return NextResponse.json({ error: verifyError }, { status: 403 })
 
     const body = await request.json() as {
         userId: string
