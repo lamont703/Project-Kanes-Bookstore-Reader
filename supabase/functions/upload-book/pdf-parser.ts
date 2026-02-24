@@ -82,8 +82,8 @@ async function parseWithMuPDF(
     fileName: string
 ): Promise<PDFParseResult> {
     // Dynamic import of MuPDF WASM module
-    // In production, this would be bundled with the Edge Function
-    const mupdf = await import("https://cdn.jsdelivr.net/npm/mupdf@0.5.0/dist/mupdf.js");
+    // Switching to unpkg which often handles WASM sidecars more reliably in Deno
+    const mupdf = await import("https://unpkg.com/mupdf@0.5.0/dist/mupdf.js");
 
     const doc = mupdf.Document.openDocument(fileBytes, fileName);
     const pageCount = doc.countPages();
@@ -109,15 +109,20 @@ async function parseWithMuPDF(
             height = Math.round(height * ratio);
         }
 
-        // Render page to pixmap (RGBA)
-        const pixmap = page.toPixmap(
-            mupdf.Matrix.scale(width / (bounds[2] - bounds[0]), height / (bounds[3] - bounds[1])),
-            mupdf.ColorSpace.DeviceRGB,
-            false,         // no alpha
-            255            // white background
-        );
+        // Create pixmap and clear to white
+        const pixmap = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, [0, 0, width, height], false);
+        pixmap.clear(255);
 
-        // Convert pixmap to PNG (WebP encoding would require additional WASM module)
+        // Draw page onto pixmap with correct scaling
+        const drawDevice = new mupdf.DrawDevice(mupdf.Matrix.identity, pixmap);
+        try {
+            const matrix = mupdf.Matrix.scale(width / (bounds[2] - bounds[0]), height / (bounds[3] - bounds[1]));
+            page.run(drawDevice, matrix, new mupdf.Cookie());
+        } finally {
+            drawDevice.close();
+        }
+
+        // Convert pixmap to PNG
         const pngData = pixmap.asPNG();
 
         // Extract structured content (text and images in order)
@@ -126,19 +131,18 @@ async function parseWithMuPDF(
         let pagePlainText = "";
 
         // Iterate through blocks (MuPDF identifies text, images, etc.)
-        // Note: The structure depends on the MuPDF version, but generally 
-        // follows: Blocks -> Lines -> Spans
-        const mupdfBlocks = structuredText.asJSON?.() ? JSON.parse(structuredText.asJSON()).blocks : [];
+        const jsonStr = structuredText.asJSON?.();
+        const mupdfBlocks = jsonStr ? JSON.parse(jsonStr).blocks : [];
 
-        if (mupdfBlocks.length > 0) {
-            mupdfBlocks.forEach((block: any, bIdx: number) => {
+        if (mupdfBlocks && mupdfBlocks.length > 0) {
+            mupdfBlocks.forEach((block: any) => {
                 if (block.type === 'text') {
                     let blockText = "";
                     block.lines.forEach((line: any) => {
                         line.spans.forEach((span: any) => {
                             blockText += span.text;
                         });
-                        blockText += "\n";
+                        blockText += " "; // Add space between lines
                     });
                     blocks.push({ type: 'text', content: blockText.trim() });
                     pagePlainText += blockText + "\n";
@@ -151,13 +155,17 @@ async function parseWithMuPDF(
                     // Only extract significant images
                     if (imgWidth > 30 && imgHeight > 30) {
                         try {
-                            // Render precisely the image block to a pixmap
-                            const illustPixmap = page.toPixmap(
-                                mupdf.Matrix.identity,
-                                mupdf.ColorSpace.DeviceRGB,
-                                false,
-                                255
-                            ).clip(imgBBox);
+                            // Extract precisely the image block
+                            const illustPixmap = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, [0, 0, imgWidth, imgHeight], false);
+                            illustPixmap.clear(255);
+                            const illustDev = new mupdf.DrawDevice(mupdf.Matrix.identity, illustPixmap);
+                            try {
+                                // Translate the page so the image is at (0,0)
+                                const illustMatrix = mupdf.Matrix.translate(-imgBBox[0], -imgBBox[1]);
+                                page.run(illustDev, illustMatrix, new mupdf.Cookie());
+                            } finally {
+                                illustDev.close();
+                            }
 
                             const illustPng = illustPixmap.asPNG();
                             const positionIndex = illustrations.length;
@@ -342,12 +350,12 @@ function generatePageSVG(
     const margin = 60;
 
     // Truncate text to fit the page reasonably
-    const maxChars = 800;
+    const maxChars = 5000;
     const displayText = text.length > maxChars ? text.substring(0, maxChars) + "..." : text;
 
     // Word-wrap the text into lines
-    const lines = wordWrap(displayText, 70);
-    const lineHeight = 18;
+    const lines = wordWrap(displayText, 75);
+    const lineHeight = 16;
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
