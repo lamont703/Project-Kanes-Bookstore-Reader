@@ -126,29 +126,7 @@ export function DashboardContent({
                                 )}
                             </section>
 
-                            <section>
-                                <h2 className="font-display text-2xl tracking-wider uppercase mb-4">Sector Statistics</h2>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                    <Card className="p-4 bg-card/50 text-center">
-                                        <span className="text-3xl font-bold text-primary">{initialLibrary.length}</span>
-                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">Books Owned</p>
-                                    </Card>
-                                    <Card className="p-4 bg-card/50 text-center">
-                                        <span className="text-3xl font-bold text-secondary">7</span>
-                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">Day Streak</p>
-                                    </Card>
-                                    <Card className="p-4 bg-card/50 text-center">
-                                        <span className="text-3xl font-bold text-primary">
-                                            {initialLibrary.filter(i => i.reading_progress?.[0]?.progress_percent === 100).length}
-                                        </span>
-                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">Read To End</p>
-                                    </Card>
-                                    <Card className="p-4 bg-card/50 text-center">
-                                        <span className="text-3xl font-bold text-secondary">2.1k</span>
-                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">Total Mins</p>
-                                    </Card>
-                                </div>
-                            </section>
+
                         </div>
 
                         <div className="space-y-6">
