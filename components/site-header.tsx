@@ -101,7 +101,7 @@ export function SiteHeader() {
                         {/* Only show these if logged in, but we use a small container to minimize shift */}
                         <div className={cn("flex items-center gap-6 overflow-hidden transition-all duration-300",
                             isLoggedIn ? "max-w-[600px] opacity-100" : "max-w-0 opacity-0")}>
-                            {isPremium && (
+                            {(isPremium || isAdmin) && (
                                 <>
                                     <Link
                                         href="/book-club/discussions"
@@ -217,7 +217,7 @@ export function SiteHeader() {
                             >
                                 Book Club
                             </Link>
-                            {isLoggedIn && isPremium && (
+                            {isLoggedIn && (isPremium || isAdmin) && (
                                 <>
                                     <Link
                                         href="/book-club/discussions"
