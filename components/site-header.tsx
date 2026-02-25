@@ -16,7 +16,7 @@ import { useAuth } from "@/context/auth-context"
 export function SiteHeader() {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false)
     const { cartCount } = useCart()
-    const { user, signOut, isAdmin } = useAuth()
+    const { user, signOut, isAdmin, isPremium } = useAuth()
     const isLoggedIn = !!user
     const pathname = usePathname()
     const [isBouncing, setIsBouncing] = React.useState(false)
@@ -100,25 +100,29 @@ export function SiteHeader() {
 
                         {/* Only show these if logged in, but we use a small container to minimize shift */}
                         <div className={cn("flex items-center gap-6 overflow-hidden transition-all duration-300",
-                            isLoggedIn ? "max-w-[400px] opacity-100" : "max-w-0 opacity-0")}>
-                            <Link
-                                href="/book-club/discussions"
-                                className={cn(
-                                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
-                                    pathname.startsWith("/book-club/discussions") ? "text-primary" : "text-muted-foreground",
-                                )}
-                            >
-                                Discussions
-                            </Link>
-                            <Link
-                                href="/book-club/events"
-                                className={cn(
-                                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
-                                    pathname.startsWith("/book-club/events") ? "text-primary" : "text-muted-foreground",
-                                )}
-                            >
-                                Events
-                            </Link>
+                            isLoggedIn ? "max-w-[600px] opacity-100" : "max-w-0 opacity-0")}>
+                            {isPremium && (
+                                <>
+                                    <Link
+                                        href="/book-club/discussions"
+                                        className={cn(
+                                            "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
+                                            pathname.startsWith("/book-club/discussions") ? "text-primary" : "text-muted-foreground",
+                                        )}
+                                    >
+                                        Discussions
+                                    </Link>
+                                    <Link
+                                        href="/book-club/events"
+                                        className={cn(
+                                            "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
+                                            pathname.startsWith("/book-club/events") ? "text-primary" : "text-muted-foreground",
+                                        )}
+                                    >
+                                        Events
+                                    </Link>
+                                </>
+                            )}
                             <Link
                                 href="/dashboard"
                                 className={cn(
@@ -213,7 +217,7 @@ export function SiteHeader() {
                             >
                                 Book Club
                             </Link>
-                            {isLoggedIn && (
+                            {isLoggedIn && isPremium && (
                                 <>
                                     <Link
                                         href="/book-club/discussions"

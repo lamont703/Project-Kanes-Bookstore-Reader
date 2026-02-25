@@ -8,7 +8,9 @@ interface AuthContextType {
     user: User | null
     session: Session | null
     profile: any | null
+    subscription: any | null
     isAdmin: boolean
+    isPremium: boolean
     isLoading: boolean
     signOut: () => Promise<void>
 }
@@ -19,17 +21,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [session, setSession] = useState<Session | null>(null)
     const [profile, setProfile] = useState<any | null>(null)
+    const [subscription, setSubscription] = useState<any | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const supabase = createClient()
 
     useEffect(() => {
-        const fetchProfile = async (userId: string) => {
-            const { data } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', userId)
-                .single()
-            setProfile(data)
+        const fetchUserData = async (userId: string) => {
+            const [profileRes, subRes] = await Promise.all([
+                supabase.from('users').select('*').eq('id', userId).single(),
+                supabase.from('user_subscriptions').select('*').eq('user_id', userId).single()
+            ])
+            setProfile(profileRes.data)
+            setSubscription(subRes.data)
         }
 
         const getInitialSession = async () => {
@@ -39,9 +42,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(currentUser)
 
             if (currentUser) {
-                await fetchProfile(currentUser.id)
+                await fetchUserData(currentUser.id)
             } else {
                 setProfile(null)
+                setSubscription(null)
             }
 
             setIsLoading(false)
@@ -49,22 +53,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         getInitialSession()
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setSession(session)
             const currentUser = session?.user ?? null
             setUser(currentUser)
 
             if (currentUser) {
-                await fetchProfile(currentUser.id)
+                await fetchUserData(currentUser.id)
             } else {
                 setProfile(null)
+                setSubscription(null)
             }
 
             setIsLoading(false)
         })
 
         return () => {
-            subscription.unsubscribe()
+            authSub.unsubscribe()
         }
     }, [supabase])
 
@@ -73,12 +78,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null)
         setSession(null)
         setProfile(null)
+        setSubscription(null)
     }
 
     const isAdmin = profile?.role === 'admin'
+    const isPremium = subscription?.plan === 'premium' && subscription?.status === 'active'
 
     return (
-        <AuthContext.Provider value={{ user, session, profile, isAdmin, isLoading, signOut }}>
+        <AuthContext.Provider value={{ user, session, profile, subscription, isAdmin, isPremium, isLoading, signOut }}>
             {children}
         </AuthContext.Provider>
     )

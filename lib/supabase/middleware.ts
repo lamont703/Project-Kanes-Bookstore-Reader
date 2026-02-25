@@ -38,29 +38,46 @@ export async function updateSession(request: NextRequest) {
     const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
         request.nextUrl.pathname.startsWith('/auth')
     const isAdminPage = request.nextUrl.pathname.startsWith('/admin')
+    const isPremiumPage = request.nextUrl.pathname.startsWith('/book-club/discussions') ||
+        request.nextUrl.pathname.startsWith('/book-club/events')
 
-    if (!user && isAdminPage) {
+    if (!user && (isAdminPage || isPremiumPage)) {
         const response = NextResponse.redirect(new URL('/login', request.url))
-        // Copy cookies to ensure session is preserved/refreshed
         supabaseResponse.cookies.getAll().forEach((cookie) => {
             response.cookies.set(cookie.name, cookie.value, cookie)
         })
         return response
     }
 
-    if (user && isAdminPage) {
-        const { data: profile } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', user.id)
-            .single()
+    if (user && (isAdminPage || isPremiumPage)) {
+        // Fetch both role and subscription in parallel
+        const [profileRes, subRes] = await Promise.all([
+            supabase.from('users').select('role').eq('id', user.id).single(),
+            supabase.from('user_subscriptions').select('plan, status').eq('user_id', user.id).single()
+        ])
 
-        if (profile?.role !== 'admin') {
+        const role = profileRes.data?.role
+        const sub = subRes.data
+
+        // Admin check
+        if (isAdminPage && role !== 'admin') {
             const response = NextResponse.redirect(new URL('/', request.url))
             supabaseResponse.cookies.getAll().forEach((cookie) => {
                 response.cookies.set(cookie.name, cookie.value, cookie)
             })
             return response
+        }
+
+        // Premium check (Admins get access to premium pages too)
+        if (isPremiumPage && role !== 'admin') {
+            const isPremium = sub?.plan === 'premium' && sub?.status === 'active'
+            if (!isPremium) {
+                const response = NextResponse.redirect(new URL('/book-club', request.url))
+                supabaseResponse.cookies.getAll().forEach((cookie) => {
+                    response.cookies.set(cookie.name, cookie.value, cookie)
+                })
+                return response
+            }
         }
     }
 
