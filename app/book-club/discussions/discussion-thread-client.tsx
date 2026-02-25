@@ -27,8 +27,8 @@ interface DbPost {
     users: {
         id: string
         full_name: string | null
-        username: string | null
-    } | { id: string; full_name: string | null; username: string | null }[] | null
+        display_name: string | null
+    } | { id: string; full_name: string | null; display_name: string | null }[] | null
 }
 
 interface DbTopic {
@@ -76,7 +76,7 @@ function nestPosts(flat: DbPost[], userVotes: Record<string, "up" | "down">): Po
 
 function getAuthorName(post: DbPost): string {
     const u = Array.isArray(post.users) ? post.users[0] : post.users
-    return u?.username ?? u?.full_name ?? "Komet Explorer"
+    return u?.display_name ?? u?.full_name ?? "Komet Explorer"
 }
 
 function timeAgo(dateStr: string): string {
@@ -231,7 +231,7 @@ export default function DiscussionThreadClient({ topic, initialPosts, currentUse
 
     // Author display name
     const myDisplayName =
-        (currentUser.user_metadata?.username as string | undefined) ??
+        (currentUser.user_metadata?.display_name as string | undefined) ??
         (currentUser.user_metadata?.full_name as string | undefined) ??
         "Komet Explorer"
 
@@ -250,7 +250,7 @@ export default function DiscussionThreadClient({ topic, initialPosts, currentUse
             })
             .select(`
         id, topic_id, parent_id, author_id, content, likes, created_at, updated_at,
-        users ( id, full_name, username )
+        users ( id, full_name, display_name )
       `)
             .single()
 
@@ -281,7 +281,7 @@ export default function DiscussionThreadClient({ topic, initialPosts, currentUse
             })
             .select(`
         id, topic_id, parent_id, author_id, content, likes, created_at, updated_at,
-        users ( id, full_name, username )
+        users ( id, full_name, display_name )
       `)
             .single()
 

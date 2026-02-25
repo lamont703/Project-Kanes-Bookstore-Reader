@@ -51,7 +51,7 @@ export default async function DiscussionThreadPage({ params }: { params: Promise
       users (
         id,
         full_name,
-        username
+        display_name
       )
     `)
     .eq("topic_id", id)
