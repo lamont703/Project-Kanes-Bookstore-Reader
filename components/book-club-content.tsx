@@ -215,9 +215,9 @@ export function BookClubContent({
                     <section className="mb-24 overflow-hidden">
                         <div className="mb-12">
                             <h2 className="font-display text-4xl md:text-5xl tracking-wider mb-2">
-                                <span className="text-muted-foreground">MISSION</span> ARCHIVES
+                                <span className="text-muted-foreground">PAST MONTHLY</span> SELECTIONS
                             </h2>
-                            <p className="text-muted-foreground">The last 5 collection targets from our historical archives</p>
+                            <p className="text-muted-foreground">Explore our previous monthly featured collections</p>
                         </div>
                         <div className="flex gap-6 overflow-x-auto pb-8 custom-scrollbar snap-x snap-mandatory -mx-4 px-4 md:-mx-0 md:px-0">
                             {pastSelections.slice(0, 5).map((selection) => (

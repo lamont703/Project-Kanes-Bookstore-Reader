@@ -116,8 +116,8 @@ export function BookClubSelectionCard({
 
           {!isMember && selection.status === "past" && (
             <div className="pt-2">
-              <Button variant="secondary" size={isCompact ? "xs" : "sm"} asChild className="w-full font-display tracking-widest">
-                <Link href={`/book/${book.id}`}>BUY TARGET</Link>
+              <Button variant="default" size={isCompact ? "xs" : "sm"} asChild className="w-full font-display tracking-widest">
+                <Link href={`/book/${book.id}`}>BUY NOW</Link>
               </Button>
             </div>
           )}
