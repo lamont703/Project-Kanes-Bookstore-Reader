@@ -147,29 +147,22 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
             setLoading(true)
             try {
-                const { data: { session } } = await supabase.auth.getSession()
-                if (!session) throw new Error("Not authenticated")
-
-                const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-subscription`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${session.access_token}`
-                    },
-                    body: JSON.stringify({
+                const { data, error: functionError } = await supabase.functions.invoke('create-subscription', {
+                    body: {
                         fullName: formData.name,
                         email: formData.email,
                         phone: formData.phone,
                         mailingAddress: formData.address,
                         tshirtSize: formData.tshirtSize,
                         selectedBookIds: selectedBooks,
-                    }),
+                    },
                 })
 
-                const result = await res.json()
-                if (!res.ok) throw new Error(result.error || "Failed to prepare subscription")
+                if (functionError) {
+                    throw new Error(functionError.message || "Failed to prepare subscription")
+                }
 
-                setClientSecret(result.clientSecret)
+                setClientSecret(data.clientSecret)
                 setStep(3)
             } catch (err: any) {
                 toast.error(err.message)
