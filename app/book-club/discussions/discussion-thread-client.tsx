@@ -96,11 +96,12 @@ interface CommentItemProps {
     currentUser: User
     onVote: (postId: string, type: "up" | "down") => Promise<void>
     onReply: (parentId: string, content: string) => Promise<void>
-    isNested?: boolean
+    depth?: number
 }
 
-function CommentItem({ post, currentUser, onVote, onReply, isNested = false }: CommentItemProps) {
+function CommentItem({ post, currentUser, onVote, onReply, depth = 0 }: CommentItemProps) {
     const [isReplying, setIsReplying] = useState(false)
+    const [isCollapsed, setIsCollapsed] = useState(false)
     const [replyContent, setReplyContent] = useState("")
     const [isPendingVote, startVote] = useTransition()
     const [isPendingReply, startReply] = useTransition()
@@ -114,9 +115,42 @@ function CommentItem({ post, currentUser, onVote, onReply, isNested = false }: C
         })
     }
 
+    const hasReplies = post.replies.length > 0
+    const authorName = getAuthorName(post)
+
+    // Indentation capping
+    const canIndent = depth > 0 && depth < 5
+
+    if (isCollapsed) {
+        return (
+            <div className={cn("group mt-4", canIndent && "ml-4 pl-4 border-l-2 border-border/10")}>
+                <button
+                    onClick={() => setIsCollapsed(false)}
+                    className="text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
+                >
+                    <div className="w-4 h-4 rounded bg-muted flex items-center justify-center">+</div>
+                    <span>{authorName} transmission minimized • {post.replies.length + 1} signals hidden</span>
+                </button>
+            </div>
+        )
+    }
+
     return (
-        <div className={cn("group", isNested && "mt-4 ml-4 pl-4 border-l-2 border-border/30")}>
-            <div className="flex gap-3">
+        <div className={cn(
+            "group",
+            depth > 0 && "mt-4",
+            canIndent ? "ml-4 pl-4 border-l-2 border-border/30" : (depth >= 5 ? "ml-0 pl-4 border-l-2 border-primary/20" : "")
+        )}>
+            <div className="flex gap-3 relative">
+                {/* Clickable Collapse Line (Vertical) */}
+                {depth > 0 && (
+                    <div
+                        className="absolute -left-4 top-0 bottom-0 w-4 cursor-pointer hover:bg-primary/5 transition-colors"
+                        onClick={() => setIsCollapsed(true)}
+                        title="Collapse thread"
+                    />
+                )}
+
                 {/* Vote Column */}
                 <div className="flex flex-col items-center gap-1 w-8 pt-1">
                     <div className="flex flex-col items-center">
@@ -150,7 +184,7 @@ function CommentItem({ post, currentUser, onVote, onReply, isNested = false }: C
                 {/* Content */}
                 <div className="flex-1 pb-2">
                     <div className="flex items-center gap-2 text-xs mb-1">
-                        <span className="font-bold text-foreground">{getAuthorName(post)}</span>
+                        <span className="font-bold text-foreground hover:text-primary cursor-pointer" onClick={() => setIsCollapsed(true)}>{authorName}</span>
                         <span className="text-muted-foreground">• {timeAgo(post.created_at)}</span>
                     </div>
                     <p className="text-sm text-foreground/90 mb-2 leading-relaxed">{post.content}</p>
@@ -201,7 +235,7 @@ function CommentItem({ post, currentUser, onVote, onReply, isNested = false }: C
                                     currentUser={currentUser}
                                     onVote={onVote}
                                     onReply={onReply}
-                                    isNested={true}
+                                    depth={depth + 1}
                                 />
                             ))}
                         </div>
