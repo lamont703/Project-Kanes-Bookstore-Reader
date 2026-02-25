@@ -4,11 +4,12 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { BookClubSelectionCard } from "@/components/book-club-selection-card"
-import { Star, Check, Crown, Clock, Video, MapPin, Users } from "lucide-react"
+import { Star, Check, Crown, Clock, Video, MapPin, Users, Globe } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { SubscriptionModal } from "@/components/subscription-modal"
 import { useAuth } from "@/context/auth-context"
+import { RsvpModal } from "@/app/book-club/events/rsvp-modal"
 
 interface BookClubContentProps {
     currentSelection: any
@@ -17,6 +18,7 @@ interface BookClubContentProps {
     events: any[]
     subscription: any
     eligibleBooks: any[]
+    userRsvps?: string[]
 }
 
 
@@ -54,7 +56,8 @@ export function BookClubContent({
     pastSelections,
     events,
     subscription,
-    eligibleBooks
+    eligibleBooks,
+    userRsvps = []
 }: BookClubContentProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const { user } = useAuth()
@@ -258,9 +261,20 @@ export function BookClubContent({
                         {events.map((event) => (
                             <Card key={event.id} className="p-6 bg-card/50 backdrop-blur border-border flex flex-col">
                                 <div className="mb-4">
-                                    <p className="text-sm font-medium text-primary">
-                                        {new Date(event.date).toLocaleDateString()}
-                                    </p>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <p className="text-sm font-medium text-primary">
+                                            {new Date(event.date).toLocaleDateString()}
+                                        </p>
+                                        {event.is_public ? (
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-green-400 bg-green-400/10 px-2 py-0.5 rounded border border-green-400/20 flex items-center gap-1">
+                                                <Globe className="w-2.5 h-2.5" /> Public
+                                            </span>
+                                        ) : (
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 flex items-center gap-1">
+                                                <Crown className="w-2.5 h-2.5" /> Members
+                                            </span>
+                                        )}
+                                    </div>
                                     <h3 className="font-display text-2xl tracking-wide mt-1">{event.title}</h3>
                                 </div>
                                 <p className="text-muted-foreground mb-4 text-sm leading-relaxed">
@@ -275,6 +289,19 @@ export function BookClubContent({
                                         <MapPin className="w-4 h-4 text-secondary" />
                                         <span>{event.location}</span>
                                     </div>
+                                    <div className="flex items-center gap-3">
+                                        <Users className="w-4 h-4 text-secondary" />
+                                        <span>{event.attendee_count || 0} going</span>
+                                    </div>
+                                </div>
+                                <div className="mt-6">
+                                    <RsvpModal
+                                        eventId={event.id}
+                                        eventTitle={event.title}
+                                        isPublic={event.is_public}
+                                        currentUser={user}
+                                        alreadyRsvped={userRsvps.includes(event.id)}
+                                    />
                                 </div>
                             </Card>
                         ))}

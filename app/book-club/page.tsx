@@ -31,6 +31,8 @@ export default async function BookClubPage() {
   // Fetch User Subscription if logged in
   const { data: { user } } = await supabase.auth.getUser()
   let subscription = null
+  let userRsvps: string[] = []
+
   if (user) {
     const { data: sub } = await supabase
       .from('user_subscriptions')
@@ -38,6 +40,13 @@ export default async function BookClubPage() {
       .eq('user_id', user.id)
       .single()
     subscription = sub
+
+    const { data: rsvps } = await supabase
+      .from('event_rsvps')
+      .select('event_id')
+      .eq('user_id', user.id)
+
+    userRsvps = (rsvps || []).map(r => r.event_id)
   }
 
   // Fetch Eligible Book Club Books (for display)
@@ -57,6 +66,7 @@ export default async function BookClubPage() {
         events={events || []}
         subscription={subscription}
         eligibleBooks={eligibleBooks || []}
+        userRsvps={userRsvps}
       />
     </div>
   )
