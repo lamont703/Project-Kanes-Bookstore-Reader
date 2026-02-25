@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Check, Loader2, Sparkles, Book as BookIcon, Shirt, Gift, Tag, CreditCard, Crown } from "lucide-react"
+import { Check, Loader2, Sparkles, Book as BookIcon, Shirt, Gift, Tag, CreditCard, Crown, Users } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -339,12 +339,15 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                                     <h3 className="font-display text-xl mb-4 flex items-center gap-2">
                                         <Sparkles className="text-primary w-5 h-5" /> Membership Includes
                                     </h3>
-                                    <ul className="space-y-2 text-sm">
-                                        <li className="flex items-center gap-2"><Shirt className="w-4 h-4 text-blue-400" /> Kane's Komet T-Shirt</li>
-                                        <li className="flex items-center gap-2"><BookIcon className="w-4 h-4 text-green-400" /> 2 E-Books (Selected)</li>
-                                        <li className="flex items-center gap-2 border-t pt-2 mt-2 font-medium">
+                                    <ul className="grid grid-cols-1 gap-y-3 gap-x-6 text-sm">
+                                        <li className="flex items-center gap-2"><Shirt className="w-4 h-4 text-blue-400" /> Official Komet T-Shirt</li>
+                                        <li className="flex items-center gap-2"><BookIcon className="w-4 h-4 text-green-400" /> 2 Free E-Books (Selected)</li>
+                                        <li className="flex items-center gap-2"><Gift className="w-4 h-4 text-purple-400" /> Surprise Gift Item</li>
+                                        <li className="flex items-center gap-2"><Tag className="w-4 h-4 text-orange-400" /> Kane Dealer Code (35% OFF)</li>
+                                        <li className="flex items-center gap-2 font-medium">
                                             <Crown className="w-4 h-4 text-primary" /> Monthly E-Komet Book Access
                                         </li>
+                                        <li className="flex items-center gap-2"><Users className="w-4 h-4 text-cyan-400" /> Community Access</li>
                                     </ul>
                                 </div>
 
