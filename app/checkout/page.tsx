@@ -160,8 +160,8 @@ export default function CheckoutPage() {
                     format: item.format,
                     quantity: item.quantity,
                 })),
-                dealerCode: dealerCodeApplied ? dealerCode.trim().toUpperCase() : undefined,
-                shipping: hasPhysicalItems ? {
+                promoCode: dealerCodeApplied ? dealerCode.trim().toUpperCase() : undefined,
+                shippingAddress: hasPhysicalItems ? {
                     firstName: formData.firstName,
                     lastName: formData.lastName,
                     address: formData.address,
@@ -171,23 +171,15 @@ export default function CheckoutPage() {
                 } : undefined,
             }
 
-            // Call Supabase Edge Function
-            const { data: { session } } = await supabase.auth.getSession()
-            if (!session) throw new Error("Not authenticated")
-
-            const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-checkout`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify(checkoutPayload),
+            // Call Supabase Edge Function via the official client
+            // This automatically handles the apikey and Authorization headers
+            const { data, error: functionError } = await supabase.functions.invoke('process-checkout', {
+                body: checkoutPayload,
             })
 
-            const data = await res.json()
-
-            if (!res.ok) {
-                toast.error(data.error?.message || data.error || "Checkout failed. Please try again.")
+            if (functionError) {
+                console.error("Function error:", functionError)
+                toast.error(functionError.message || "Checkout failed. Please try again.")
                 return
             }
 
