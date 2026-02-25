@@ -173,12 +173,16 @@ export default function CheckoutPage() {
 
             // Call Supabase Edge Function via the official client
             // This automatically handles the apikey and Authorization headers
+            const { data: { session } } = await supabase.auth.getSession()
+            console.log('Current session for checkout:', session ? 'Valid' : 'None')
+
             const { data, error: functionError } = await supabase.functions.invoke('process-checkout', {
                 body: checkoutPayload,
             })
 
             if (functionError) {
                 console.error("Function error:", functionError)
+                console.error("Error details:", JSON.stringify(functionError))
                 toast.error(functionError.message || "Checkout failed. Please try again.")
                 return
             }
