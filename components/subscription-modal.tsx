@@ -100,6 +100,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
         }
 
         query.order("title")
+            .limit(5)
             .then(({ data, error }) => {
                 if (error) toast.error("Failed to load books")
                 setAvailableBooks(data || [])
