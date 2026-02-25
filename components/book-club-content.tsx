@@ -19,12 +19,7 @@ interface BookClubContentProps {
     eligibleBooks: any[]
 }
 
-const bundleBooks = [
-    { id: "00000000-0000-0000-0000-000000000004", title: "Somes 3", cover: "/Somes 3 Cover.webp" },
-    { id: "00000000-0000-0000-0000-000000000001", title: "Brute Syndicate", cover: "/Brute Syndicate 1 Cover.webp" },
-    // These might not be in the master seed but are in the mock
-    { id: "b3", title: "Flying With The Chrysiridiarhipheus 1", cover: "/Flying With The Chrysiridiarhipheus 1 Cover.webp" },
-]
+
 
 const bookClubBenefits = [
     {
@@ -181,7 +176,7 @@ export function BookClubContent({
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 md:gap-12 max-w-6xl mx-auto">
-                            {eligibleBooks.map((book) => (
+                            {eligibleBooks.map((book: any) => (
                                 <div key={book.id} className="group relative">
                                     <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:-translate-y-2 border-2 border-transparent group-hover:border-secondary/50">
                                         <Image
@@ -213,6 +208,7 @@ export function BookClubContent({
                         </div>
                     </section>
                 )}
+
 
                 {/* Events Section */}
                 <section className="mb-16">
