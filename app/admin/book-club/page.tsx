@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { getCurrentStatus, MONTHS, sortSelections } from "@/lib/book-club-utils"
 
 // ─── Types ─────────────────────────────────────────────────────
 interface Book {
@@ -120,6 +121,8 @@ export default function AdminBookClubPage() {
 
     setIsSaving(true)
     try {
+      const status = getCurrentStatus(selectionMonth, selectionYear)
+
       const res = await fetch("/api/admin/book-club", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -129,7 +132,7 @@ export default function AdminBookClubPage() {
           year: selectionYear,
           theme: selectionTheme,
           description: selectionDesc,
-          status: (selectionMonth === new Date().toLocaleString('default', { month: 'long' }) && selectionYear === new Date().getFullYear()) ? 'current' : 'upcoming'
+          status: status
         })
       })
 
@@ -165,7 +168,11 @@ export default function AdminBookClubPage() {
     setSelectedBook(null)
     setSelectionTheme("")
     setSelectionDesc("")
+    setSelectionMonth(new Date().toLocaleString('default', { month: 'long' }))
+    setSelectionYear(new Date().getFullYear())
   }
+
+  const statusPreview = getCurrentStatus(selectionMonth, selectionYear)
 
   return (
     <div className="p-4 md:p-8">
@@ -284,7 +291,8 @@ export default function AdminBookClubPage() {
                           <span className="text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                             {selection.month} {selection.year}
                           </span>
-                          <span className={`text-[8px] font-black tracking-tighter px-1.5 py-0.5 rounded border ${selection.status === "upcoming" ? "border-secondary/30 text-secondary" : "border-muted/30 text-muted-foreground"
+                          <span className={`text-[8px] font-black tracking-tighter px-1.5 py-0.5 rounded border ${selection.status === "upcoming" ? "border-secondary/30 text-secondary" :
+                            selection.status === "past" ? "border-muted/30 text-muted-foreground" : "border-primary/30 text-primary"
                             }`}>
                             {selection.status.toUpperCase()}
                           </span>
@@ -379,7 +387,7 @@ export default function AdminBookClubPage() {
                     value={selectionMonth}
                     onChange={(e) => setSelectionMonth(e.target.value)}
                   >
-                    {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map(m => (
+                    {MONTHS.map(m => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
@@ -423,13 +431,24 @@ export default function AdminBookClubPage() {
                   <Sparkles className="w-4 h-4" />
                   <span className="text-[10px] font-bold uppercase tracking-widest">Preview Summary</span>
                 </div>
-                {selectedBook ? (
-                  <div className="text-xs text-muted-foreground italic">
-                    "{selectedBook.title}" will be deployed as the {selectionMonth} flagship.
+                <div className="flex flex-col gap-1">
+                  {selectedBook ? (
+                    <div className="text-xs text-muted-foreground italic">
+                      "{selectedBook.title}" will be deployed for {selectionMonth} {selectionYear}.
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground italic">No volume selected...</div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Calculated Status:</span>
+                    <span className={`text-[10px] font-black tracking-widest px-2 py-0.5 rounded ${statusPreview === 'current' ? 'bg-primary text-primary-foreground' :
+                        statusPreview === 'upcoming' ? 'bg-secondary text-secondary-foreground' :
+                          'bg-muted text-muted-foreground'
+                      }`}>
+                      {statusPreview.toUpperCase()}
+                    </span>
                   </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground italic">No volume selected...</div>
-                )}
+                </div>
               </div>
             </div>
           </div>

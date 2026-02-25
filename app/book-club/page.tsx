@@ -1,20 +1,25 @@
 import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
 import { BookClubContent } from "@/components/book-club-content"
+import { sortSelections, getCurrentStatus } from "@/lib/book-club-utils"
 
 export default async function BookClubPage() {
   const supabase = await createClient()
 
   // Fetch Current Selections
-  const { data: selections } = await supabase
+  const { data: rawSelections } = await supabase
     .from('book_club_selections')
     .select('*, books(*)')
-    .order('year', { ascending: false })
-    .order('month', { ascending: false })
 
-  const currentSelection = selections?.find(s => s.status === 'current')
-  const upcomingSelections = selections?.filter(s => s.status === 'upcoming') || []
-  const pastSelections = selections?.filter(s => s.status === 'past') || []
+  const processedSelections = (rawSelections || []).map((s: any) => ({
+    ...s,
+    status: getCurrentStatus(s.month, s.year)
+  }))
+
+  const selections = sortSelections(processedSelections)
+  const currentSelection = selections.find((s: any) => s.status === 'current')
+  const upcomingSelections = selections.filter((s: any) => s.status === 'upcoming')
+  const pastSelections = selections.filter((s: any) => s.status === 'past')
 
   // Fetch Upcoming Events
   const { data: events } = await supabase

@@ -30,6 +30,8 @@ async function verifyAdmin() {
     return user
 }
 
+import { sortSelections, getCurrentStatus } from "@/lib/book-club-utils"
+
 export async function GET(request: NextRequest) {
     const adminUser = await verifyAdmin()
     if (!adminUser) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -37,17 +39,22 @@ export async function GET(request: NextRequest) {
     const admin = createAdminClient()
 
     // Fetch all selections with book titles
-    const { data: selections, error } = await admin
+    const { data: rawSelections, error } = await admin
         .from("book_club_selections")
         .select(`
             *,
             books (id, title, author, cover_image_url)
         `)
-        .order("year", { ascending: false })
-        .order("month", { ascending: false })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+    // Dynamically derive status to stay in alignment with real-world calendar
+    const processedSelections = (rawSelections || []).map(s => ({
+        ...s,
+        status: getCurrentStatus(s.month, s.year)
+    }))
+
+    const selections = sortSelections(processedSelections)
     return NextResponse.json({ selections })
 }
 
@@ -58,15 +65,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const admin = createAdminClient()
 
-    // 1. If this is being set to 'current', demote any other 'current' selections to 'past'
-    if (body.status === 'current') {
+    // 1. Calculate the correct status based on temporal logic
+    const status = getCurrentStatus(body.month, body.year)
+
+    // 2. If this is being set to 'current', demote any other 'current' selections to 'past'
+    // This handles manual overrides but ensures logic stays clean
+    if (status === 'current') {
         await admin
             .from('book_club_selections')
             .update({ status: 'past' })
             .eq('status', 'current')
     }
 
-    // 2. Insert or Update (Upsert based on Month/Year unique constraint)
+    // 3. Insert or Update (Upsert based on Month/Year unique constraint)
     const { data, error } = await admin
         .from("book_club_selections")
         .upsert({
@@ -75,7 +86,7 @@ export async function POST(request: NextRequest) {
             year: body.year,
             theme: body.theme,
             description: body.description,
-            status: body.status || 'upcoming',
+            status: status,
             discussion_date: body.discussion_date || null,
             updated_at: new Date().toISOString()
         }, { onConflict: "month,year" })
