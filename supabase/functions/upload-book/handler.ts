@@ -82,10 +82,13 @@ export async function handleUploadBook(
     const existingId = formData.get("id") as string | null;
     const seriesOrder = parseInt(formData.get("series_order") as string || "0", 10) || null;
 
-    // Variant pricing from form
+    // Variant pricing and availability from form
     const ebookPrice = parseFloat(formData.get("ebook_price") as string || "14.99");
+    const ebookAvailable = formData.get("ebook_available") !== "false";
     const paperPrice = parseFloat(formData.get("paper_price") as string || "24.99");
+    const paperAvailable = formData.get("paper_available") !== "false";
     const kometCardPrice = parseFloat(formData.get("komet_card_price") as string || "29.99");
+    const kometCardAvailable = formData.get("komet_card_available") !== "false";
 
     const isBookClubEligible = formData.get("is_book_club_eligible") === "true";
     const isAgeRestricted = formData.get("is_age_restricted") === "true";
@@ -146,30 +149,41 @@ export async function handleUploadBook(
     }
 
     try {
-        // ─── 3. Create book variants ───────────────────────────────
-        const variants = [
-            { book_id: bookId, format: "ebook", price: ebookPrice, is_in_stock: true },
-            { book_id: bookId, format: "paper_book", price: paperPrice, is_in_stock: true },
-            { book_id: bookId, format: "komet_card", price: kometCardPrice, is_in_stock: true },
-        ];
+        // ─── 3. Create or Update book variants ───────────────────────────────
+        const formats = ["ebook", "paper_book", "komet_card"];
+        const pricing = [ebookPrice, paperPrice, kometCardPrice];
+        const availability = [ebookAvailable, paperAvailable, kometCardAvailable];
 
-        const { error: variantError } = await adminClient
-            .from("book_variants")
-            .insert(variants);
+        for (let i = 0; i < formats.length; i++) {
+            const format = formats[i];
+            const price = pricing[i];
+            const is_in_stock = availability[i];
 
-        if (variantError) throw variantError;
-        console.log(`[upload-book] Created ${variants.length} variants`);
+            const { error: variantError } = await adminClient
+                .from("book_variants")
+                .upsert({
+                    book_id: bookId,
+                    format,
+                    price,
+                    is_in_stock
+                }, { onConflict: 'book_id,format' });
+
+            if (variantError) throw variantError;
+        }
+        console.log(`[upload-book] Processed ${formats.length} variants`);
 
         // ─── 4. Upload original PDF ────────────────────────────────
-        const { error: pdfUploadError } = await adminClient.storage
-            .from("book-pdfs")
-            .upload(`${bookId}/original.pdf`, bookFile, {
-                contentType: "application/pdf",
-                upsert: false,
-            });
+        if (bookFile) {
+            const { error: pdfUploadError } = await adminClient.storage
+                .from("book-pdfs")
+                .upload(`${bookId}/original.pdf`, bookFile, {
+                    contentType: "application/pdf",
+                    upsert: true,
+                });
 
-        if (pdfUploadError) throw pdfUploadError;
-        console.log("[upload-book] Original PDF uploaded to Storage");
+            if (pdfUploadError) throw pdfUploadError;
+            console.log("[upload-book] Original PDF uploaded to Storage");
+        }
 
         // ─── 5. Upload cover image ─────────────────────────────────
         let coverImageUrl: string | null = null;
@@ -182,7 +196,7 @@ export async function handleUploadBook(
                 .from("book-covers")
                 .upload(coverPath, coverFile, {
                     contentType: coverFile.type,
-                    upsert: false,
+                    upsert: true,
                 });
 
             if (coverUploadError) throw coverUploadError;

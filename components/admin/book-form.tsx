@@ -124,8 +124,11 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             const card = formData.variants.find((v: any) => v.format === "komet_card")
 
             uploadData.append("ebook_price", String(ebook?.price || 0))
+            uploadData.append("ebook_available", String(ebook?.available ?? true))
             uploadData.append("paper_price", String(paper?.price || 0))
+            uploadData.append("paper_available", String(paper?.available ?? true))
             uploadData.append("komet_card_price", String(card?.price || 0))
+            uploadData.append("komet_card_available", String(card?.available ?? true))
 
             // 2. Invoke the 'upload-book' Edge Function
             // Using fetch directly to ensure absolute control over headers and avoid gateway rejections
@@ -298,7 +301,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                         <h2 className="font-display text-2xl tracking-wide mb-6">FILE ASSETS</h2>
                         <div className="grid md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <Label>Cover Image (PNG/JPG)</Label>
+                                <Label>{isEdit ? "Update Cover Image (Optional)" : "Cover Image (PNG/JPG)"}</Label>
                                 <div className="relative group cursor-pointer">
                                     <input
                                         type="file"
@@ -324,7 +327,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Book PDF</Label>
+                                <Label>{isEdit ? "Update Book PDF (Optional)" : "Book PDF"}</Label>
                                 <div className="relative group cursor-pointer">
                                     <input
                                         type="file"
@@ -390,6 +393,13 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                     onCheckedChange={checked => setFormData({ ...formData, is_age_restricted: checked })}
                                 />
                             </div>
+
+                            {isEdit && (
+                                <div className="p-4 rounded-xl bg-secondary/5 border border-secondary/20 text-xs text-muted-foreground">
+                                    <p className="font-bold text-secondary mb-1">EDIT MODE ACTIVE</p>
+                                    <p>File assets (PDF/Cover) are optional. Only upload if you wish to replace the current versions in the library.</p>
+                                </div>
+                            )}
 
                             <div className="pt-6 border-t border-border/50 space-y-3">
                                 <Button
