@@ -90,7 +90,6 @@ export function DashboardContent({
                             <section>
                                 <div className="flex items-center justify-between mb-4">
                                     <h2 className="font-display text-2xl tracking-wider uppercase">Current Transmissions</h2>
-                                    <Link href="/browse" className="text-xs text-primary hover:underline">Continue Reading</Link>
                                 </div>
                                 {initialLibrary.length > 0 ? (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
