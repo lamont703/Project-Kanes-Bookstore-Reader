@@ -16,7 +16,7 @@ import { useAuth } from "@/context/auth-context"
 export function SiteHeader() {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false)
     const { cartCount } = useCart()
-    const { user, signOut } = useAuth()
+    const { user, signOut, isAdmin } = useAuth()
     const isLoggedIn = !!user
     const pathname = usePathname()
     const [isBouncing, setIsBouncing] = React.useState(false)
@@ -128,15 +128,17 @@ export function SiteHeader() {
                             >
                                 My Library
                             </Link>
-                            <Link
-                                href="/admin"
-                                className={cn(
-                                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
-                                    pathname === "/admin" ? "text-primary" : "text-muted-foreground",
-                                )}
-                            >
-                                Admin
-                            </Link>
+                            {isAdmin && (
+                                <Link
+                                    href="/admin"
+                                    className={cn(
+                                        "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
+                                        pathname.startsWith("/admin") ? "text-primary" : "text-muted-foreground",
+                                    )}
+                                >
+                                    Admin
+                                </Link>
+                            )}
                         </div>
                     </nav>
 
@@ -258,12 +260,12 @@ export function SiteHeader() {
                                     </span>
                                 )}
                             </Link>
-                            {isLoggedIn && (
+                            {isLoggedIn && isAdmin && (
                                 <Link
                                     href="/admin"
                                     className={cn(
                                         "text-lg font-medium transition-colors hover:text-primary",
-                                        pathname === "/admin" ? "text-primary" : "text-muted-foreground",
+                                        pathname.startsWith("/admin") ? "text-primary" : "text-muted-foreground",
                                     )}
                                 >
                                     Admin Dashboard

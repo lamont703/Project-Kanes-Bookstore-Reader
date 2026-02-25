@@ -1,16 +1,36 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { Toaster } from "sonner"
 import { Menu, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import Image from "next/image"
+import { useAuth } from "@/context/auth-context"
+import { useRouter } from "next/navigation"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { isAdmin, isLoading } = useAuth()
+  const router = useRouter()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isLoading && !isAdmin) {
+      router.push("/")
+    }
+  }, [isAdmin, isLoading, router])
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Sparkles className="w-8 h-8 text-primary animate-pulse" />
+      </div>
+    )
+  }
+
+  if (!isAdmin) return null
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
