@@ -178,8 +178,8 @@ export function BookClubContent({
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 md:gap-12 max-w-6xl mx-auto">
-                            {eligibleBooks.map((book: any) => (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 md:gap-12 max-w-6xl mx-auto">
+                            {eligibleBooks.slice(0, 5).map((book: any) => (
                                 <div key={book.id} className="group relative">
                                     <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:-translate-y-2 border-2 border-transparent group-hover:border-secondary/50">
                                         <Image
@@ -202,12 +202,6 @@ export function BookClubContent({
                                     </div>
                                 </div>
                             ))}
-                        </div>
-
-                        <div className="mt-16 text-center">
-                            <Button size="lg" variant="outline" className="border-secondary/50 text-secondary hover:bg-secondary hover:text-secondary-foreground" onClick={() => setIsModalOpen(true)}>
-                                View All Eligible Titles
-                            </Button>
                         </div>
                     </section>
                 )}

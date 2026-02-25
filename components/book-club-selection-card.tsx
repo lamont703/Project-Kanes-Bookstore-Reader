@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, MessageCircle, BookOpen } from "lucide-react"
+import { MessageCircle, BookOpen } from "lucide-react"
 import type { BookClubSelection } from "@/lib/types/book-club"
 import type { Book } from "@/lib/types/book"
 import Link from "next/link"
@@ -86,16 +86,6 @@ export function BookClubSelectionCard({
             )}>{book.title}</h4>
             <p className="text-xs text-muted-foreground italic">by {book.author}</p>
           </div>
-
-          {!isCompact && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Calendar className="w-4 h-4 text-secondary" />
-              <span>
-                Discussion:{" "}
-                {selection.discussionDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-              </span>
-            </div>
-          )}
 
           {isMember && (
             <div className="flex flex-wrap gap-2 pt-2">
