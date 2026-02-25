@@ -105,6 +105,10 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             if (files.pdf) uploadData.append("book_file", files.pdf)
             if (files.cover) uploadData.append("cover_file", files.cover)
 
+            if (isEdit && initialData?.id) {
+                uploadData.append("id", initialData.id)
+            }
+
             uploadData.append("title", formData.title)
             uploadData.append("author", formData.author)
             uploadData.append("illustrator", formData.illustrator || "")

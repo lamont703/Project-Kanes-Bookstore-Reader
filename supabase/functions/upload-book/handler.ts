@@ -79,12 +79,16 @@ export async function handleUploadBook(
     const description = (formData.get("description") as string)?.trim();
     const illustrator = (formData.get("illustrator") as string)?.trim() || null;
     const seriesName = (formData.get("series_name") as string)?.trim() || null;
+    const existingId = formData.get("id") as string | null;
     const seriesOrder = parseInt(formData.get("series_order") as string || "0", 10) || null;
 
     // Variant pricing from form
     const ebookPrice = parseFloat(formData.get("ebook_price") as string || "14.99");
     const paperPrice = parseFloat(formData.get("paper_price") as string || "24.99");
     const kometCardPrice = parseFloat(formData.get("komet_card_price") as string || "29.99");
+
+    const isBookClubEligible = formData.get("is_book_club_eligible") === "true";
+    const isAgeRestricted = formData.get("is_age_restricted") === "true";
 
     if (!title || !author) {
         throw {
@@ -97,35 +101,49 @@ export async function handleUploadBook(
         };
     }
 
-    if (!bookFile) {
-        throw { ...ErrorCodes.VALIDATION_ERROR, message: "Book PDF file is required" };
+    if (!bookFile && !existingId) {
+        throw { ...ErrorCodes.VALIDATION_ERROR, message: "Book PDF file is required for new uploads" };
     }
 
     console.log(`[upload-book] Starting upload for "${title}" by ${author}`);
 
-    // ─── 2. Create book record (draft) ──────────────────────────
-    const { data: book, error: bookError } = await adminClient
-        .from("books")
-        .insert({
-            title,
-            author,
-            genre,
-            description,
-            illustrator,
-            series_name: seriesName,
-            series_order: seriesOrder,
-            status: "draft",
-        })
-        .select()
-        .single();
+    // ─── 2. Create or Update book record ───────────────────────
+    const bookData = {
+        title,
+        author,
+        genre,
+        description,
+        illustrator,
+        series_name: seriesName,
+        series_order: seriesOrder,
+        is_book_club_eligible: isBookClubEligible,
+        is_age_restricted: isAgeRestricted,
+        status: "draft",
+    };
 
-    if (bookError) {
-        console.error(`[upload-book] Failed to create book record: ${bookError.message}`);
-        throw bookError;
+    let bookId: string;
+
+    if (existingId) {
+        const { data: book, error: bookError } = await adminClient
+            .from("books")
+            .upsert({ id: existingId, ...bookData })
+            .select()
+            .single();
+
+        if (bookError) throw bookError;
+        bookId = book.id;
+        console.log(`[upload-book] Updated book record: ${bookId}`);
+    } else {
+        const { data: book, error: bookError } = await adminClient
+            .from("books")
+            .insert(bookData)
+            .select()
+            .single();
+
+        if (bookError) throw bookError;
+        bookId = book.id;
+        console.log(`[upload-book] Created book record: ${bookId}`);
     }
-
-    const bookId = book.id;
-    console.log(`[upload-book] Created book record: ${bookId}`);
 
     try {
         // ─── 3. Create book variants ───────────────────────────────
@@ -186,6 +204,22 @@ export async function handleUploadBook(
         }
 
         // ─── 6. Parse PDF → pages + text + illustrations ───────────
+        if (!bookFile) {
+            console.log("[upload-book] No new PDF file provided, skipping parsing pipeline.");
+            // Just update variants and finish
+            const finalStatus = (formData.get("status") as string) === "published" ? "published" : "draft";
+            await adminClient.from("books").update({ status: finalStatus }).eq("id", bookId);
+
+            return {
+                id: bookId,
+                title,
+                status: finalStatus,
+                pages_count: 0,
+                illustrations_count: 0,
+                processing_time_ms: Date.now() - startTime,
+            };
+        }
+
         console.log("[upload-book] Starting PDF processing pipeline...");
         const parseResult: PDFParseResult = await parsePDF(bookFile);
         console.log(`[upload-book] Parsed ${parseResult.pages.length} pages`);
