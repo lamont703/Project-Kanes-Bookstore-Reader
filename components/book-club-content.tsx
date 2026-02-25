@@ -212,33 +212,35 @@ export function BookClubContent({
 
                 {/* Past Selections */}
                 {pastSelections && pastSelections.length > 0 && (
-                    <section className="mb-24">
+                    <section className="mb-24 overflow-hidden">
                         <div className="mb-12">
                             <h2 className="font-display text-4xl md:text-5xl tracking-wider mb-2">
                                 <span className="text-muted-foreground">MISSION</span> ARCHIVES
                             </h2>
-                            <p className="text-muted-foreground">Explore our past collective reading journeys</p>
+                            <p className="text-muted-foreground">The last 5 collection targets from our historical archives</p>
                         </div>
-                        <div className="grid gap-8">
-                            {pastSelections.map((selection) => (
-                                <BookClubSelectionCard
-                                    key={selection.id}
-                                    selection={{
-                                        ...selection,
-                                        discussionDate: new Date(selection.discussion_date)
-                                    }}
-                                    book={{
-                                        id: selection.books.id,
-                                        title: selection.books.title,
-                                        author: selection.books.author,
-                                        coverImage: selection.books.cover_image_url || "/placeholder.webp",
-                                        price: 0,
-                                        genre: selection.books.genre,
-                                        description: selection.books.description,
-                                        variants: []
-                                    }}
-                                    isMember={isMember}
-                                />
+                        <div className="flex gap-6 overflow-x-auto pb-8 custom-scrollbar snap-x snap-mandatory -mx-4 px-4 md:-mx-0 md:px-0">
+                            {pastSelections.slice(0, 5).map((selection) => (
+                                <div key={selection.id} className="flex-shrink-0 w-[280px] md:w-[350px] snap-start">
+                                    <BookClubSelectionCard
+                                        selection={{
+                                            ...selection,
+                                            discussionDate: new Date(selection.discussion_date)
+                                        }}
+                                        book={{
+                                            id: selection.books.id,
+                                            title: selection.books.title,
+                                            author: selection.books.author,
+                                            coverImage: selection.books.cover_image_url || "/placeholder.webp",
+                                            price: 0,
+                                            genre: selection.books.genre,
+                                            description: selection.books.description,
+                                            variants: []
+                                        }}
+                                        isMember={isMember}
+                                        isCompact={true}
+                                    />
+                                </div>
                             ))}
                         </div>
                     </section>
