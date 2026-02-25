@@ -49,7 +49,7 @@ export function BookClubSelectionCard({
         {/* Book Cover */}
         <div className={cn(
           "relative aspect-[3/4] overflow-hidden rounded shadow-xl",
-          isCompact ? "w-full" : "md:w-[200px] mx-auto md:mx-0"
+          isCompact ? "w-full" : "w-48 md:w-[200px] mx-auto md:mx-0"
         )}>
           <Image src={book.coverImage || "/placeholder.svg"} alt={book.title} fill className="object-cover" />
         </div>
