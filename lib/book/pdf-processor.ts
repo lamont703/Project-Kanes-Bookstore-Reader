@@ -127,73 +127,102 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
         }
 
         const pngData = pixmap.asPNG();
-        const structuredText = page.toStructuredText("preserve-whitespace");
-        const jsonStr = structuredText.asJSON?.();
+        const structuredText = page.toStructuredText("preserve-whitespace,images");
         const blocks: any[] = [];
-        let currentText = "";
         let pagePlainText = "";
 
-        // Walk the structured text to catch exactly what MuPDF sees (Text + Images)
-        structuredText.walk({
-            beginTextBlock: () => {
-                if (currentText.trim()) {
-                    const cleaned = cleanText(currentText);
-                    if (cleaned) blocks.push({ type: 'text', content: cleaned });
-                }
-                currentText = "";
-            },
-            onChar: (c) => {
-                currentText += c;
-                pagePlainText += c;
-            },
-            endLine: () => {
-                currentText += " ";
-                pagePlainText += "\n";
-            },
-            onImageBlock: (bbox, transform, image) => {
-                // Flush existing text before image
-                if (currentText.trim()) {
-                    const cleaned = cleanText(currentText);
-                    if (cleaned) blocks.push({ type: 'text', content: cleaned });
-                }
-                currentText = "";
+        const jsonStr = structuredText.asJSON?.();
+        let mupdfBlocks: any[] = [];
 
-                try {
-                    const imgPixmap = image.toPixmap();
-                    const imgPng = imgPixmap.asPNG();
-                    const positionIndex = illustrations.length;
-
-                    const imgWidth = image.getWidth();
-                    const imgHeight = image.getHeight();
-
-                    illustrations.push({
-                        pageNumber: i + 1,
-                        positionIndex,
-                        imageData: Buffer.from(imgPng),
-                        contentType: "image/png",
-                        width: imgWidth,
-                        height: imgHeight,
-                    });
-
-                    blocks.push({
-                        type: 'image',
-                        imageIndex: positionIndex,
-                        width: imgWidth,
-                        height: imgHeight
-                    });
-                } catch (err) {
-                    console.warn(`[pdf-processor] Image extraction failed on page ${i + 1}`, err);
-                }
+        try {
+            if (jsonStr) {
+                const parsed = JSON.parse(jsonStr);
+                mupdfBlocks = parsed.blocks || (parsed.pages && parsed.pages[0]?.blocks) || [];
             }
-        });
-
-        // Flush final text
-        if (currentText.trim()) {
-            const cleaned = cleanText(currentText);
-            if (cleaned) blocks.push({ type: 'text', content: cleaned });
+        } catch (err) {
+            console.warn("[pdf-processor] JSON parse failed", err);
         }
 
-        // Final Fallback: If no blocks were added, use absolute asText() source
+        if (Array.isArray(mupdfBlocks)) {
+            mupdfBlocks.forEach((block: any, blockIndex) => {
+                if (block.type === 'text') {
+                    let blockText = "";
+                    if (Array.isArray(block.lines)) {
+                        block.lines.forEach((line: any) => {
+                            if (Array.isArray(line.spans)) {
+                                line.spans.forEach((span: any) => {
+                                    blockText += span.text || "";
+                                });
+                            }
+                            blockText += " ";
+                        });
+                    }
+
+                    if (!blockText.trim() && block.text) {
+                        blockText = block.text;
+                    }
+
+                    const cleaned = cleanText(blockText);
+                    if (cleaned) {
+                        blocks.push({ type: 'text', content: cleaned });
+                        pagePlainText += blockText + "\n";
+                    }
+                } else if (block.type === 'image' || (block.bbox && !block.lines)) {
+                    // This is our "Visual Crop" (screenshot) logic for Word containers
+                    const bbox = block.bbox;
+                    if (!Array.isArray(bbox) || bbox.length < 4) return;
+
+                    const x0 = bbox[0], y0 = bbox[1], x1 = bbox[2], y1 = bbox[3];
+                    const w = x1 - x0;
+                    const h = y1 - y0;
+
+                    // Only process significant blocks
+                    if (w > 30 && h > 30) {
+                        try {
+                            // Render at 2x scale for "Retina" quality illustrations
+                            const scale = 2.0;
+                            const renderW = Math.round(w * scale);
+                            const renderH = Math.round(h * scale);
+
+                            const illustPixmap = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, [0, 0, renderW, renderH], false);
+                            illustPixmap.clear(255);
+                            const illustDev = new mupdf.DrawDevice(mupdf.Matrix.identity, illustPixmap);
+
+                            try {
+                                // Translate and scale the page to crop the illustration exactly
+                                const illustMatrix = mupdf.Matrix.scale(scale, scale).pretranslate(-x0, -y0);
+                                page.run(illustDev, illustMatrix);
+                            } finally {
+                                illustDev.close();
+                            }
+
+                            const illustPng = illustPixmap.asPNG();
+                            const positionIndex = illustrations.length;
+
+                            illustrations.push({
+                                pageNumber: i + 1,
+                                positionIndex,
+                                imageData: Buffer.from(illustPng),
+                                contentType: "image/png",
+                                width: renderW,
+                                height: renderH,
+                            });
+
+                            blocks.push({
+                                type: 'image',
+                                imageIndex: positionIndex,
+                                width: renderW,
+                                height: renderH
+                            });
+                        } catch (illustErr) {
+                            console.warn(`[pdf-processor] Visual crop failed on page ${i + 1}:`, illustErr);
+                        }
+                    }
+                }
+            });
+        }
+
+        // 3. Final Fallback: If no content was captured, use absolute text from the page
         if (blocks.length === 0) {
             const absoluteText = structuredText.asText();
             if (absoluteText && absoluteText.trim()) {
