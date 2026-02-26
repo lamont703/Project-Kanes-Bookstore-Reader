@@ -29,11 +29,11 @@ export default async function DiscussionListPage() {
     <div className="min-h-screen">
       <SiteHeader />
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-2">
-            <span className="text-primary">COMMUNITY</span> <span className="text-secondary">DISCUSSIONS</span>
+        <div className="mb-8 md:mb-12">
+          <h1 className="font-display text-4xl sm:text-5xl md:text-7xl tracking-wider mb-2 leading-tight">
+            <span className="text-primary">COMMUNITY</span> <br className="sm:hidden" /> <span className="text-secondary">DISCUSSIONS</span>
           </h1>
-          <p className="text-lg text-muted-foreground">Join the conversation with fellow Komet readers</p>
+          <p className="text-base md:text-xl text-muted-foreground">Join the conversation with fellow Komet readers</p>
         </div>
 
         <div className="flex flex-col gap-8">
@@ -56,7 +56,7 @@ export default async function DiscussionListPage() {
                 {topicList.map((topic) => (
                   <Card
                     key={topic.id}
-                    className="p-6 bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-colors group relative overflow-hidden"
+                    className="p-4 md:p-6 bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-colors group relative overflow-hidden"
                   >
                     {/* Pinned indicator stripe */}
                     {topic.is_pinned && (
@@ -66,18 +66,18 @@ export default async function DiscussionListPage() {
                     <div className="flex flex-col sm:flex-row justify-between gap-4 pl-2">
                       <div className="flex-1">
                         {/* Badges */}
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
                           {topic.is_pinned && (
-                            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-primary bg-primary/10 px-2 py-1 rounded border border-primary/20">
                               <Pin className="w-2.5 h-2.5 fill-primary" /> Pinned
                             </span>
                           )}
                           {topic.is_featured && (
-                            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20">
+                            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20">
                               <Star className="w-2.5 h-2.5 fill-yellow-500" /> Featured
                             </span>
                           )}
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-secondary bg-secondary/10 px-2 py-0.5 rounded border border-secondary/20">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-secondary bg-secondary/10 px-2 py-1 rounded border border-secondary/20">
                             {topic.category}
                           </span>
                         </div>
@@ -86,7 +86,7 @@ export default async function DiscussionListPage() {
                           href={`/book-club/discussions/${topic.id}`}
                           className="hover:text-primary transition-colors"
                         >
-                          <h3 className="font-display text-2xl md:text-3xl tracking-wide mb-2 group-hover:text-primary transition-colors">
+                          <h3 className="font-display text-xl sm:text-2xl md:text-3xl tracking-wide mb-2 group-hover:text-primary transition-colors leading-tight">
                             {topic.title}
                           </h3>
                         </Link>

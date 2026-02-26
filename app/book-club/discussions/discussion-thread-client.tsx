@@ -123,12 +123,12 @@ function CommentItem({ post, currentUser, onVote, onReply, depth = 0 }: CommentI
 
     if (isCollapsed) {
         return (
-            <div className={cn("group mt-4", canIndent && "ml-4 pl-4 border-l-2 border-border/10")}>
+            <div className={cn("group mt-4", canIndent && "ml-2 md:ml-4 pl-2 md:pl-4 border-l-2 border-border/10")}>
                 <button
                     onClick={() => setIsCollapsed(false)}
-                    className="text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
+                    className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
                 >
-                    <div className="w-4 h-4 rounded bg-muted flex items-center justify-center">+</div>
+                    <div className="w-5 h-5 rounded bg-muted flex items-center justify-center text-sm">+</div>
                     <span>{authorName} transmission minimized • {post.replies.length + 1} signals hidden</span>
                 </button>
             </div>
@@ -139,7 +139,7 @@ function CommentItem({ post, currentUser, onVote, onReply, depth = 0 }: CommentI
         <div className={cn(
             "group",
             depth > 0 && "mt-3 md:mt-4",
-            canIndent ? "ml-3 md:ml-4 pl-3 md:pl-4 border-l-2 border-border/30" : (depth >= 5 ? "ml-0 pl-3 md:pl-4 border-l-2 border-primary/20" : "")
+            canIndent ? "ml-2 md:ml-4 pl-2 md:pl-4 border-l-2 border-border/30" : (depth >= 5 ? "ml-0 pl-2 md:pl-4 border-l-2 border-primary/20" : "")
         )}>
             <div className="flex gap-2 md:gap-3 relative">
                 {/* Clickable Collapse Line (Vertical) */}
@@ -152,11 +152,11 @@ function CommentItem({ post, currentUser, onVote, onReply, depth = 0 }: CommentI
                 )}
 
                 {/* Vote Column */}
-                <div className="flex flex-col items-center gap-0.5 md:gap-1 w-6 md:w-8 pt-0.5">
+                <div className="flex flex-col items-center gap-1 md:gap-1.5 w-7 md:w-10 pt-1">
                     <div className="flex flex-col items-center">
                         <ArrowUp
                             className={cn(
-                                "w-3.5 h-3.5 md:w-4 md:h-4 cursor-pointer transition-colors",
+                                "w-4 h-4 md:w-5 md:h-5 cursor-pointer transition-colors p-0.5",
                                 isPendingVote ? "opacity-40" : "",
                                 post.userVote === "up" ? "text-orange-500" : "text-muted-foreground hover:text-orange-500"
                             )}
@@ -164,7 +164,7 @@ function CommentItem({ post, currentUser, onVote, onReply, depth = 0 }: CommentI
                         />
                         <span
                             className={cn(
-                                "text-[10px] md:text-xs font-bold my-0.5 md:my-1",
+                                "text-xs md:text-sm font-bold my-1",
                                 post.userVote === "up" ? "text-orange-500" : post.userVote === "down" ? "text-blue-500" : ""
                             )}
                         >
@@ -172,7 +172,7 @@ function CommentItem({ post, currentUser, onVote, onReply, depth = 0 }: CommentI
                         </span>
                         <ArrowDown
                             className={cn(
-                                "w-3.5 h-3.5 md:w-4 md:h-4 cursor-pointer transition-colors",
+                                "w-4 h-4 md:w-5 md:h-5 cursor-pointer transition-colors p-0.5",
                                 isPendingVote ? "opacity-40" : "",
                                 post.userVote === "down" ? "text-blue-500" : "text-muted-foreground hover:text-blue-500"
                             )}
@@ -183,18 +183,18 @@ function CommentItem({ post, currentUser, onVote, onReply, depth = 0 }: CommentI
 
                 {/* Content */}
                 <div className="flex-1 pb-1 md:pb-2 min-w-0">
-                    <div className="flex items-center gap-2 text-[10px] md:text-xs mb-1">
-                        <span className="font-bold text-foreground hover:text-primary cursor-pointer truncate max-w-[120px] md:max-w-none" onClick={() => setIsCollapsed(true)}>{authorName}</span>
+                    <div className="flex items-center gap-2 text-xs md:text-sm mb-1.5">
+                        <span className="font-bold text-foreground hover:text-primary cursor-pointer truncate max-w-[150px] md:max-w-none" onClick={() => setIsCollapsed(true)}>{authorName}</span>
                         <span className="text-muted-foreground whitespace-nowrap">• {timeAgo(post.created_at)}</span>
                     </div>
                     <p className="text-sm md:text-base text-foreground/90 mb-2 leading-relaxed break-words">{post.content}</p>
 
                     <div className="flex items-center gap-4">
                         <button
-                            className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground hover:bg-muted px-1.5 py-0.5 rounded transition-colors uppercase tracking-wider"
+                            className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:bg-muted px-2 py-1 rounded transition-colors uppercase tracking-wider"
                             onClick={() => setIsReplying(!isReplying)}
                         >
-                            <MessageSquare className="w-3 h-3" />
+                            <MessageSquare className="w-3.5 h-3.5" />
                             Reply
                         </button>
                     </div>
@@ -393,9 +393,9 @@ export default function DiscussionThreadClient({ topic, initialPosts, currentUse
                         <Card className="bg-card/50 backdrop-blur border-border overflow-hidden">
                             <div className="p-4 md:p-8">
                                 {/* Topic Header */}
-                                <div className="flex items-center text-xs text-muted-foreground mb-4 gap-2">
+                                <div className="flex flex-wrap items-center text-xs text-muted-foreground mb-4 gap-3">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 md:w-8 md:h-8 bg-primary/20 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold text-primary border border-primary/30">
+                                        <div className="w-8 h-8 md:w-10 md:h-10 bg-primary/20 rounded-full flex items-center justify-center text-xs md:text-sm font-bold text-primary border border-primary/30">
                                             K
                                         </div>
                                         <div className="flex flex-col">
@@ -405,27 +405,28 @@ export default function DiscussionThreadClient({ topic, initialPosts, currentUse
                                             </span>
                                         </div>
                                     </div>
-                                    <span className="ml-auto text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-secondary bg-secondary/10 px-1.5 md:px-2 py-0.5 rounded border border-secondary/20">
+                                    <span className="sm:ml-auto text-[10px] md:text-xs font-bold uppercase tracking-widest text-secondary bg-secondary/10 px-2 md:px-3 py-1 rounded border border-secondary/20">
                                         {topic.category}
                                     </span>
                                 </div>
 
                                 {/* Title & Body */}
-                                <h1 className="text-xl md:text-3xl font-bold mb-4 leading-tight tracking-tight">{topic.title}</h1>
+                                <h1 className="text-2xl md:text-4xl font-bold mb-4 leading-tight tracking-tight">{topic.title}</h1>
                                 {topic.description && (
-                                    <div className="prose prose-invert max-w-none text-muted-foreground mb-6 md:mb-8 text-base md:text-lg leading-relaxed">
-                                        <p>{topic.description}</p>
+                                    <div className="prose prose-invert max-w-none text-muted-foreground mb-6 md:mb-10 text-base md:text-xl md:leading-relaxed">
+                                        <p className="leading-relaxed">{topic.description}</p>
                                     </div>
                                 )}
 
                                 {/* Action Bar */}
-                                <div className="flex items-center gap-3 md:gap-4 text-muted-foreground text-xs md:text-sm border-t border-border pt-4">
-                                    <div className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 bg-muted/30 rounded-full">
-                                        <MessageSquare className="w-3 md:w-4 h-3 md:h-4" />
+                                <div className="flex flex-wrap items-center gap-3 md:gap-6 text-muted-foreground text-xs md:text-sm border-t border-border pt-6">
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-full">
+                                        <MessageSquare className="w-4 h-4" />
                                         <span className="font-medium">{totalPosts} Comments</span>
                                     </div>
-                                    <div className="text-[10px] md:text-xs">
-                                        {topic.member_count} Explorers
+                                    <div className="text-xs md:text-sm flex items-center gap-1.5 px-3 py-1.5">
+                                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                                        {topic.member_count} Explorers Active
                                     </div>
                                 </div>
                             </div>
@@ -437,20 +438,20 @@ export default function DiscussionThreadClient({ topic, initialPosts, currentUse
                                 <span>Comment as</span>
                                 <span className="text-primary font-bold">{myDisplayName}</span>
                             </div>
-                            <Card className="p-3 md:p-4 bg-card/30 border-dashed border-2">
+                            <Card className="p-3 md:p-6 bg-card/30 border-dashed border-2 hover:border-primary/30 transition-colors group">
                                 <Textarea
                                     placeholder="What are your thoughts?"
-                                    className="min-h-[100px] md:min-h-[120px] mb-3 bg-transparent border-none focus-visible:ring-0 p-0 text-base md:text-lg"
+                                    className="min-h-[100px] md:min-h-[150px] mb-4 bg-transparent border-none focus-visible:ring-0 p-0 text-base md:text-xl resize-none"
                                     value={newComment}
                                     onChange={(e) => setNewComment(e.target.value)}
                                 />
-                                <div className="flex justify-end pt-2 border-t border-border/50">
+                                <div className="flex justify-end pt-3 border-t border-border/50">
                                     <Button
                                         onClick={handlePostComment}
                                         disabled={!newComment.trim() || isPosting}
-                                        className="px-6 md:px-8 font-bold tracking-widest text-[10px] md:text-xs h-8 md:h-9"
+                                        className="w-full sm:w-auto px-8 font-bold tracking-widest text-xs h-10 md:h-11"
                                     >
-                                        {isPosting ? <Loader2 className="w-3 md:w-4 h-3 md:h-4 animate-spin mr-2" /> : null}
+                                        {isPosting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                                         PUBLISH SIGNAL
                                     </Button>
                                 </div>
