@@ -137,28 +137,39 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
         try {
             if (jsonStr) {
                 const parsed = JSON.parse(jsonStr);
-                // MuPDF JSON can be { blocks: [] } or { pages: [{ blocks: [] }] }
                 mupdfBlocks = parsed.blocks || (parsed.pages && parsed.pages[0]?.blocks) || [];
             }
         } catch (err) {
-            console.warn("[pdf-processor] Structured text JSON parse failed", err);
+            console.warn("[pdf-processor] JSON parse failed, falling back to absolute text source", err);
         }
 
         if (Array.isArray(mupdfBlocks) && mupdfBlocks.length > 0) {
             mupdfBlocks.forEach((block: any) => {
-                if (block.type === 'text' && Array.isArray(block.lines)) {
+                if (block.type === 'text') {
                     let blockText = "";
-                    block.lines.forEach((line: any) => {
-                        if (Array.isArray(line.spans)) {
-                            line.spans.forEach((span: any) => {
-                                blockText += span.text || "";
-                            });
-                        }
-                        blockText += " ";
-                    });
-                    const cleanedText = cleanText(blockText);
-                    blocks.push({ type: 'text', content: cleanedText });
-                    pagePlainText += blockText + "\n";
+
+                    // 1. Try iterating lines/spans (Standard detailed approach)
+                    if (Array.isArray(block.lines)) {
+                        block.lines.forEach((line: any) => {
+                            if (Array.isArray(line.spans)) {
+                                line.spans.forEach((span: any) => {
+                                    blockText += span.text || "";
+                                });
+                            }
+                            blockText += " ";
+                        });
+                    }
+
+                    // 2. Fallback: Some versions put text directly on block
+                    if (!blockText.trim() && block.text) {
+                        blockText = block.text;
+                    }
+
+                    const cleaned = cleanText(blockText);
+                    if (cleaned) {
+                        blocks.push({ type: 'text', content: cleaned });
+                        pagePlainText += blockText + "\n";
+                    }
                 } else if (block.type === 'image') {
                     const imgBBox = block.bbox;
                     const imgWidth = Math.round(imgBBox[2] - imgBBox[0]);
@@ -200,10 +211,15 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
                     }
                 }
             });
-        } else {
-            const text = structuredText.asText();
-            pagePlainText = text;
-            blocks.push({ type: 'text', content: cleanText(text) });
+        }
+
+        // 3. Final Fallback: If no content was captured, use absolute text from the page
+        if (blocks.length === 0) {
+            const absoluteText = structuredText.asText();
+            if (absoluteText && absoluteText.trim()) {
+                pagePlainText = absoluteText;
+                blocks.push({ type: 'text', content: cleanText(absoluteText) });
+            }
         }
 
         pages.push({
