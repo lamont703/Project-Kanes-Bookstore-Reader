@@ -5,7 +5,7 @@
  * using the MuPDF native/WASM library.
  */
 
-import mupdf from 'mupdf'
+import * as mupdf from 'mupdf'
 
 export interface ParsedPage {
     pageNumber: number;

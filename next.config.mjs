@@ -6,7 +6,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
- 
+  experimental: {
+    serverComponentsExternalPackages: ['mupdf'],
+  },
 }
 
 export default nextConfig
