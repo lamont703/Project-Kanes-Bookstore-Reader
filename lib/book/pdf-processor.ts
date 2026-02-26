@@ -128,92 +128,72 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
 
         const pngData = pixmap.asPNG();
         const structuredText = page.toStructuredText("preserve-whitespace");
+        const jsonStr = structuredText.asJSON?.();
         const blocks: any[] = [];
+        let currentText = "";
         let pagePlainText = "";
 
-        const jsonStr = structuredText.asJSON?.();
-        let mupdfBlocks: any[] = [];
-
-        try {
-            if (jsonStr) {
-                const parsed = JSON.parse(jsonStr);
-                mupdfBlocks = parsed.blocks || (parsed.pages && parsed.pages[0]?.blocks) || [];
-            }
-        } catch (err) {
-            console.warn("[pdf-processor] JSON parse failed, falling back to absolute text source", err);
-        }
-
-        if (Array.isArray(mupdfBlocks) && mupdfBlocks.length > 0) {
-            mupdfBlocks.forEach((block: any) => {
-                if (block.type === 'text') {
-                    let blockText = "";
-
-                    // 1. Try iterating lines/spans (Standard detailed approach)
-                    if (Array.isArray(block.lines)) {
-                        block.lines.forEach((line: any) => {
-                            if (Array.isArray(line.spans)) {
-                                line.spans.forEach((span: any) => {
-                                    blockText += span.text || "";
-                                });
-                            }
-                            blockText += " ";
-                        });
-                    }
-
-                    // 2. Fallback: Some versions put text directly on block
-                    if (!blockText.trim() && block.text) {
-                        blockText = block.text;
-                    }
-
-                    const cleaned = cleanText(blockText);
-                    if (cleaned) {
-                        blocks.push({ type: 'text', content: cleaned });
-                        pagePlainText += blockText + "\n";
-                    }
-                } else if (block.type === 'image') {
-                    const imgBBox = block.bbox;
-                    const imgWidth = Math.round(imgBBox[2] - imgBBox[0]);
-                    const imgHeight = Math.round(imgBBox[3] - imgBBox[1]);
-
-                    if (imgWidth > 50 && imgHeight > 50) {
-                        try {
-                            const illustPixmap = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, [0, 0, imgWidth, imgHeight], false);
-                            illustPixmap.clear(255);
-                            const illustDev = new mupdf.DrawDevice(mupdf.Matrix.identity, illustPixmap);
-                            try {
-                                const illustMatrix = mupdf.Matrix.translate(-imgBBox[0], -imgBBox[1]);
-                                page.run(illustDev, illustMatrix);
-                            } finally {
-                                illustDev.close();
-                            }
-
-                            const illustPng = illustPixmap.asPNG();
-                            const positionIndex = illustrations.length;
-
-                            illustrations.push({
-                                pageNumber: i + 1,
-                                positionIndex,
-                                imageData: Buffer.from(illustPng),
-                                contentType: "image/png",
-                                width: imgWidth,
-                                height: imgHeight,
-                            });
-
-                            blocks.push({
-                                type: 'image',
-                                imageIndex: positionIndex,
-                                width: imgWidth,
-                                height: imgHeight
-                            });
-                        } catch (illustErr) {
-                            console.warn(`Illustration error on page ${i + 1}:`, illustErr);
-                        }
-                    }
+        // Walk the structured text to catch exactly what MuPDF sees (Text + Images)
+        structuredText.walk({
+            beginTextBlock: () => {
+                if (currentText.trim()) {
+                    const cleaned = cleanText(currentText);
+                    if (cleaned) blocks.push({ type: 'text', content: cleaned });
                 }
-            });
+                currentText = "";
+            },
+            onChar: (c) => {
+                currentText += c;
+                pagePlainText += c;
+            },
+            endLine: () => {
+                currentText += " ";
+                pagePlainText += "\n";
+            },
+            onImageBlock: (bbox, transform, image) => {
+                // Flush existing text before image
+                if (currentText.trim()) {
+                    const cleaned = cleanText(currentText);
+                    if (cleaned) blocks.push({ type: 'text', content: cleaned });
+                }
+                currentText = "";
+
+                try {
+                    const imgPixmap = image.toPixmap();
+                    const imgPng = imgPixmap.asPNG();
+                    const positionIndex = illustrations.length;
+
+                    const imgWidth = image.getWidth();
+                    const imgHeight = image.getHeight();
+
+                    illustrations.push({
+                        pageNumber: i + 1,
+                        positionIndex,
+                        imageData: Buffer.from(imgPng),
+                        contentType: "image/png",
+                        width: imgWidth,
+                        height: imgHeight,
+                    });
+
+                    blocks.push({
+                        type: 'image',
+                        imageIndex: positionIndex,
+                        width: imgWidth,
+                        height: imgHeight
+                    });
+                } catch (err) {
+                    console.warn(`[pdf-processor] Image extraction failed on page ${i + 1}`, err);
+                }
+            }
+        });
+
+        // Flush final text
+        if (currentText.trim()) {
+            const cleaned = cleanText(currentText);
+            if (cleaned) blocks.push({ type: 'text', content: cleaned });
         }
 
-        // 3. Final Fallback: If no content was captured, use absolute text from the page
+        // Final Fallback: If no blocks were added, use absolute asText() source
         if (blocks.length === 0) {
             const absoluteText = structuredText.asText();
             if (absoluteText && absoluteText.trim()) {
