@@ -76,15 +76,25 @@ export async function parsePDF(file: File): Promise<PDFParseResult> {
     }
 }
 
+// ─── MuPDF Module Loader ─────────────────────────────────────
+const MUPDF_URL = "npm:mupdf@latest";
+let mupdfCache: any = null;
+
+async function loadMuPDF() {
+    if (!mupdfCache) {
+        console.log(`[pdf-parser] Loading MuPDF WASM via npm specifier...`);
+        // Using dynamic import so it only loads when parsing is actually needed
+        mupdfCache = await import(MUPDF_URL);
+    }
+    return mupdfCache;
+}
+
 // ─── Primary: MuPDF WASM Renderer ──────────────────────────────
 async function parseWithMuPDF(
     fileBytes: Uint8Array,
     fileName: string
 ): Promise<PDFParseResult> {
-    // Dynamic import of MuPDF WASM module
-    // Switching to unpkg which often handles WASM sidecars more reliably in Deno
-    const mupdf = await import("https://unpkg.com/mupdf@0.5.0/dist/mupdf.js");
-
+    const mupdf = await loadMuPDF();
     const doc = mupdf.Document.openDocument(fileBytes, fileName);
     const pageCount = doc.countPages();
 
