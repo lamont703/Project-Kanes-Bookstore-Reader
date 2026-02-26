@@ -128,13 +128,13 @@ export function BookClubContent({
                                 discussionDate: new Date(currentSelection.discussion_date)
                             }}
                             book={{
-                                id: currentSelection.books.id,
-                                title: currentSelection.books.title,
-                                author: currentSelection.books.author,
-                                coverImage: currentSelection.books.cover_image_url || "/placeholder.webp",
+                                id: currentSelection.books?.id ?? "",
+                                title: currentSelection.books?.title ?? "Unknown Title",
+                                author: currentSelection.books?.author ?? "Unknown Author",
+                                coverImage: currentSelection.books?.cover_image_url || "/placeholder.webp",
                                 price: 0,
-                                genre: currentSelection.books.genre,
-                                description: currentSelection.books.description,
+                                genre: currentSelection.books?.genre ?? "",
+                                description: currentSelection.books?.description ?? "",
                                 variants: []
                             }}
                             isMember={isMember}
@@ -225,13 +225,13 @@ export function BookClubContent({
                                             discussionDate: new Date(selection.discussion_date)
                                         }}
                                         book={{
-                                            id: selection.books.id,
-                                            title: selection.books.title,
-                                            author: selection.books.author,
-                                            coverImage: selection.books.cover_image_url || "/placeholder.webp",
+                                            id: selection.books?.id ?? "",
+                                            title: selection.books?.title ?? "Unknown Title",
+                                            author: selection.books?.author ?? "Unknown Author",
+                                            coverImage: selection.books?.cover_image_url || "/placeholder.webp",
                                             price: 0,
-                                            genre: selection.books.genre,
-                                            description: selection.books.description,
+                                            genre: selection.books?.genre ?? "",
+                                            description: selection.books?.description ?? "",
                                             variants: []
                                         }}
                                         isMember={isMember}

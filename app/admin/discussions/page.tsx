@@ -321,7 +321,7 @@ export default function AdminDiscussionsPage() {
                                         <div className="hidden sm:block">
                                             Last Pulse:{" "}
                                             {topic.last_activity_at
-                                                ? new Date(topic.last_activity_at).toLocaleDateString()
+                                                ? new Date(topic.last_activity_at).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
                                                 : "No activity"}
                                         </div>
                                     </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,12 @@ interface BookFormProps {
 export function BookForm({ initialData, isEdit }: BookFormProps) {
     const router = useRouter()
     const [isUploading, setIsUploading] = useState(false)
+    const [isMounted, setIsMounted] = useState(false)
     const supabase = createClient()
+
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
 
     // Form State
     const [formData, setFormData] = useState({
@@ -159,6 +164,8 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             setIsUploading(false)
         }
     }
+
+    if (!isMounted) return null
 
     return (
         <form onSubmit={handleSubmit} className="space-y-8">

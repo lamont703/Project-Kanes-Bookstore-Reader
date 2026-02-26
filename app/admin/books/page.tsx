@@ -43,7 +43,10 @@ export default function AdminBooksPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [bookToDelete, setBookToDelete] = useState<any | null>(null)
 
+  const [isMounted, setIsMounted] = useState(false)
+
   useEffect(() => {
+    setIsMounted(true)
     fetchBooks()
   }, [])
 
@@ -136,6 +139,8 @@ export default function AdminBooksPage() {
       ))}
     </div>
   )
+
+  if (!isMounted) return null
 
   return (
     <div className="p-4 md:p-8">

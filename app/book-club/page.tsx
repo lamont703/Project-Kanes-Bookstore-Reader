@@ -11,10 +11,12 @@ export default async function BookClubPage() {
     .from('book_club_selections')
     .select('*, books(*)')
 
-  const processedSelections = (rawSelections || []).map((s: any) => ({
-    ...s,
-    status: getCurrentStatus(s.month, s.year)
-  }))
+  const processedSelections = (rawSelections || [])
+    .filter((s: any) => s.books) // Ensure associated book exists
+    .map((s: any) => ({
+      ...s,
+      status: getCurrentStatus(s.month, s.year)
+    }))
 
   const selections = sortSelections(processedSelections)
   const currentSelection = selections.find((s: any) => s.status === 'current')

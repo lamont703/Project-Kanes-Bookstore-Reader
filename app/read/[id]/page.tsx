@@ -15,6 +15,7 @@ import type { Highlight, Bookmark } from "@/lib/types/reader"
 import {
   saveSettings,
   getSettings,
+  defaultSettings,
   type ReadingSettings,
 } from "@/lib/reading-storage"
 
@@ -48,7 +49,13 @@ export default function ReadPage() {
 
   // Reader state
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
-  const [settings, setSettings] = useState<ReadingSettings>(getSettings())
+  const [settings, setSettings] = useState<ReadingSettings>(defaultSettings)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+    setSettings(getSettings())
+  }, [])
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
   const [bookIllustrations, setBookIllustrations] = useState<any[]>([])
@@ -168,10 +175,11 @@ export default function ReadPage() {
             .single()
 
           if (userSettings) {
-            setSettings({
+            setSettings(prev => ({
+              ...prev,
               zoom: userSettings.zoom,
               theme: userSettings.theme as "dark" | "light" | "sepia",
-            })
+            }))
           }
         }
       } catch (err: any) {

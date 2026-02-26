@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<any | null>(null)
     const [subscription, setSubscription] = useState<any | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const supabase = createClient()
+    const [supabase] = useState(() => createClient())
 
     useEffect(() => {
         const fetchUserData = async (userId: string) => {

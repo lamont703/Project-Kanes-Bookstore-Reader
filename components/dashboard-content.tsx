@@ -235,7 +235,7 @@ export function DashboardContent({
                                         </div>
                                         <div className="text-sm text-muted-foreground flex items-center gap-3">
                                             <Clock className="w-3 h-3" />
-                                            {new Date(order.placed_at).toLocaleDateString()}
+                                            {new Date(order.placed_at).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })}
                                         </div>
                                     </div>
                                     <div className="flex-1 md:px-12">
