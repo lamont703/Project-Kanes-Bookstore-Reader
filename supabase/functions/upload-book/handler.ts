@@ -19,9 +19,6 @@
 
 import { createAdminClient, createAuthClient } from "../_shared/supabase-client.ts";
 import { createErrorResponse, ErrorCodes } from "../_shared/errors.ts";
-import { parsePDF, type PDFParseResult } from "./pdf-parser.ts";
-import { extractText, countWords } from "./text-extractor.ts";
-import { extractIllustrations } from "./image-extractor.ts";
 
 interface UploadResult {
     id: string;
@@ -217,10 +214,11 @@ export async function handleUploadBook(
             console.log("[upload-book] Cover image uploaded");
         }
 
-        // ─── 6. Parse PDF → pages + text + illustrations ───────────
+        // ─── 6. Delegate PDF processing to Vercel Node.js API ─────
+        // This offloads the heavy MuPDF intensive work which is currently
+        // incompatible with the Deno-based Supabase Edge Runtime.
         if (!bookFile) {
             console.log("[upload-book] No new PDF file provided, skipping parsing pipeline.");
-            // Just update variants and finish
             const finalStatus = (formData.get("status") as string) === "published" ? "published" : "draft";
             await adminClient.from("books").update({ status: finalStatus }).eq("id", bookId);
 
@@ -234,120 +232,46 @@ export async function handleUploadBook(
             };
         }
 
-        console.log("[upload-book] Starting PDF processing pipeline...");
-        const parseResult: PDFParseResult = await parsePDF(bookFile);
-        console.log(`[upload-book] Parsed ${parseResult.pages.length} pages`);
+        console.log("[upload-book] Starting Vercel PDF processing delegation...");
 
-        // ─── 7. Upload page images and create DB records ───────────
-        let illustrationCount = 0;
+        // Use environment variables for Vercel URL and Internal Secret
+        const vercelUrl = Deno.env.get("VERCEL_PROJECT_URL") || "https://project-kanes-book-reader.vercel.app";
+        const internalSecret = Deno.env.get("INTERNAL_API_SECRET");
 
-        for (const page of parseResult.pages) {
-            // Clean and normalize the extracted text
-            const cleanText = extractText(page);
-            const wordCount = countWords(cleanText);
+        const vercelResponse = await fetch(`${vercelUrl}/api/admin/process-book`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${internalSecret}`
+            },
+            body: JSON.stringify({
+                bookId,
+                storagePath: `${bookId}/original.pdf`,
+                title
+            })
+        });
 
-            // Determine file extension from content type
-            const ext = page.contentType === "image/webp" ? "webp"
-                : page.contentType === "image/png" ? "png"
-                    : "svg";
-
-            const pageImagePath = `${bookId}/page-${String(page.pageNumber).padStart(4, "0")}.${ext}`;
-
-            // Upload page image to Storage
-            const { error: pageUploadError } = await adminClient.storage
-                .from("book-pages")
-                .upload(pageImagePath, page.imageData, {
-                    contentType: page.contentType,
-                    upsert: false,
-                });
-
-            if (pageUploadError) {
-                console.error(`[upload-book] Failed to upload page ${page.pageNumber}: ${pageUploadError.message}`);
-                throw pageUploadError;
-            }
-
-            // Get the storage URL for the page
-            const { data: pageUrl } = adminClient.storage
-                .from("book-pages")
-                .getPublicUrl(pageImagePath);
-
-            // Create book_pages record
-            const { error: pageDbError } = await adminClient
-                .from("book_pages")
-                .insert({
-                    book_id: bookId,
-                    page_number: page.pageNumber,
-                    page_image_url: pageUrl.publicUrl,
-                    content: JSON.stringify(page.structuredContent), // Store as structured JSON
-                    word_count: wordCount,
-                });
-
-            if (pageDbError) throw pageDbError;
-
-            // ── Extract illustrations from this page ──
-            // Use illustrations already extracted by the parser
-            const illustrations = parseResult.illustrations.filter(i => i.pageNumber === page.pageNumber);
-
-            for (const illust of illustrations) {
-                const illustExt = illust.contentType === "image/webp" ? "webp" : "png";
-                const illustPath = `${bookId}/illust-p${page.pageNumber}-${illust.positionIndex}.${illustExt}`;
-
-                const { error: illustUploadError } = await adminClient.storage
-                    .from("book-illustrations")
-                    .upload(illustPath, illust.imageData, {
-                        contentType: illust.contentType,
-                        upsert: false,
-                    });
-
-                if (illustUploadError) {
-                    console.warn(`[upload-book] Illustration upload failed: ${illustUploadError.message}`);
-                    continue; // Non-fatal — skip this illustration
-                }
-
-                const { data: illustUrl } = adminClient.storage
-                    .from("book-illustrations")
-                    .getPublicUrl(illustPath);
-
-                await adminClient.from("book_illustrations").insert({
-                    book_id: bookId,
-                    image_url: illustUrl.publicUrl,
-                    page_number: page.pageNumber,
-                    position_index: illust.positionIndex,
-                    caption: illust.caption || null,
-                    width: illust.width,
-                    height: illust.height,
-                });
-
-                illustrationCount++;
-            }
-
-            console.log(
-                `[upload-book] Page ${page.pageNumber}/${parseResult.pages.length}: ` +
-                `${wordCount} words, ${illustrations.length} illustrations`
-            );
+        if (!vercelResponse.ok) {
+            const errorText = await vercelResponse.text();
+            console.error(`[upload-book] Vercel processing failed: ${errorText}`);
+            throw new Error(`PDF processing delegation failed: ${errorText}`);
         }
 
-        // ─── 8. Finalize: mark as published ────────────────────────
-        const finalStatus = (formData.get("status") as string) === "published" ? "published" : "draft";
-
-        await adminClient
-            .from("books")
-            .update({ status: finalStatus })
-            .eq("id", bookId);
-
+        const processResult = await vercelResponse.json();
         const processingTime = Date.now() - startTime;
+
         console.log(
-            `[upload-book] ✅ Complete! "${title}" — ` +
-            `${parseResult.pages.length} pages, ${illustrationCount} illustrations, ` +
+            `[upload-book] ✅ Complete via Vercel! "${title}" — ` +
+            `${processResult.pages} pages, ${processResult.illustrations} illustrations, ` +
             `${processingTime}ms`
         );
 
         return {
             id: bookId,
             title,
-            status: finalStatus,
-            pages_count: parseResult.pages.length,
-            illustrations_count: illustrationCount,
+            status: "published", // Vercel marks it as published once done
+            pages_count: processResult.pages,
+            illustrations_count: processResult.illustrations,
             processing_time_ms: processingTime,
         };
 
