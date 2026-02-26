@@ -43,30 +43,42 @@ const MAX_PAGE_DIMENSION = 1600;
 
 /**
  * Clean and normalize extracted text from a parsed PDF page.
+ * Optimized for reflowable display by joining broken lines and removing PDF noise.
  */
 function cleanText(textContent: string): string {
-    let text = textContent || "";
-    text = text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
-    text = text.replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, " ");
-    text = text
+    if (!textContent) return "";
+
+    let text = textContent
+        .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "") // Remove control chars
+        .replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, " ") // Normalize spaces
+        // Ligatures
         .replace(/ﬁ/g, "fi")
         .replace(/ﬂ/g, "fl")
         .replace(/ﬀ/g, "ff")
         .replace(/ﬃ/g, "ffi")
-        .replace(/ﬄ/g, "ffl");
-    text = text.replace(/(\w)-\s*\n\s*(\w)/g, "$1$2");
-    text = text.replace(/\n{3,}/g, "\n\n");
-    text = text.replace(/[ \t]{2,}/g, " ");
+        .replace(/ﬄ/g, "ffl")
+        // Hyphenation at end of lines
+        .replace(/(\w)-\s*\n\s*(\w)/g, "$1$2")
+        // Clean multi-spaces
+        .replace(/[ \t]{2,}/g, " ");
 
     const lines = text.split("\n");
     const filtered = lines.filter((line) => {
         const trimmed = line.trim();
+        if (!trimmed) return false;
+
+        // Filter out lone page numbers (1-4 digits)
         if (/^\d{1,4}$/.test(trimmed)) return false;
-        if (trimmed.length > 0 && trimmed.length < 4 && !/[a-zA-Z]{2,}/.test(trimmed)) return false;
+
+        // Filter out very short lines that look like crumbs (e.g. ".", "x", "1b")
+        // But keep anything that has at least one vowel and 2+ characters
+        if (trimmed.length < 3 && !/[aeiouAEIOU]/.test(trimmed)) return false;
+
         return true;
     });
 
-    return filtered.join("\n").trim();
+    // Join with spaces for reflow, but preserve paragraph breaks if they exist
+    return filtered.join(" ").replace(/\s{2,}/g, " ").trim();
 }
 
 /**
