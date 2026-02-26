@@ -120,16 +120,28 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
         let pagePlainText = "";
 
         const jsonStr = structuredText.asJSON?.();
-        const mupdfBlocks = jsonStr ? JSON.parse(jsonStr).blocks : [];
+        let mupdfBlocks: any[] = [];
 
-        if (mupdfBlocks && mupdfBlocks.length > 0) {
+        try {
+            if (jsonStr) {
+                const parsed = JSON.parse(jsonStr);
+                // MuPDF JSON can be { blocks: [] } or { pages: [{ blocks: [] }] }
+                mupdfBlocks = parsed.blocks || (parsed.pages && parsed.pages[0]?.blocks) || [];
+            }
+        } catch (err) {
+            console.warn("[pdf-processor] Structured text JSON parse failed", err);
+        }
+
+        if (Array.isArray(mupdfBlocks) && mupdfBlocks.length > 0) {
             mupdfBlocks.forEach((block: any) => {
-                if (block.type === 'text') {
+                if (block.type === 'text' && Array.isArray(block.lines)) {
                     let blockText = "";
                     block.lines.forEach((line: any) => {
-                        line.spans.forEach((span: any) => {
-                            blockText += span.text;
-                        });
+                        if (Array.isArray(line.spans)) {
+                            line.spans.forEach((span: any) => {
+                                blockText += span.text || "";
+                            });
+                        }
                         blockText += " ";
                     });
                     const cleanedText = cleanText(blockText);
