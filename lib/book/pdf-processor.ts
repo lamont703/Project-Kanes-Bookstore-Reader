@@ -109,7 +109,7 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
         const drawDevice = new mupdf.DrawDevice(mupdf.Matrix.identity, pixmap);
         try {
             const matrix = mupdf.Matrix.scale(width / (bounds[2] - bounds[0]), height / (bounds[3] - bounds[1]));
-            page.run(drawDevice, matrix, new mupdf.Cookie());
+            page.run(drawDevice, matrix);
         } finally {
             drawDevice.close();
         }
@@ -147,7 +147,7 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
                             const illustDev = new mupdf.DrawDevice(mupdf.Matrix.identity, illustPixmap);
                             try {
                                 const illustMatrix = mupdf.Matrix.translate(-imgBBox[0], -imgBBox[1]);
-                                page.run(illustDev, illustMatrix, new mupdf.Cookie());
+                                page.run(illustDev, illustMatrix);
                             } finally {
                                 illustDev.close();
                             }
