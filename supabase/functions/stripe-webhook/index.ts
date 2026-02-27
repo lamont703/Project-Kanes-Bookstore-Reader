@@ -112,16 +112,42 @@ async function handlePaymentSuccess(supabase: any, paymentIntent: any) {
 }
 
 async function handleSubscriptionInitialSuccess(supabase: any, paymentIntent: any) {
-    const { user_id, selected_book_ids, tshirt_size, mailing_address, full_name, phone } = paymentIntent.metadata
-    const selectedBookIds = JSON.parse(selected_book_ids)
-
-    // 1. Update User Profile
-    await supabase.from('users').update({
+    const metadata = paymentIntent.metadata || {}
+    const {
+        user_id,
+        selected_book_ids,
         tshirt_size,
         mailing_address,
         full_name,
         phone
-    }).eq('id', user_id)
+    } = metadata
+
+    console.log(`[stripe-webhook] Processing subscription initial success for user: ${user_id} (${paymentIntent.livemode ? 'LIVE' : 'SANDBOX'})`)
+
+    if (!user_id || !selected_book_ids) {
+        console.error('[stripe-webhook] Missing critical metadata: user_id or selected_book_ids')
+        return
+    }
+
+    let selectedBookIds: string[] = []
+    try {
+        selectedBookIds = JSON.parse(selected_book_ids)
+    } catch (e) {
+        console.error('[stripe-webhook] Failed to parse selected_book_ids:', selected_book_ids)
+        return
+    }
+
+    // 1. Update User Profile
+    const profileUpdate: any = {}
+    if (tshirt_size) profileUpdate.tshirt_size = tshirt_size
+    if (mailing_address) profileUpdate.mailing_address = mailing_address
+    if (full_name) profileUpdate.full_name = full_name
+    if (phone) profileUpdate.phone = phone
+
+    if (Object.keys(profileUpdate).length > 0) {
+        const { error: userError } = await supabase.from('users').update(profileUpdate).eq('id', user_id)
+        if (userError) console.error('[stripe-webhook] Failed to update user profile:', userError)
+    }
 
     // 2. Create Recurring Subscription in Stripe ($3.99/mo) with 30-day trial
     const priceId = Deno.env.get('STRIPE_PREMIUM_RECURRING_PRICE_ID')
@@ -136,7 +162,7 @@ async function handleSubscriptionInitialSuccess(supabase: any, paymentIntent: an
             })
 
             // 3. Create Subscription Record in DB
-            await supabase.from('user_subscriptions').upsert({
+            const { error: subError } = await supabase.from('user_subscriptions').upsert({
                 user_id,
                 plan: 'premium',
                 status: 'active',
@@ -147,35 +173,42 @@ async function handleSubscriptionInitialSuccess(supabase: any, paymentIntent: an
                 started_at: new Date().toISOString()
             }, { onConflict: 'user_id' })
 
+            if (subError) console.error('[stripe-webhook] Failed to create subscription record:', subError)
+
         } catch (e) {
             console.error('Failed to create recurring subscription:', e)
         }
+    } else {
+        console.warn('[stripe-webhook] STRIPE_PREMIUM_RECURRING_PRICE_ID not set. Skipping recurring subscription creation.')
     }
 
     // 4. Grant 2 free books to library
-    const libraryEntries = selectedBookIds.map((bookId: string) => ({
-        user_id,
-        book_id: bookId,
-        source: 'subscription_signup'
-    }))
-    await supabase.from('user_library').upsert(libraryEntries)
+    if (selectedBookIds.length > 0) {
+        const libraryEntries = selectedBookIds.map((bookId: string) => ({
+            user_id,
+            book_id: bookId,
+            source: 'subscription_signup'
+        }))
+        const { error: libError } = await supabase.from('user_library').upsert(libraryEntries)
+        if (libError) console.error('[stripe-webhook] Failed to grant library access:', libError)
+    }
 
     // 5. Generate a Kane Dealer promo code
     // Format: KANE-[FIRSTNAME]-[PHONE_LAST4]
     try {
-        const firstName = full_name.split(' ')[0].toUpperCase()
-        const phoneLast4 = phone.slice(-4)
+        const firstName = (full_name || 'MEMBER').split(' ')[0].toUpperCase()
+        const phoneLast4 = (phone || '0000').slice(-4)
         const promoCode = `KANE-${firstName}-${phoneLast4}`
 
-        await supabase.from('promo_codes').insert({
+        const { error: promoError } = await supabase.from('promo_codes').insert({
             code: promoCode,
             discount_percent: 35,
             is_active: true,
-            created_by: user_id,
-            type: 'kane_dealer'
+            owner_id: user_id
         })
+        if (promoError) console.error('[stripe-webhook] Failed to insert promo code:', promoError)
     } catch (e) {
-        console.error('Failed to generate promo code:', e)
+        console.error('Failed to generate promo code string:', e)
     }
 
     // 6. Trigger Welcome Email
@@ -229,7 +262,7 @@ async function handleSubscriptionUpdate(supabase: any, subscription: any) {
         'active': 'active',
         'past_due': 'past_due',
         'unpaid': 'past_due',
-        'canceled': 'expired',
+        'canceled': 'cancelled',
         'incomplete': 'past_due',
         'incomplete_expired': 'expired',
         'trialing': 'active'
