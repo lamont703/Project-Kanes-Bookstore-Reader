@@ -94,7 +94,7 @@ function countWords(text: string): number {
  */
 export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<PDFParseResult> {
     const fileBytes = new Uint8Array(fileBuffer);
-    const doc = mupdf.Document.openDocument(fileBytes, "application/pdf");
+    const doc = mupdf.Document.openDocument(fileBytes, fileName);
     const pageCount = doc.countPages();
 
     const pages: ParsedPage[] = [];

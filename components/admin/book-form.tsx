@@ -65,7 +65,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
         if (!formData.description) newErrors.description = "Description is required"
 
         formData.variants.forEach((v: any) => {
-            if (v.price <= 0) {
+            if ((formData.status === "Published" || v.available) && v.price <= 0) {
                 newErrors[`price_${v.format}`] = `${v.format.replace('_', ' ')} price must be greater than 0`
             }
         })
@@ -102,9 +102,17 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!validate()) return
+        console.log("[BookForm] Starting submit...")
+
+        const isValid = validate()
+        console.log("[BookForm] Validation result:", isValid, errors)
+        if (!isValid) {
+            toast.error("Please fix the errors in the form")
+            return
+        }
 
         setIsUploading(true)
+        console.log("[BookForm] isUploading set to true, preparing FormData...")
 
         let bookId: string | null = null
 
@@ -140,9 +148,13 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             uploadData.append("komet_card_available", String(card?.available ?? true))
 
             // 2. Invoke the 'upload-book' Edge Function
-            // Using fetch directly to ensure absolute control over headers and avoid gateway rejections
+            console.log("[BookForm] Fetching session...")
             const { data: sessionData } = await supabase.auth.getSession()
-            if (!sessionData.session) throw new Error("No active session")
+            if (!sessionData.session) {
+                console.error("[BookForm] No active session found!")
+                throw new Error("No active session")
+            }
+            console.log("[BookForm] Session found, invoking Edge Function...")
 
             const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/upload-book`
             const response = await fetch(functionUrl, {
