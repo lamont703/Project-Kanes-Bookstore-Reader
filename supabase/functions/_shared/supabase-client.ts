@@ -1,4 +1,4 @@
-import { createClient as createSupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2?target=deno'
+import { createClient as createSupabaseClient } from 'npm:@supabase/supabase-js@2'
 
 export const createClient = (authHeader?: string) => {
     const url = Deno.env.get('SUPABASE_URL')
