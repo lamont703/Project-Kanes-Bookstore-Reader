@@ -26,10 +26,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Missing bookId or storagePath" }, { status: 400 });
         }
 
-        console.log(`[process-book] Starting DOCX job for "${title}" (${bookId})`);
+        const isPdf = storagePath.toLowerCase().endsWith(".pdf");
+        console.log(`[process-book] Starting ${isPdf ? "PDF" : "DOCX"} job for "${title}" (${bookId})`);
 
-        // ─── 2. Run DOCX Processing Pipeline ───────────────────
-        const parseResult = await processDocx(bookId, storagePath);
+        // ─── 2. Run Appropriate Processing Pipeline ───────────────────
+        let parseResult;
+        if (isPdf) {
+            // PDF processing (needs PDF-specific wrapper or direct call)
+            // For now, let's assume we have a wrapper like processDocx but for PDF
+            const { processPdfBatch } = await import("@/lib/book/pdf-batch-processor");
+            parseResult = await processPdfBatch(bookId, storagePath);
+        } else {
+            parseResult = await processDocx(bookId, storagePath);
+        }
 
         const duration = Date.now() - startTime;
         console.log(`[process-book] Finished job for ${bookId} in ${duration}ms`);

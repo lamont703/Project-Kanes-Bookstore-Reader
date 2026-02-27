@@ -1,0 +1,130 @@
+import { createClient } from '@supabase/supabase-js';
+import { processPDF } from './pdf-processor';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+/**
+ * PDF Batch Processor (Vercel Node.js)
+ * 
+ * Orchestrates the full PDF parsing pipeline:
+ * 1. Download original PDF from Storage
+ * 2. Parse PDF (renders pages + extracts text + extracts XObject illustrations)
+ * 3. Upload artifacts (page images + illustrations)
+ * 4. Sync database (book_pages + book_illustrations)
+ * 5. Update book status
+ */
+export async function processPdfBatch(bookId: string, storagePath: string) {
+    console.log(`[pdf-batch] Starting PDF processing for book ${bookId}...`);
+
+    // ─── 1. Download PDF ───────────────────────────────────────────
+    const { data: fileData, error: downloadError } = await supabase.storage
+        .from("book-docs")
+        .download(storagePath);
+
+    if (downloadError || !fileData) {
+        throw new Error(`Failed to download PDF: ${downloadError?.message}`);
+    }
+
+    const buffer = Buffer.from(await fileData.arrayBuffer());
+
+    // ─── 2. Internal PDF Extraction (The Heavy Lifting) ───────────
+    const result = await processPDF(buffer, "original.pdf");
+    console.log(`[pdf-batch] PDF Parsed: ${result.pages.length} pages, ${result.illustrations.length} illustrations`);
+
+    // ─── 3. Upload Illustrations ──────────────────────────────────
+    const illustrationUrls: string[] = [];
+    for (const illust of result.illustrations) {
+        const fileName = `${bookId}/illust_${illust.positionIndex}.png`;
+
+        const { error: uploadErr } = await supabase.storage
+            .from("book-illustrations")
+            .upload(fileName, illust.imageData, {
+                contentType: illust.contentType,
+                upsert: true
+            });
+
+        if (uploadErr) {
+            console.error(`[pdf-batch] Illustration upload failed: ${uploadErr.message}`);
+            continue;
+        }
+
+        const { data: publicUrl } = supabase.storage
+            .from("book-illustrations")
+            .getPublicUrl(fileName);
+
+        illustrationUrls[illust.positionIndex] = publicUrl.publicUrl;
+
+        await supabase.from("book_illustrations").insert({
+            book_id: bookId,
+            image_url: publicUrl.publicUrl,
+            page_number: illust.pageNumber,
+            position_index: illust.positionIndex
+        });
+    }
+
+    // ─── 4. Upload Page Images and Save Content ───────────────────
+    // Clear existing pages for idempotency
+    await supabase.from("book_pages").delete().eq("book_id", bookId);
+
+    for (const page of result.pages) {
+        const pageImageName = `${bookId}/page_${page.pageNumber}.png`;
+
+        const { error: pageUploadErr } = await supabase.storage
+            .from("book-pages")
+            .upload(pageImageName, page.imageData, {
+                contentType: page.contentType,
+                upsert: true
+            });
+
+        if (pageUploadErr) {
+            console.error(`[pdf-batch] Page ${page.pageNumber} upload failed: ${pageUploadErr.message}`);
+            continue;
+        }
+
+        const { data: pageUrl } = supabase.storage
+            .from("book-pages")
+            .getPublicUrl(pageImageName);
+
+        // Inject illustration markers into the content if needed
+        // For PDF, we usually already have the illustrations in the structuredContent
+        let finalContent = page.textContent || "";
+
+        // Simple heuristic: If we have illustrations on this page, append them or reference them
+        const pageIllusts = result.illustrations.filter(ill => ill.pageNumber === page.pageNumber);
+        if (pageIllusts.length > 0) {
+            pageIllusts.forEach(ill => {
+                const url = illustrationUrls[ill.positionIndex];
+                if (url) {
+                    finalContent += `\n\n![Illustration](${url})`;
+                }
+            });
+        }
+
+        await supabase.from("book_pages").insert({
+            book_id: bookId,
+            page_number: page.pageNumber,
+            page_image_url: pageUrl.publicUrl,
+            content: finalContent,
+            word_count: (page.textContent || "").split(/\s+/).length
+        });
+    }
+
+    // ─── 5. Update Book Metadata ──────────────────────────────────
+    const { data: fileUrl } = supabase.storage
+        .from("book-docs")
+        .getPublicUrl(storagePath);
+
+    await supabase.from("books").update({
+        status: 'published',
+        book_file_url: fileUrl.publicUrl,
+        page_count: result.metadata.pageCount,
+        // Optional: save title/author if missing
+    }).eq("id", bookId);
+
+    return {
+        pages: result.pages.length,
+        illustrations: result.illustrations.length
+    };
+}

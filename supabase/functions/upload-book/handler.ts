@@ -102,7 +102,7 @@ export async function handleUploadBook(
     }
 
     if (!bookFile && !existingId) {
-        throw { ...ErrorCodes.VALIDATION_ERROR, message: "Book Word file (.docx) is required for new uploads" };
+        throw { ...ErrorCodes.VALIDATION_ERROR, message: "A book file (.docx or .pdf) is required for new uploads" };
     }
 
     console.log(`[upload-book] Starting upload for "${title}" by ${author}`);
@@ -169,23 +169,27 @@ export async function handleUploadBook(
         }
         console.log(`[upload-book] Processed ${formats.length} variants`);
 
-        // ─── 4. Upload original DOCX ────────────────────────────────
+        // ─── 4. Upload original file (PDF or DOCX) ───────────────────
+        let storagePath = "";
         if (bookFile) {
-            const docxPath = `${bookId}/original.docx`;
-            const { error: docxUploadError } = await adminClient.storage
+            const ext = bookFile.name.split(".").pop()?.toLowerCase() || "docx";
+            const mimeType = ext === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            storagePath = `${bookId}/original.${ext}`;
+
+            const { error: uploadError } = await adminClient.storage
                 .from("book-docs")
-                .upload(docxPath, bookFile, {
-                    contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                .upload(storagePath, bookFile, {
+                    contentType: mimeType,
                     upsert: true,
                 });
 
-            if (docxUploadError) throw docxUploadError;
-            console.log("[upload-book] Original DOCX uploaded to Storage");
+            if (uploadError) throw uploadError;
+            console.log(`[upload-book] Original ${ext.toUpperCase()} uploaded to Storage`);
 
             // Get public URL and save to book record
             const { data: publicUrl } = adminClient.storage
                 .from("book-docs")
-                .getPublicUrl(docxPath);
+                .getPublicUrl(storagePath);
 
             await adminClient
                 .from("books")
@@ -227,10 +231,9 @@ export async function handleUploadBook(
             console.log("[upload-book] Cover image uploaded");
         }
 
-        // ─── 6. Delegate Word processing to Vercel Node.js API ─────
-        // This offloads the heavy intensive work.
+        // ─── 6. Delegate processing to Vercel Node.js API ─────
         if (!bookFile) {
-            console.log("[upload-book] No new DOCX file provided, skipping parsing pipeline.");
+            console.log("[upload-book] No new file provided, skipping parsing pipeline.");
             const finalStatus = (formData.get("status") as string) === "published" ? "published" : "draft";
             await adminClient.from("books").update({ status: finalStatus }).eq("id", bookId);
 
@@ -244,7 +247,7 @@ export async function handleUploadBook(
             };
         }
 
-        console.log("[upload-book] Starting Vercel DOCX processing delegation...");
+        console.log("[upload-book] Starting Vercel processing delegation...");
 
         // Use environment variables for Vercel URL and Internal Secret
         const vercelUrl = Deno.env.get("VERCEL_PROJECT_URL") || "https://project-kanes-book-reader.vercel.app";
@@ -258,7 +261,7 @@ export async function handleUploadBook(
             },
             body: JSON.stringify({
                 bookId,
-                storagePath: `${bookId}/original.docx`,
+                storagePath,
                 title
             })
         });

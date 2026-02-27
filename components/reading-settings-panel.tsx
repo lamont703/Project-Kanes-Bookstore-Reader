@@ -41,7 +41,7 @@ export function ReadingSettingsPanel({ settings, onSettingsChange }: ReadingSett
               className="flex-1 text-xs"
               onClick={() => updateSetting("viewMode", "original")}
             >
-              ORIGINAL DOCX
+              ORIGINAL VIEW
             </Button>
           </div>
         </div>

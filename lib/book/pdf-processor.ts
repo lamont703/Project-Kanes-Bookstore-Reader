@@ -93,14 +93,60 @@ function countWords(text: string): number {
  * Core MuPDF Parsing Logic
  */
 export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<PDFParseResult> {
-    // Use new Uint8Array because mupdf expects typed arrays
     const fileBytes = new Uint8Array(fileBuffer);
-    const doc = mupdf.Document.openDocument(fileBytes, fileName);
+    const doc = mupdf.Document.openDocument(fileBytes, "application/pdf");
     const pageCount = doc.countPages();
 
     const pages: ParsedPage[] = [];
     const illustrations: ParsedIllustration[] = [];
+    const seenXrefs = new Set<number>();
 
+    // ─── 1. Global XObject Illustration Mining ───────────────────
+    // We scan the document for images first to build a clean library
+    for (let i = 0; i < pageCount; i++) {
+        const page = doc.loadPage(i);
+        const pageObj = (page as any).getObject();
+        const res = pageObj.get("Resources");
+        if (!res) continue;
+
+        const xobjDict = res.get("XObject");
+        if (!xobjDict || !xobjDict.isDictionary()) continue;
+
+        const jsDict = (xobjDict as any).asJS();
+        const keys = Object.keys(jsDict);
+
+        for (const key of keys) {
+            const entry = xobjDict.get(key);
+            if (!entry) continue;
+
+            try {
+                const subtype = entry.get("Subtype")?.toString();
+                if (subtype === "/Image") {
+                    const xref = (entry as any).getRef ? (entry as any).getRef() : null;
+                    if (xref && seenXrefs.has(xref)) continue;
+                    if (xref) seenXrefs.add(xref);
+
+                    // Load raw image from XObject
+                    const image = (doc as any).loadImage(entry);
+                    const pixmap = image.toPixmap();
+                    const pngData = pixmap.asPNG();
+
+                    illustrations.push({
+                        pageNumber: i + 1,
+                        positionIndex: illustrations.length,
+                        imageData: Buffer.from(pngData),
+                        contentType: "image/png",
+                        width: pixmap.getWidth(),
+                        height: pixmap.getHeight(),
+                    });
+                }
+            } catch (e) {
+                console.warn(`[pdf-processor] XObject extraction failed: ${key}`, e);
+            }
+        }
+    }
+
+    // ─── 2. Page Rendering and Text Extraction ───────────────────
     for (let i = 0; i < pageCount; i++) {
         const page = doc.loadPage(i);
         const bounds = page.getBounds();
@@ -127,107 +173,50 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
         }
 
         const pngData = pixmap.asPNG();
-        const structuredText = page.toStructuredText("preserve-whitespace,images");
+        const stext = page.toStructuredText("preserve-whitespace,images");
+        const json = JSON.parse(stext.asJSON());
+        const mupdfBlocks = json.blocks || (json.pages && json.pages[0]?.blocks) || [];
+
         const blocks: any[] = [];
         let pagePlainText = "";
 
-        const jsonStr = structuredText.asJSON?.();
-        let mupdfBlocks: any[] = [];
-
-        try {
-            if (jsonStr) {
-                const parsed = JSON.parse(jsonStr);
-                mupdfBlocks = parsed.blocks || (parsed.pages && parsed.pages[0]?.blocks) || [];
-            }
-        } catch (err) {
-            console.warn("[pdf-processor] JSON parse failed", err);
-        }
-
-        if (Array.isArray(mupdfBlocks)) {
-            mupdfBlocks.forEach((block: any, blockIndex) => {
-                if (block.type === 'text') {
-                    let blockText = "";
-                    if (Array.isArray(block.lines)) {
-                        block.lines.forEach((line: any) => {
-                            if (Array.isArray(line.spans)) {
-                                line.spans.forEach((span: any) => {
-                                    blockText += span.text || "";
-                                });
-                            }
-                            blockText += " ";
-                        });
-                    }
-
-                    if (!blockText.trim() && block.text) {
-                        blockText = block.text;
-                    }
-
-                    const cleaned = cleanText(blockText);
-                    if (cleaned) {
-                        blocks.push({ type: 'text', content: cleaned });
-                        pagePlainText += blockText + "\n";
-                    }
-                } else if (block.type === 'image' || (block.bbox && !block.lines)) {
-                    // This is our "Visual Crop" (screenshot) logic for Word containers
-                    const bbox = block.bbox;
-                    if (!Array.isArray(bbox) || bbox.length < 4) return;
-
-                    const x0 = bbox[0], y0 = bbox[1], x1 = bbox[2], y1 = bbox[3];
-                    const w = x1 - x0;
-                    const h = y1 - y0;
-
-                    // Only process significant blocks
-                    if (w > 30 && h > 30) {
-                        try {
-                            // Render at 2x scale for "Retina" quality illustrations
-                            const scale = 2.0;
-                            const renderW = Math.round(w * scale);
-                            const renderH = Math.round(h * scale);
-
-                            const illustPixmap = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, [0, 0, renderW, renderH], false);
-                            illustPixmap.clear(255);
-                            const illustDev = new mupdf.DrawDevice(mupdf.Matrix.identity, illustPixmap);
-
-                            try {
-                                // Translate and scale the page to crop the illustration exactly
-                                const illustMatrix = mupdf.Matrix.scale(scale, scale).pretranslate(-x0, -y0);
-                                page.run(illustDev, illustMatrix);
-                            } finally {
-                                illustDev.close();
-                            }
-
-                            const illustPng = illustPixmap.asPNG();
-                            const positionIndex = illustrations.length;
-
-                            illustrations.push({
-                                pageNumber: i + 1,
-                                positionIndex,
-                                imageData: Buffer.from(illustPng),
-                                contentType: "image/png",
-                                width: renderW,
-                                height: renderH,
-                            });
-
-                            blocks.push({
-                                type: 'image',
-                                imageIndex: positionIndex,
-                                width: renderW,
-                                height: renderH
-                            });
-                        } catch (illustErr) {
-                            console.warn(`[pdf-processor] Visual crop failed on page ${i + 1}:`, illustErr);
-                        }
-                    }
+        mupdfBlocks.forEach((block: any) => {
+            if (block.type === 'text') {
+                let blockText = "";
+                block.lines?.forEach((line: any) => {
+                    line.spans?.forEach((span: any) => {
+                        blockText += span.text || "";
+                    });
+                    blockText += "\n";
+                });
+                const cleaned = cleanText(blockText);
+                if (cleaned) {
+                    blocks.push({ type: 'text', content: cleaned });
+                    pagePlainText += blockText;
                 }
-            });
-        }
+            } else if (block.type === 'image') {
+                // Determine which illustration this block refers to (fuzzy match by page)
+                const pageIllusts = illustrations.filter(ill => ill.pageNumber === i + 1);
+                if (pageIllusts.length > 0) {
+                    // Logic: Assign first available illustration for this page block
+                    // For more precision, we'd need to match XObject names, but Page.getImages is missing.
+                    // This is usually sufficient for sequential reading.
+                    blocks.push({
+                        type: 'image',
+                        imageIndex: pageIllusts[0].positionIndex,
+                        width: block.bbox[2] - block.bbox[0],
+                        height: block.bbox[3] - block.bbox[1]
+                    });
+                }
+            }
+        });
 
-        // 3. Final Fallback: If no content was captured, use absolute text from the page
+        // Fallback for empty pages
         if (blocks.length === 0) {
-            const absoluteText = structuredText.asText();
-            if (absoluteText && absoluteText.trim()) {
-                pagePlainText = absoluteText;
-                blocks.push({ type: 'text', content: cleanText(absoluteText) });
+            const raw = stext.asText();
+            if (raw.trim()) {
+                blocks.push({ type: 'text', content: cleanText(raw) });
+                pagePlainText = raw;
             }
         }
 
