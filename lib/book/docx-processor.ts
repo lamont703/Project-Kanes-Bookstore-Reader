@@ -92,15 +92,21 @@ export async function processDocx(bookId: string, storagePath: string) {
     let fullHtml = result.value;
 
     // 4. Split into "Pages"
-    // We now split primarily on our custom [:PAGE_BREAK:] marker.
-    // If no markers are found, we fall back to the character-limit strategy.
+    // We now split on:
+    // 1. Our custom [:PAGE_BREAK:] marker
+    // 2. Horizontal Rules (<hr />) which are easy for users to type as "---"
 
     let pageHtmls: string[] = [];
 
-    if (fullHtml.includes("[:PAGE_BREAK:]")) {
-        console.log(`[docx-processor] Detected manual page breaks. Splitting accordingly.`);
-        pageHtmls = fullHtml.split("<p>[:PAGE_BREAK:]</p>");
-        // Clean up any nested versions if they exist
+    // Normalize splits by turning HRs into our marker temporarily
+    const normalizedHtml = fullHtml
+        .replace(/<hr\s*\/?>/g, "<p>[:PAGE_BREAK:]</p>")
+        .replace(/<p>[:PAGE_BREAK:]<\/p>/g, "[:SPLIT:]");
+
+    if (normalizedHtml.includes("[:SPLIT:]")) {
+        console.log(`[docx-processor] Detected manual breaks or lines. Splitting accordingly.`);
+        pageHtmls = normalizedHtml.split("[:SPLIT:]");
+        // Clean up markers
         pageHtmls = pageHtmls.map(h => h.replace(/\[:PAGE_BREAK:\]/g, ""));
     } else {
         console.log(`[docx-processor] No manual page breaks found. Using virtual splitting.`);
