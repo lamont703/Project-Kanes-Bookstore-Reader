@@ -456,7 +456,7 @@ export default function ReadPage() {
             <div className="container max-w-4xl mx-auto px-4 py-8">
               {/* Content View */}
               <div key={currentPageIndex} className="animate-fade-up">
-                {settings.viewMode === "original" ? (
+                {settings.viewMode === "original" && currentPage.page_image_url !== "RES_DOCX" ? (
                   <div
                     className="relative mx-auto rounded-lg overflow-hidden shadow-2xl shadow-black/30 border border-border/20"
                     style={{
@@ -486,8 +486,21 @@ export default function ReadPage() {
                     }}
                   >
                     {(() => {
+                      const content = currentPage.content || "";
+
+                      // Check if content is HTML (from Docx)
+                      if (content.trim().startsWith('<')) {
+                        return (
+                          <div
+                            className="prose prose-invert max-w-none docx-content"
+                            dangerouslySetInnerHTML={{ __html: content }}
+                          />
+                        );
+                      }
+
+                      // Fallback to Block Parsing (Old PDFs)
                       try {
-                        const blocks = JSON.parse(currentPage.content || "[]");
+                        const blocks = JSON.parse(content || "[]");
                         if (!Array.isArray(blocks)) throw new Error();
 
                         return blocks.map((block: any, idx: number) => {
@@ -524,20 +537,11 @@ export default function ReadPage() {
                                 </div>
                               );
                             }
-
-                            return (
-                              <div key={idx} className="my-8 flex justify-center">
-                                <div className="bg-muted/30 rounded p-4 text-xs text-muted-foreground border border-dashed text-center w-full max-w-sm">
-                                  Illustration (Loading...)
-                                </div>
-                              </div>
-                            );
                           }
                           return null;
                         });
                       } catch (e) {
-                        // Fallback to plain text if not JSON
-                        return <p className="whitespace-pre-wrap">{currentPage.content}</p>;
+                        return <p className="whitespace-pre-wrap">{content}</p>;
                       }
                     })()}
                   </div>

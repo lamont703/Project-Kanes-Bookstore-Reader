@@ -102,7 +102,7 @@ export async function handleUploadBook(
     }
 
     if (!bookFile && !existingId) {
-        throw { ...ErrorCodes.VALIDATION_ERROR, message: "Book PDF file is required for new uploads" };
+        throw { ...ErrorCodes.VALIDATION_ERROR, message: "Book Word file (.docx) is required for new uploads" };
     }
 
     console.log(`[upload-book] Starting upload for "${title}" by ${author}`);
@@ -169,17 +169,17 @@ export async function handleUploadBook(
         }
         console.log(`[upload-book] Processed ${formats.length} variants`);
 
-        // ─── 4. Upload original PDF ────────────────────────────────
+        // ─── 4. Upload original DOCX ────────────────────────────────
         if (bookFile) {
-            const { error: pdfUploadError } = await adminClient.storage
-                .from("book-pdfs")
-                .upload(`${bookId}/original.pdf`, bookFile, {
-                    contentType: "application/pdf",
+            const { error: docxUploadError } = await adminClient.storage
+                .from("book-docs")
+                .upload(`${bookId}/original.docx`, bookFile, {
+                    contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     upsert: true,
                 });
 
-            if (pdfUploadError) throw pdfUploadError;
-            console.log("[upload-book] Original PDF uploaded to Storage");
+            if (docxUploadError) throw docxUploadError;
+            console.log("[upload-book] Original DOCX uploaded to Storage");
         }
 
         // ─── 5. Upload cover image ─────────────────────────────────
@@ -214,11 +214,10 @@ export async function handleUploadBook(
             console.log("[upload-book] Cover image uploaded");
         }
 
-        // ─── 6. Delegate PDF processing to Vercel Node.js API ─────
-        // This offloads the heavy MuPDF intensive work which is currently
-        // incompatible with the Deno-based Supabase Edge Runtime.
+        // ─── 6. Delegate Word processing to Vercel Node.js API ─────
+        // This offloads the heavy intensive work.
         if (!bookFile) {
-            console.log("[upload-book] No new PDF file provided, skipping parsing pipeline.");
+            console.log("[upload-book] No new DOCX file provided, skipping parsing pipeline.");
             const finalStatus = (formData.get("status") as string) === "published" ? "published" : "draft";
             await adminClient.from("books").update({ status: finalStatus }).eq("id", bookId);
 
@@ -232,7 +231,7 @@ export async function handleUploadBook(
             };
         }
 
-        console.log("[upload-book] Starting Vercel PDF processing delegation...");
+        console.log("[upload-book] Starting Vercel DOCX processing delegation...");
 
         // Use environment variables for Vercel URL and Internal Secret
         const vercelUrl = Deno.env.get("VERCEL_PROJECT_URL") || "https://project-kanes-book-reader.vercel.app";
@@ -246,7 +245,7 @@ export async function handleUploadBook(
             },
             body: JSON.stringify({
                 bookId,
-                storagePath: `${bookId}/original.pdf`,
+                storagePath: `${bookId}/original.docx`,
                 title
             })
         });
@@ -254,7 +253,7 @@ export async function handleUploadBook(
         if (!vercelResponse.ok) {
             const errorText = await vercelResponse.text();
             console.error(`[upload-book] Vercel processing failed: ${errorText}`);
-            throw new Error(`PDF processing delegation failed: ${errorText}`);
+            throw new Error(`DOCX processing delegation failed: ${errorText}`);
         }
 
         const processResult = await vercelResponse.json();
@@ -262,7 +261,7 @@ export async function handleUploadBook(
 
         console.log(
             `[upload-book] ✅ Complete via Vercel! "${title}" — ` +
-            `${processResult.pages} pages, ${processResult.illustrations} illustrations, ` +
+            `${processResult.pages} chapters/pages, ${processResult.illustrations} illustrations, ` +
             `${processingTime}ms`
         );
 
@@ -281,7 +280,7 @@ export async function handleUploadBook(
 
         // Clean up Storage files
         try {
-            await adminClient.storage.from("book-pdfs").remove([`${bookId}/original.pdf`]);
+            await adminClient.storage.from("book-docs").remove([`${bookId}/original.docx`]);
             // List and remove any page/illustration files
             const { data: pageFiles } = await adminClient.storage.from("book-pages").list(bookId);
             if (pageFiles?.length) {

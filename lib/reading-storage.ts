@@ -18,11 +18,11 @@ export interface ReadingSettings {
 }
 
 export const defaultSettings: ReadingSettings = {
-  zoom: 100,
+  zoom: 150,
   theme: "dark",
   fontSize: 18,
   fontFamily: "serif",
-  viewMode: "original",
+  viewMode: "text",
 }
 
 // Highlights
