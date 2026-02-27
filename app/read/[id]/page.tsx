@@ -96,23 +96,25 @@ export default function ReadPage() {
         if (bookErr) throw new Error("Book not found")
         setBookMeta(book)
 
-        // Fetch docx blob for original view
-        if (book.book_file_url) {
-          try {
-            // Use absolute fetch but catch errors specifically
-            const resp = await fetch(book.book_file_url, { mode: 'cors' })
-            if (resp.ok) {
-              const blob = await resp.blob()
-              setDocxBlob(blob)
-            } else {
-              setDocxError(`Failed to download file (Status: ${resp.status})`)
+        // Fetch docx blob for original view using secure download
+        try {
+          const { data, error: downloadErr } = await supabase.storage
+            .from("book-docs")
+            .download(`${bookId}/original.docx`)
+
+          if (downloadErr) {
+            console.warn("[reader] Secure download failed, trying public URL fallback:", downloadErr)
+            if (book.book_file_url) {
+              const resp = await fetch(book.book_file_url)
+              if (resp.ok) setDocxBlob(await resp.blob())
+              else setDocxError("Failed to fetch original layout.")
             }
-          } catch (e: any) {
-            console.error("[reader] DOCX Fetch Error:", e)
-            setDocxError("CORS or Connection Error. Make sure to deploy to Vercel and re-upload.")
+          } else if (data) {
+            setDocxBlob(data)
           }
-        } else {
-          setDocxError("No original Word file associated with this book.")
+        } catch (e) {
+          console.error("[reader] DOCX Fetch Error:", e)
+          setDocxError("Failed to synchronize original layout.")
         }
 
         // Fetch all pages ordered by page_number
