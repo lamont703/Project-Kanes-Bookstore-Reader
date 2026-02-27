@@ -34,21 +34,36 @@ export async function processDocx(bookId: string, storagePath: string) {
     const illustrations: ParsedIllustration[] = [];
     let illustrationCounter = 0;
 
-    // 2. Mammoth Options for Image Extraction
+    // 2. Mammoth Options
     const options = {
+        transformDocument: (element: any) => {
+            // Traverse the document and look for manual page breaks
+            if (element.children) {
+                element.children = element.children.map(options.transformDocument);
+            }
+
+            // Word inserts page breaks as <w:br w:type="page"/>
+            // Mammoth translates this to a run with breakId: "page"
+            if (element.type === "run" && element.breakId === "page") {
+                return {
+                    ...element,
+                    type: "paragraph",
+                    children: [{ type: "text", value: "[:PAGE_BREAK:]" }]
+                };
+            }
+            return element;
+        },
         convertImage: (mammoth.images as any).inline((element: any) => {
             return element.read().then((imageBuffer: Buffer) => {
                 const currentCount = illustrationCounter++;
 
-                // We'll store the local image data to upload later
                 illustrations.push({
-                    pageNumber: 1, // Will adjust later if we split into pages
+                    pageNumber: 1,
                     positionIndex: currentCount,
                     imageData: imageBuffer,
                     contentType: element.contentType
                 });
 
-                // Return a placeholder that we'll replace with real URLs later
                 return {
                     src: `__ILLUSTRATION_${currentCount}__`
                 };
@@ -60,39 +75,41 @@ export async function processDocx(bookId: string, storagePath: string) {
     const result = await mammoth.convertToHtml({ buffer }, options);
     let fullHtml = result.value;
 
-    // 4. Split into "Pages" (Virtual chunks)
-    // To maintain compatibility with the PDF-based reader, we'll split the HTML
-    // every ~3000 characters or at common block boundaries.
-    const pages: ParsedDocxPage[] = [];
-    const MAX_PAGE_LENGTH = 3500;
+    // 4. Split into "Pages"
+    // We now split primarily on our custom [:PAGE_BREAK:] marker.
+    // If no markers are found, we fall back to the character-limit strategy.
 
-    // Simple splitting logic: find a closing tag near the limit
-    let remainingHtml = fullHtml;
-    let pageNum = 1;
+    let pageHtmls: string[] = [];
 
-    while (remainingHtml.length > 0) {
-        let splitIdx = MAX_PAGE_LENGTH;
-        if (remainingHtml.length > MAX_PAGE_LENGTH) {
-            // Find the nearest closing tag </p> or </div> after the limit
-            const nextTag = remainingHtml.indexOf('</p>', MAX_PAGE_LENGTH);
-            if (nextTag !== -1) {
-                splitIdx = nextTag + 4;
+    if (fullHtml.includes("[:PAGE_BREAK:]")) {
+        console.log(`[docx-processor] Detected manual page breaks. Splitting accordingly.`);
+        pageHtmls = fullHtml.split("<p>[:PAGE_BREAK:]</p>");
+        // Clean up any nested versions if they exist
+        pageHtmls = pageHtmls.map(h => h.replace(/\[:PAGE_BREAK:\]/g, ""));
+    } else {
+        console.log(`[docx-processor] No manual page breaks found. Using virtual splitting.`);
+        const MAX_PAGE_LENGTH = 1500; // ~250-300 words, feels like a real book page
+        let remainingHtml = fullHtml;
+        while (remainingHtml.length > 0) {
+            let splitIdx = MAX_PAGE_LENGTH;
+            if (remainingHtml.length > MAX_PAGE_LENGTH) {
+                const nextTag = remainingHtml.indexOf('</p>', MAX_PAGE_LENGTH);
+                if (nextTag !== -1) splitIdx = nextTag + 4;
+            } else {
+                splitIdx = remainingHtml.length;
             }
-        } else {
-            splitIdx = remainingHtml.length;
+            pageHtmls.push(remainingHtml.substring(0, splitIdx));
+            remainingHtml = remainingHtml.substring(splitIdx);
         }
-
-        const pageContent = remainingHtml.substring(0, splitIdx);
-        pages.push({
-            pageNumber: pageNum++,
-            content: pageContent,
-            wordCount: pageContent.split(/\s+/).length
-        });
-
-        remainingHtml = remainingHtml.substring(splitIdx);
     }
 
-    console.log(`[docx-processor] Split into ${pages.length} virtual pages.`);
+    const pages: ParsedDocxPage[] = pageHtmls.map((html, idx) => ({
+        pageNumber: idx + 1,
+        content: html,
+        wordCount: html.replace(/<[^>]*>/g, '').split(/\s+/).length
+    }));
+
+    console.log(`[docx-processor] Generated ${pages.length} pages.`);
 
     // 5. Upload Illustrations and Replace Placeholders
     for (const illust of illustrations) {
