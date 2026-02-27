@@ -92,7 +92,8 @@ export default function ReadPage() {
 
   useEffect(() => {
     setIsMounted(true)
-    setSettings(getSettings())
+    const saved = getSettings()
+    setSettings({ ...saved, viewMode: "original" })
   }, [])
 
   const [highlights, setHighlights] = useState<Highlight[]>([])
