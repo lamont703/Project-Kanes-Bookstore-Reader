@@ -49,6 +49,7 @@ export default function ReadPage() {
   const [bookMeta, setBookMeta] = useState<BookMeta | null>(null)
   const [docxBlob, setDocxBlob] = useState<Blob | null>(null)
   const [docxError, setDocxError] = useState<string | null>(null)
+  const [isRendering, setIsRendering] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -60,6 +61,34 @@ export default function ReadPage() {
   const docxContainerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const progressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ─── High-Fidelity Render Engine ───────────────────────────
+  const renderDocx = useCallback(async (container: HTMLDivElement, blob: Blob) => {
+    if (!blob || !container) return
+    setIsRendering(true)
+    try {
+      container.innerHTML = ""
+      await docx.renderAsync(blob, container, undefined, {
+        ignoreWidth: false,
+        ignoreHeight: false,
+        debug: false,
+        className: "docx-rendered-content"
+      })
+    } catch (err) {
+      console.error("[reader] DOCX render failed:", err)
+      setDocxError("Failed to render original document.")
+    } finally {
+      setIsRendering(false)
+    }
+  }, [])
+
+  // Callback ref to handle DOM mounting
+  const onDocxContainerMount = useCallback((node: HTMLDivElement) => {
+    if (node && docxBlob) {
+      docxContainerRef.current = node
+      renderDocx(node, docxBlob)
+    }
+  }, [docxBlob, renderDocx])
 
   useEffect(() => {
     setIsMounted(true)
@@ -171,32 +200,6 @@ export default function ReadPage() {
     loadBook()
   }, [bookId])
 
-  // ─── Render Original DOCX ───────────────────────────────────
-  // We use a small timeout to ensure the DOM node is ready
-  useEffect(() => {
-    if (settings.viewMode === "original" && docxBlob) {
-      const render = async () => {
-        // Wait a tick for the container ref to become available
-        await new Promise(resolve => setTimeout(resolve, 100))
-
-        if (docxContainerRef.current) {
-          try {
-            docxContainerRef.current.innerHTML = "" // Clear previous
-            await docx.renderAsync(docxBlob, docxContainerRef.current, undefined, {
-              ignoreWidth: false,
-              ignoreHeight: false,
-              debug: false,
-              className: "docx-rendered-content"
-            })
-          } catch (err) {
-            console.error("[reader] DOCX rendering failed:", err)
-            setDocxError("Could not render the document structure.")
-          }
-        }
-      }
-      render()
-    }
-  }, [settings.viewMode, docxBlob])
 
   // ─── Sync settings & Progress ────────────────────────────────
   useEffect(() => {
@@ -303,9 +306,9 @@ export default function ReadPage() {
           <div className={`${settings.viewMode === "original" ? "bg-muted/30" : themeClasses[settings.theme]} min-h-full transition-colors`}>
             <div className={`container mx-auto px-4 py-8 ${settings.viewMode === "original" ? "max-w-6xl" : "max-w-4xl"}`}>
 
-              {/* Original View */}
+              {/* Original View (DOCX Renderer) */}
               {settings.viewMode === "original" && (
-                <div className="animate-fade-in mb-8">
+                <div className="animate-fade-in mb-8 relative">
                   {docxError ? (
                     <Card className="p-12 text-center bg-white border-destructive/20 shadow-xl">
                       <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
@@ -313,15 +316,27 @@ export default function ReadPage() {
                       <p className="text-muted-foreground max-w-md mx-auto">{docxError}</p>
                       <Button variant="outline" className="mt-6" onClick={() => window.location.reload()}>Retry Sync</Button>
                     </Card>
-                  ) : !docxBlob ? (
-                    <Card className="p-20 text-center bg-white shadow-xl">
-                      <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
-                      <p className="text-muted-foreground font-mono">DOWNLOADING ORIGINAL LAYOUT...</p>
-                    </Card>
                   ) : (
-                    <Card className="bg-white shadow-2xl overflow-hidden mx-auto min-h-[80vh] border-none">
-                      <div ref={docxContainerRef} className="docx-viewer-container" />
-                    </Card>
+                    <div className="relative">
+                      {/* Loading/Rendering Overlay */}
+                      {(!docxBlob || isRendering) && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-xl">
+                          <div className="text-center">
+                            <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
+                            <p className="text-muted-foreground font-mono text-sm">
+                              {!docxBlob ? "FETCHING DOCUMENT..." : "CALCULATING LAYOUT..."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <Card className="bg-white shadow-2xl overflow-hidden mx-auto min-h-[85vh] border-none">
+                        <div
+                          ref={onDocxContainerMount}
+                          className="docx-viewer-container p-4 md:p-8"
+                        />
+                      </Card>
+                    </div>
                   )}
                 </div>
               )}
