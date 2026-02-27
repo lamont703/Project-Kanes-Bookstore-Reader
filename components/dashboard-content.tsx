@@ -13,6 +13,15 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
 import { createClient } from "@/lib/supabase/client"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
 import React from "react"
 
 interface DashboardContentProps {
@@ -39,6 +48,45 @@ export function DashboardContent({
         date_of_birth: '',
         tshirt_size: ''
     })
+    const [subscription, setSubscription] = useState(initialSubscription)
+    const [isCancelling, setIsCancelling] = useState(false)
+    const [showCancelDialog, setShowCancelDialog] = useState(false)
+
+    const handleCancelSubscription = async () => {
+        setIsCancelling(true)
+        try {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) throw new Error("Authentication signal lost. Please log in again.")
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/cancel-subscription`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            })
+
+            const result = await response.json()
+
+            if (!response.ok) {
+                throw new Error(result.message || "Termination sequence failed. Please try again.")
+            }
+
+            toast.success("Subscription scheduled for decommissioning.")
+
+            // Update local state to reflect the change immediately
+            setSubscription((prev: any) => ({
+                ...prev,
+                status: 'cancelled',
+                expires_at: result.cancelAt
+            }))
+            setShowCancelDialog(false)
+        } catch (error: any) {
+            toast.error(error.message)
+        } finally {
+            setIsCancelling(false)
+        }
+    }
 
     const handleSaveProfile = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -325,6 +373,93 @@ export function DashboardContent({
                                     {isSaving ? "Syncing..." : "Save Identity"}
                                 </Button>
                             </form>
+                        </Card>
+
+                        <h2 className="font-display text-3xl tracking-wider uppercase mb-2 mt-12">Transmission Membership</h2>
+                        <Card className="p-8 border-primary/20 bg-card/50">
+                            {subscription && (subscription.status === 'active' || subscription.status === 'past_due' || subscription.status === 'trialing') && !subscription.expires_at ? (
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="relative flex h-3 w-3">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                                                </span>
+                                                <p className="font-bold text-xl uppercase tracking-wider text-primary">Status: {subscription.status}</p>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground italic">You are currently an Elite Member of the Komet Book Club.</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-muted-foreground uppercase">Next Billing</p>
+                                            <p className="font-mono font-bold">$3.99/mo</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-border/50">
+                                        <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                                            Cancelling your subscription will prevent further charges. You will retain access to elite perks and exclusive transmissions until the end of your current billing period.
+                                        </p>
+
+                                        <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive transition-all">
+                                                    TERMINATE MEMBERSHIP
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="border-destructive/30">
+                                                <DialogHeader>
+                                                    <DialogTitle className="text-2xl font-display tracking-wider uppercase">Confirm Termination?</DialogTitle>
+                                                    <DialogDescription className="text-base py-2">
+                                                        Are you sure you want to decommission your elite access? You'll lose your 35% dealer discount and exclusive transmissions at the end of your current cycle.
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <DialogFooter className="gap-3 mt-4">
+                                                    <Button variant="outline" onClick={() => setShowCancelDialog(false)} className="flex-1">
+                                                        MAINTAIN ACCESS
+                                                    </Button>
+                                                    <Button
+                                                        variant="destructive"
+                                                        onClick={handleCancelSubscription}
+                                                        disabled={isCancelling}
+                                                        className="flex-1 font-bold tracking-widest"
+                                                    >
+                                                        {isCancelling ? "PROCESSING..." : "CONFIRM TERMINATION"}
+                                                    </Button>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+                                    </div>
+                                </div>
+                            ) : (subscription?.status === 'cancelled' || subscription?.expires_at) ? (
+                                <div className="space-y-6">
+                                    <div className="p-5 bg-secondary/10 border border-secondary/30 rounded-lg">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Clock className="w-5 h-5 text-secondary" />
+                                            <p className="font-bold text-secondary uppercase tracking-widest text-sm">Cancellation Sequence Active</p>
+                                        </div>
+                                        <p className="text-sm leading-relaxed mb-4">
+                                            Your subscription has been scheduled for decommissioning. Elite access will terminate on <span className="text-primary font-mono font-bold">{new Date(subscription.expires_at).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' })}</span>.
+                                        </p>
+                                        <Button asChild variant="outline" className="w-full border-secondary/30 text-secondary hover:bg-secondary/10">
+                                            <Link href="/book-club">RE-ACTIVATE TRANSMISSIONS</Link>
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 space-y-6">
+                                    <div className="mx-auto w-16 h-16 rounded-full bg-muted/20 flex items-center justify-center mb-2">
+                                        <CreditCard className="w-8 h-8 text-muted-foreground opacity-40" />
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground mb-1 italic">No active book club subscription detected.</p>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-widest">Awaiting recruitment to elite sectors</p>
+                                    </div>
+                                    <Button asChild className="px-12 font-bold tracking-widest">
+                                        <Link href="/book-club">JOIN THE ELITE</Link>
+                                    </Button>
+                                </div>
+                            )}
                         </Card>
                     </div>
                 </TabsContent>
