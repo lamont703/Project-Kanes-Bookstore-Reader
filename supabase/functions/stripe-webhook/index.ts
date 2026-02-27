@@ -1,8 +1,7 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { stripe } from '../_shared/stripe-client.ts'
 import { createClient } from '../_shared/supabase-client.ts'
 
-serve(async (req) => {
+Deno.serve(async (req) => {
     const signature = req.headers.get('stripe-signature')
 
     if (!signature) {

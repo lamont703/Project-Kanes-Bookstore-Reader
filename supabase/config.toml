@@ -322,6 +322,12 @@ verify_jwt = false
 [functions.upload-book]
 verify_jwt = false
 
+[functions.process-checkout]
+verify_jwt = false
+
+[functions.create-subscription]
+verify_jwt = false
+
 [functions.get-book-pages]
 verify_jwt = false
 

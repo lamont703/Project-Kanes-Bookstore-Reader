@@ -1,9 +1,8 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createErrorResponse } from '../_shared/errors.ts'
 import { handleCheckout } from './handler.ts'
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
@@ -28,7 +27,7 @@ serve(async (req: Request) => {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
-    } catch (error) {
+    } catch (error: any) {
         console.error('Checkout error:', error)
         return createErrorResponse(
             error.status || 500,

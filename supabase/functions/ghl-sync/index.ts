@@ -1,9 +1,8 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createOrUpdateContact } from '../_shared/ghl-client.ts'
 import { createAdminClient } from '../_shared/supabase-client.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
     // Handle CORS
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })

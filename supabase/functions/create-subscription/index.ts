@@ -1,10 +1,9 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { stripe } from '../_shared/stripe-client.ts'
 import { createAuthClient } from '../_shared/supabase-client.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createErrorResponse } from '../_shared/errors.ts'
 
-serve(async (req) => {
+Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
@@ -28,7 +27,7 @@ serve(async (req) => {
             return createErrorResponse(400, 'VALIDATION_ERROR', 'Please select exactly 2 free ebooks')
         }
 
-        // 1. Get/Create Stripe Customer
+        // 1. Get/Create Stripe Customer (Environment Aware)
         const { data: profile } = await supabase
             .from('users')
             .select('stripe_customer_id')
@@ -36,6 +35,18 @@ serve(async (req) => {
             .single()
 
         let customerId = profile?.stripe_customer_id
+
+        if (customerId) {
+            try {
+                await stripe.customers.retrieve(customerId)
+            } catch (error: any) {
+                if (error.raw?.code === 'resource_missing' || error.statusCode === 404) {
+                    customerId = null
+                } else {
+                    throw error
+                }
+            }
+        }
 
         if (!customerId) {
             const customer = await stripe.customers.create({
@@ -48,7 +59,6 @@ serve(async (req) => {
         }
 
         // 2. Create Payment Intent for $49.99 (Initial Fee)
-        // We use setup_future_usage to save the card for the recurring $3.99/mo later
         const paymentIntent = await stripe.paymentIntents.create({
             amount: 4999,
             currency: 'usd',
