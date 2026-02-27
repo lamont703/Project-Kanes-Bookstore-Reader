@@ -381,7 +381,18 @@ export default function CheckoutPage() {
                                 </div>
                             ) : (
                                 <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                                    <Elements
+                                        stripe={stripePromise}
+                                        options={{
+                                            clientSecret,
+                                            appearance: {
+                                                theme: 'night',
+                                                variables: {
+                                                    colorPrimary: "#E11D48",
+                                                }
+                                            }
+                                        }}
+                                    >
                                         <StripeCheckoutForm
                                             orderId={orderId!}
                                             onSuccess={() => {

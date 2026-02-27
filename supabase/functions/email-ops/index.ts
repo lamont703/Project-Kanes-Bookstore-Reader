@@ -1,4 +1,3 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { addTagsToContact, createOrUpdateContact } from '../_shared/ghl-client.ts'
 import { createAdminClient } from '../_shared/supabase-client.ts'
 import { corsHeaders } from '../_shared/cors.ts'
@@ -11,7 +10,7 @@ import { corsHeaders } from '../_shared/cors.ts'
  * which then triggers corresponding Workflows/Automations within GoHighLevel.
  */
 
-serve(async (req) => {
+Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }

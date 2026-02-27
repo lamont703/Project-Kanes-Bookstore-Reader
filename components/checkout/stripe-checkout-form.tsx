@@ -44,10 +44,6 @@ export function StripeCheckoutForm({ onSuccess, orderId }: StripeCheckoutFormPro
         <form onSubmit={handleSubmit} className="space-y-6">
             <PaymentElement options={{
                 layout: "tabs",
-                theme: "night",
-                variables: {
-                    colorPrimary: "#E11D48", // Using primary color from theme
-                }
             }} />
             <Button
                 type="submit"
