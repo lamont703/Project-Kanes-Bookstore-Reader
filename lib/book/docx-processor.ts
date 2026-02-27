@@ -42,29 +42,13 @@ export async function processDocx(bookId: string, storagePath: string) {
                 element.children = element.children.map(options.transformDocument);
             }
 
-            // A: Detect Hard Page Breaks (Run-level)
+            // Detect Hard Page Breaks (Run-level Ctrl+Enter)
             if (element.type === "run" && element.breakId === "page") {
                 return {
                     ...element,
                     type: "paragraph",
                     children: [{ type: "text", value: "[:PAGE_BREAK:]" }]
                 };
-            }
-
-            // B: Detect "Page Break Before" (Paragraph property)
-            // Some users set this in Paragraph Settings instead of hitting Ctrl+Enter
-            if (element.type === "paragraph" && element.pageBreakBefore) {
-                element.children.unshift({
-                    type: "run",
-                    children: [{ type: "text", value: "[:PAGE_BREAK:]" }]
-                });
-            }
-
-            // C: Detect Section Breaks (which often imply a new page)
-            if (element.type === "section") {
-                // We can't easily turn a section into a marker, 
-                // but we can flag that the next paragraph should break
-                return element;
             }
 
             return element;
@@ -92,26 +76,20 @@ export async function processDocx(bookId: string, storagePath: string) {
     let fullHtml = result.value;
 
     // 4. Split into "Pages"
-    // We now split on:
-    // 1. Our custom [:PAGE_BREAK:] marker
-    // 2. Horizontal Rules (<hr />) which are easy for users to type as "---"
-
+    // Respects only native Word Manual Page Breaks (Ctrl+Enter)
     let pageHtmls: string[] = [];
 
-    // Normalize splits by turning HRs into our marker temporarily
     const normalizedHtml = fullHtml
-        .replace(/<hr\s*\/?>/g, "<p>[:PAGE_BREAK:]</p>")
-        .replace(/<p>[:PAGE_BREAK:]<\/p>/g, "[:SPLIT:]");
+        .replace(/<p>[^<]*\[:PAGE_BREAK:\][^<]*<\/p>/gi, "[:SPLIT:]")
+        .replace(/\[:PAGE_BREAK:\]/g, "[:SPLIT:]");
 
     if (normalizedHtml.includes("[:SPLIT:]")) {
-        console.log(`[docx-processor] Detected manual breaks or lines. Splitting accordingly.`);
+        console.log(`[docx-processor] Detected Word page breaks. Splitting accordingly.`);
         pageHtmls = normalizedHtml.split("[:SPLIT:]");
-        // Clean up markers
-        pageHtmls = pageHtmls.map(h => h.replace(/\[:PAGE_BREAK:\]/g, ""));
     } else {
         console.log(`[docx-processor] No manual page breaks found. Using virtual splitting.`);
-        const MAX_PAGE_LENGTH = 1500; // ~250-300 words, feels like a real book page
-        let remainingHtml = fullHtml;
+        const MAX_PAGE_LENGTH = 1500;
+        let remainingHtml = normalizedHtml;
         while (remainingHtml.length > 0) {
             let splitIdx = MAX_PAGE_LENGTH;
             if (remainingHtml.length > MAX_PAGE_LENGTH) {
@@ -125,13 +103,16 @@ export async function processDocx(bookId: string, storagePath: string) {
         }
     }
 
-    const pages: ParsedDocxPage[] = pageHtmls.map((html, idx) => ({
-        pageNumber: idx + 1,
-        content: html,
-        wordCount: html.replace(/<[^>]*>/g, '').split(/\s+/).length
-    }));
+    const pages: ParsedDocxPage[] = pageHtmls
+        .map(h => h.trim())
+        .filter(h => h.length > 0)
+        .map((html, idx) => ({
+            pageNumber: idx + 1,
+            content: html,
+            wordCount: html.replace(/<[^>]*>/g, '').split(/\s+/).length
+        }));
 
-    console.log(`[docx-processor] Generated ${pages.length} pages.`);
+    console.log(`[docx-processor] Success! Generated ${pages.length} pages.`);
 
     // 5. Upload Illustrations and Replace Placeholders
     for (const illust of illustrations) {
