@@ -24,7 +24,9 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
     const router = useRouter()
     const [isUploading, setIsUploading] = useState(false)
     const [isMounted, setIsMounted] = useState(false)
-    const supabase = createClient()
+
+    // Memoize supabase client to avoid recreation on every render
+    const [supabase] = useState(() => createClient())
 
     useEffect(() => {
         setIsMounted(true)
@@ -148,19 +150,48 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             uploadData.append("komet_card_available", String(card?.available ?? true))
 
             // 2. Invoke the 'upload-book' Edge Function
-            console.log("[BookForm] Fetching session...")
-            const { data: sessionData } = await supabase.auth.getSession()
-            if (!sessionData.session) {
-                console.error("[BookForm] No active session found!")
-                throw new Error("No active session")
+            console.log("[BookForm] Preparing to invoke Edge Function...")
+
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+            if (!supabaseUrl) {
+                console.error("[BookForm] CRITICAL: NEXT_PUBLIC_SUPABASE_URL is missing!")
             }
-            console.log("[BookForm] Session found, invoking Edge Function...")
+
+            console.log("[BookForm] Verifying user with 10s timeout fail-safe...")
+
+            // Promise race for timeout
+            const authResponse = await Promise.race([
+                supabase.auth.getUser(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Auth handshake timed out after 10s")), 10000))
+            ]) as any;
+
+            const { data: { user }, error: authErr } = authResponse;
+
+            if (authErr) {
+                console.error("[BookForm] Auth error:", authErr)
+                throw new Error(`Authentication failed: ${authErr.message}`)
+            }
+
+            if (!user) {
+                console.error("[BookForm] No user returned!")
+                throw new Error("No active session found. Please refresh and log in again.")
+            }
+
+            // Still need the session for the raw token
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) {
+                throw new Error("User verified but session token missing.")
+            }
+
+            console.log("[BookForm] Auth verified! User:", user.email)
+            console.log("[BookForm] Session found! Token length:", session.access_token.length)
+            console.log("[BookForm] Invoking Edge Function at:", `${supabaseUrl}/functions/v1/upload-book`)
 
             const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/upload-book`
             const response = await fetch(functionUrl, {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${sessionData.session.access_token}`,
+                    Authorization: `Bearer ${session.access_token}`,
                     apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
                 },
                 body: uploadData,

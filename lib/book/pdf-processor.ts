@@ -101,56 +101,53 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
     const illustrations: ParsedIllustration[] = [];
     const seenXrefs = new Set<number>();
 
-    // ─── 1. Global XObject Illustration Mining ───────────────────
-    // We scan the document for images first to build a clean library
+    // ─── Single Pass: Mining & Rendering ──────────────────────────
     for (let i = 0; i < pageCount; i++) {
         const page = doc.loadPage(i);
+        const pageNumber = i + 1;
+
+        // 1. Extract Illustrations from Page Resources
         const pageObj = (page as any).getObject();
         const res = pageObj.get("Resources");
-        if (!res) continue;
+        if (res) {
+            const xobjDict = res.get("XObject");
+            if (xobjDict && xobjDict.isDictionary()) {
+                const jsDict = (xobjDict as any).asJS();
+                const keys = Object.keys(jsDict);
 
-        const xobjDict = res.get("XObject");
-        if (!xobjDict || !xobjDict.isDictionary()) continue;
+                for (const key of keys) {
+                    const entry = xobjDict.get(key);
+                    if (!entry) continue;
 
-        const jsDict = (xobjDict as any).asJS();
-        const keys = Object.keys(jsDict);
+                    try {
+                        const subtype = entry.get("Subtype")?.toString();
+                        if (subtype === "/Image") {
+                            const xref = (entry as any).getRef ? (entry as any).getRef() : null;
+                            if (xref && seenXrefs.has(xref)) continue;
+                            if (xref) seenXrefs.add(xref);
 
-        for (const key of keys) {
-            const entry = xobjDict.get(key);
-            if (!entry) continue;
+                            const image = (doc as any).loadImage(entry);
+                            const pixmap = image.toPixmap();
+                            const pngData = pixmap.asPNG();
 
-            try {
-                const subtype = entry.get("Subtype")?.toString();
-                if (subtype === "/Image") {
-                    const xref = (entry as any).getRef ? (entry as any).getRef() : null;
-                    if (xref && seenXrefs.has(xref)) continue;
-                    if (xref) seenXrefs.add(xref);
-
-                    // Load raw image from XObject
-                    const image = (doc as any).loadImage(entry);
-                    const pixmap = image.toPixmap();
-                    const pngData = pixmap.asPNG();
-
-                    illustrations.push({
-                        pageNumber: i + 1,
-                        positionIndex: illustrations.length,
-                        imageData: Buffer.from(pngData),
-                        contentType: "image/png",
-                        width: pixmap.getWidth(),
-                        height: pixmap.getHeight(),
-                    });
+                            illustrations.push({
+                                pageNumber,
+                                positionIndex: illustrations.length,
+                                imageData: Buffer.from(pngData),
+                                contentType: "image/png",
+                                width: pixmap.getWidth(),
+                                height: pixmap.getHeight(),
+                            });
+                        }
+                    } catch (e) {
+                        console.warn(`[pdf-processor] XObject extraction failed on page ${pageNumber}: ${key}`, e);
+                    }
                 }
-            } catch (e) {
-                console.warn(`[pdf-processor] XObject extraction failed: ${key}`, e);
             }
         }
-    }
 
-    // ─── 2. Page Rendering and Text Extraction ───────────────────
-    for (let i = 0; i < pageCount; i++) {
-        const page = doc.loadPage(i);
+        // 2. Render Page to PNG
         const bounds = page.getBounds();
-
         const scale = RENDER_DPI / 72;
         let width = Math.round((bounds[2] - bounds[0]) * scale);
         let height = Math.round((bounds[3] - bounds[1]) * scale);
@@ -173,6 +170,8 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
         }
 
         const pngData = pixmap.asPNG();
+
+        // 3. Extract Text and Structured Content
         const stext = page.toStructuredText("preserve-whitespace,images");
         const json = JSON.parse(stext.asJSON());
         const mupdfBlocks = json.blocks || (json.pages && json.pages[0]?.blocks) || [];
@@ -195,12 +194,8 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
                     pagePlainText += blockText;
                 }
             } else if (block.type === 'image') {
-                // Determine which illustration this block refers to (fuzzy match by page)
-                const pageIllusts = illustrations.filter(ill => ill.pageNumber === i + 1);
+                const pageIllusts = illustrations.filter(ill => ill.pageNumber === pageNumber);
                 if (pageIllusts.length > 0) {
-                    // Logic: Assign first available illustration for this page block
-                    // For more precision, we'd need to match XObject names, but Page.getImages is missing.
-                    // This is usually sufficient for sequential reading.
                     blocks.push({
                         type: 'image',
                         imageIndex: pageIllusts[0].positionIndex,
@@ -221,7 +216,7 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
         }
 
         pages.push({
-            pageNumber: i + 1,
+            pageNumber,
             imageData: Buffer.from(pngData),
             contentType: "image/png",
             width,
@@ -242,3 +237,4 @@ export async function processPDF(fileBuffer: Buffer, fileName: string): Promise<
         }
     };
 }
+

@@ -26,12 +26,14 @@ export async function POST(request: NextRequest) {
         }
 
         console.log(`[process-book] Starting PDF job for "${title}" (${bookId})`);
+        console.log(`[process-book] Memory usage before: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
 
         // ─── 2. Run PDF Processing Pipeline ──────────────────────────
         const parseResult = await processPdfBatch(bookId, storagePath);
 
         const duration = Date.now() - startTime;
         console.log(`[process-book] Finished PDF job for ${bookId} in ${duration}ms`);
+        console.log(`[process-book] Memory usage after: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
 
         return NextResponse.json({
             success: true,
@@ -39,6 +41,7 @@ export async function POST(request: NextRequest) {
             illustrations: parseResult.illustrations,
             duration_ms: duration
         });
+
 
     } catch (error: any) {
         console.error(`[process-book] Critical failure:`, error);

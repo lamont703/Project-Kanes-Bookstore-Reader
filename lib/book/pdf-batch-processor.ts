@@ -6,6 +6,20 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 /**
+ * Helper to process an array in chunks.
+ */
+async function processInChunks<T>(
+    items: T[],
+    chunkSize: number,
+    processor: (item: T) => Promise<void>
+) {
+    for (let i = 0; i < items.length; i += chunkSize) {
+        const chunk = items.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(processor));
+    }
+}
+
+/**
  * PDF Batch Processor (Vercel Node.js)
  * 
  * Orchestrates the full PDF parsing pipeline:
@@ -33,9 +47,10 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
     const result = await processPDF(buffer, "original.pdf");
     console.log(`[pdf-batch] PDF Parsed: ${result.pages.length} pages, ${result.illustrations.length} illustrations`);
 
-    // ─── 3. Upload Illustrations ──────────────────────────────────
+    // ─── 3. Upload Illustrations in Chunked Parallel ──────────────
     const illustrationUrls: string[] = [];
-    for (const illust of result.illustrations) {
+
+    await processInChunks(result.illustrations, 5, async (illust) => {
         const fileName = `${bookId}/illust_${illust.positionIndex}.png`;
 
         const { error: uploadErr } = await supabase.storage
@@ -47,7 +62,7 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
 
         if (uploadErr) {
             console.error(`[pdf-batch] Illustration upload failed: ${uploadErr.message}`);
-            continue;
+            return;
         }
 
         const { data: publicUrl } = supabase.storage
@@ -62,13 +77,15 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
             page_number: illust.pageNumber,
             position_index: illust.positionIndex
         });
-    }
+    });
 
-    // ─── 4. Upload Page Images and Save Content ───────────────────
+    console.log(`[pdf-batch] Finished uploading ${result.illustrations.length} illustrations`);
+
+    // ─── 4. Upload Page Images and Save Content in Chunked Parallel 
     // Clear existing pages for idempotency
     await supabase.from("book_pages").delete().eq("book_id", bookId);
 
-    for (const page of result.pages) {
+    await processInChunks(result.pages, 3, async (page) => {
         const pageImageName = `${bookId}/page_${page.pageNumber}.png`;
 
         const { error: pageUploadErr } = await supabase.storage
@@ -80,7 +97,7 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
 
         if (pageUploadErr) {
             console.error(`[pdf-batch] Page ${page.pageNumber} upload failed: ${pageUploadErr.message}`);
-            continue;
+            return;
         }
 
         const { data: pageUrl } = supabase.storage
@@ -88,13 +105,11 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
             .getPublicUrl(pageImageName);
 
         // Inject illustration markers into the content if needed
-        // For PDF, we usually already have the illustrations in the structuredContent
         let finalContent = page.textContent || "";
-
-        // Simple heuristic: If we have illustrations on this page, append them or reference them
         const pageIllusts = result.illustrations.filter(ill => ill.pageNumber === page.pageNumber);
+
         if (pageIllusts.length > 0) {
-            pageIllusts.forEach(ill => {
+            pageIllusts.sort((a, b) => a.positionIndex - b.positionIndex).forEach(ill => {
                 const url = illustrationUrls[ill.positionIndex];
                 if (url) {
                     finalContent += `\n\n![Illustration](${url})`;
@@ -109,7 +124,9 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
             content: finalContent,
             word_count: (page.textContent || "").split(/\s+/).length
         });
-    }
+    });
+
+    console.log(`[pdf-batch] Finished uploading ${result.pages.length} pages`);
 
     // ─── 5. Update Book Metadata ──────────────────────────────────
     const { data: fileUrl } = supabase.storage
@@ -120,7 +137,6 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
         status: 'published',
         book_file_url: fileUrl.publicUrl,
         page_count: result.metadata.pageCount,
-        // Optional: save title/author if missing
     }).eq("id", bookId);
 
     return {
