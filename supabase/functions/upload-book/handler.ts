@@ -102,7 +102,7 @@ export async function handleUploadBook(
     }
 
     if (!bookFile && !existingId) {
-        throw { ...ErrorCodes.VALIDATION_ERROR, message: "A book file (.docx or .pdf) is required for new uploads" };
+        throw { ...ErrorCodes.VALIDATION_ERROR, message: "A book PDF file is required for new uploads" };
     }
 
     console.log(`[upload-book] Starting upload for "${title}" by ${author}`);
@@ -172,8 +172,8 @@ export async function handleUploadBook(
         // ─── 4. Upload original file (PDF or DOCX) ───────────────────
         let storagePath = "";
         if (bookFile) {
-            const ext = bookFile.name.split(".").pop()?.toLowerCase() || "docx";
-            const mimeType = ext === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            const ext = "pdf";
+            const mimeType = "application/pdf";
             storagePath = `${bookId}/original.${ext}`;
 
             const { error: uploadError } = await adminClient.storage
@@ -269,7 +269,7 @@ export async function handleUploadBook(
         if (!vercelResponse.ok) {
             const errorText = await vercelResponse.text();
             console.error(`[upload-book] Vercel processing failed: ${errorText}`);
-            throw new Error(`DOCX processing delegation failed: ${errorText}`);
+            throw new Error(`PDF processing delegation failed: ${errorText}`);
         }
 
         const processResult = await vercelResponse.json();
@@ -296,7 +296,7 @@ export async function handleUploadBook(
 
         // Clean up Storage files
         try {
-            await adminClient.storage.from("book-docs").remove([`${bookId}/original.docx`]);
+            await adminClient.storage.from("book-docs").remove([`${bookId}/original.pdf`]);
             // List and remove any page/illustration files
             const { data: pageFiles } = await adminClient.storage.from("book-pages").list(bookId);
             if (pageFiles?.length) {

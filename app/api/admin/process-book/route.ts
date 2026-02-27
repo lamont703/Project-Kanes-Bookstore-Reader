@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processDocx } from "@/lib/book/docx-processor";
+import { processPdfBatch } from "@/lib/book/pdf-batch-processor";
 
 /**
- * DOCX Processing API Route (Vercel Node.js)
+ * PDF Processing API Route (Vercel Node.js)
  * 
- * Takes a bookId and a storage path, downloads the DOCX from Supabase,
- * extracts text and illustrations using mammoth.js, and updates
- * the database.
+ * Takes a bookId and a storage path, downloads the PDF from Supabase,
+ * extracts text and illustrations, and updates the database.
  */
 export async function POST(request: NextRequest) {
     const startTime = Date.now();
@@ -26,22 +25,13 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Missing bookId or storagePath" }, { status: 400 });
         }
 
-        const isPdf = storagePath.toLowerCase().endsWith(".pdf");
-        console.log(`[process-book] Starting ${isPdf ? "PDF" : "DOCX"} job for "${title}" (${bookId})`);
+        console.log(`[process-book] Starting PDF job for "${title}" (${bookId})`);
 
-        // ─── 2. Run Appropriate Processing Pipeline ───────────────────
-        let parseResult;
-        if (isPdf) {
-            // PDF processing (needs PDF-specific wrapper or direct call)
-            // For now, let's assume we have a wrapper like processDocx but for PDF
-            const { processPdfBatch } = await import("@/lib/book/pdf-batch-processor");
-            parseResult = await processPdfBatch(bookId, storagePath);
-        } else {
-            parseResult = await processDocx(bookId, storagePath);
-        }
+        // ─── 2. Run PDF Processing Pipeline ──────────────────────────
+        const parseResult = await processPdfBatch(bookId, storagePath);
 
         const duration = Date.now() - startTime;
-        console.log(`[process-book] Finished job for ${bookId} in ${duration}ms`);
+        console.log(`[process-book] Finished PDF job for ${bookId} in ${duration}ms`);
 
         return NextResponse.json({
             success: true,

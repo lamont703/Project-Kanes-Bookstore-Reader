@@ -50,10 +50,10 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
 
     const [files, setFiles] = useState<{
         cover: File | null
-        docx: File | null
+        bookFile: File | null
     }>({
         cover: null,
-        docx: null
+        bookFile: null
     })
 
     const [errors, setErrors] = useState<Record<string, string>>({})
@@ -72,14 +72,14 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
 
         if (!isEdit) {
             if (!files.cover) newErrors.cover = "Cover image is required"
-            if (!files.docx) newErrors.docx = "Book Word Document is required"
+            if (!files.bookFile) newErrors.bookFile = "Book PDF file is required"
         }
 
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
     }
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "cover" | "docx") => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "cover" | "bookFile") => {
         const file = e.target.files?.[0]
         if (file) {
             // Basic type validation
@@ -87,11 +87,13 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                 toast.error("Please upload an image file (PNG/JPG)")
                 return
             }
-            if (type === "docx" &&
-                file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document" &&
-                !file.name.endsWith(".docx")) {
-                toast.error("Please upload a .docx Word document")
-                return
+            if (type === "bookFile") {
+                const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
+
+                if (!isPdf) {
+                    toast.error("Please upload a .pdf file")
+                    return
+                }
             }
 
             setFiles(prev => ({ ...prev, [type]: file }))
@@ -109,7 +111,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
         try {
             // 1. Prepare FormData for the Edge Function
             const uploadData = new FormData()
-            if (files.docx) uploadData.append("book_file", files.docx)
+            if (files.bookFile) uploadData.append("book_file", files.bookFile)
             if (files.cover) uploadData.append("cover_file", files.cover)
 
             if (isEdit && initialData?.id) {
@@ -336,29 +338,29 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>{isEdit ? "Update Word Document (Optional)" : "Book Word Document (.docx)"}</Label>
+                                <Label>{isEdit ? "Update Book PDF (Optional)" : "Book PDF"}</Label>
                                 <div className="relative group cursor-pointer">
                                     <input
                                         type="file"
-                                        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                        onChange={e => handleFileChange(e, "docx")}
+                                        accept=".pdf,application/pdf"
+                                        onChange={e => handleFileChange(e, "bookFile")}
                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                     />
-                                    <div className={`h-48 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-colors ${files.docx ? "border-secondary/50 bg-secondary/5" : "border-border/50 hover:border-secondary/30"}`}>
-                                        {files.docx ? (
+                                    <div className={`h-48 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-colors ${files.bookFile ? "border-secondary/50 bg-secondary/5" : "border-border/50 hover:border-secondary/30"}`}>
+                                        {files.bookFile ? (
                                             <>
                                                 <FileText className="w-10 h-10 text-secondary mb-2" />
-                                                <p className="text-sm font-medium px-4 text-center truncate w-full">{files.docx.name}</p>
+                                                <p className="text-sm font-medium px-4 text-center truncate w-full">{files.bookFile.name}</p>
                                             </>
                                         ) : (
                                             <>
                                                 <UploadCloud className="w-10 h-10 text-muted-foreground mb-2" />
-                                                <p className="text-xs text-muted-foreground">Select DOCX</p>
+                                                <p className="text-xs text-muted-foreground">Select PDF Volume</p>
                                             </>
                                         )}
                                     </div>
                                 </div>
-                                {errors.docx && <p className="text-xs text-destructive mt-2">{errors.docx}</p>}
+                                {errors.bookFile && <p className="text-xs text-destructive mt-2">{errors.bookFile}</p>}
                             </div>
                         </div>
                     </Card>
@@ -406,7 +408,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                             {isEdit && (
                                 <div className="p-4 rounded-xl bg-secondary/5 border border-secondary/20 text-xs text-muted-foreground">
                                     <p className="font-bold text-secondary mb-1">EDIT MODE ACTIVE</p>
-                                    <p>File assets (DOCX/Cover) are optional. Only upload if you wish to replace the current versions in the library.</p>
+                                    <p>File assets (Book File/Cover) are optional. Only upload if you wish to replace the current versions in the library.</p>
                                 </div>
                             )}
 

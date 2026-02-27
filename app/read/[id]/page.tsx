@@ -18,48 +18,7 @@ import {
   defaultSettings,
   type ReadingSettings,
 } from "@/lib/reading-storage"
-import * as docx from "docx-preview"
-import jszip from "jszip"
 
-// ─── Responsive Styles for DOCX ────────────────────────────────
-const docxStyles = `
-  .docx-viewer-container {
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    background: transparent !important;
-  }
-  .docx-rendered-content {
-    background: white !important;
-    padding: 0 !important;
-    margin: 0 auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow-x: hidden !important;
-  }
-  .docx-rendered-content section {
-    margin: 0 auto 20px auto !important;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
-    max-width: 100% !important;
-    width: auto !important;
-    min-height: auto !important;
-    height: auto !important;
-    padding: 40px !important;
-    box-sizing: border-box !important;
-    overflow-x: hidden !important;
-  }
-  @media (max-width: 768px) {
-    .docx-rendered-content section {
-      padding: 20px !important;
-      margin-bottom: 10px !important;
-    }
-    .docx-rendered-content p, .docx-rendered-content span {
-      font-size: 0.9em !important;
-      line-height: 1.4 !important;
-    }
-  }
-`
 
 // ─── Types ─────────────────────────────────────────────────────
 interface BookPage {
@@ -86,51 +45,19 @@ export default function ReadPage() {
 
   // Data state
   const [pages, setPages] = useState<BookPage[]>([])
-  const [bookMeta, setBookMeta] = useState<BookMeta | null>(null)
-  const [docxBlob, setDocxBlob] = useState<Blob | null>(null)
-  const [docxError, setDocxError] = useState<string | null>(null)
-  const [isRendering, setIsRendering] = useState(false)
+  const [bookMeta, setBookMeta] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [isPdf, setIsPdf] = useState(false)
+  const [isPdf, setIsPdf] = useState(true)
 
   // Reader state
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [settings, setSettings] = useState<ReadingSettings>(defaultSettings)
   const [isMounted, setIsMounted] = useState(false)
 
-  const docxContainerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const progressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // ─── High-Fidelity Render Engine ───────────────────────────
-  const renderDocx = useCallback(async (container: HTMLDivElement, blob: Blob) => {
-    if (!blob || !container) return
-    setIsRendering(true)
-    try {
-      container.innerHTML = ""
-      await docx.renderAsync(blob, container, undefined, {
-        ignoreWidth: false,
-        ignoreHeight: false,
-        debug: false,
-        className: "docx-rendered-content"
-      })
-    } catch (err) {
-      console.error("[reader] DOCX render failed:", err)
-      setDocxError("Failed to render original document.")
-    } finally {
-      setIsRendering(false)
-    }
-  }, [])
-
-  // Callback ref to handle DOM mounting
-  const onDocxContainerMount = useCallback((node: HTMLDivElement) => {
-    if (node && docxBlob) {
-      docxContainerRef.current = node
-      renderDocx(node, docxBlob)
-    }
-  }, [docxBlob, renderDocx])
 
   // PDF Page Scroll Logic
   useEffect(() => {
@@ -165,7 +92,6 @@ export default function ReadPage() {
     async function loadBook() {
       setIsLoading(true)
       setError(null)
-      setDocxError(null)
 
       try {
         // Fetch book metadata
@@ -180,29 +106,6 @@ export default function ReadPage() {
 
         const fileIsPdf = book.book_file_url?.toLowerCase().endsWith(".pdf")
         setIsPdf(!!fileIsPdf)
-
-        // Fetch docx blob ONLY if it's a DOCX
-        if (!fileIsPdf) {
-          try {
-            const { data, error: downloadErr } = await supabase.storage
-              .from("book-docs")
-              .download(`${bookId}/original.docx`)
-
-            if (downloadErr) {
-              console.warn("[reader] Secure download failed, trying public URL fallback:", downloadErr)
-              if (book.book_file_url) {
-                const resp = await fetch(book.book_file_url)
-                if (resp.ok) setDocxBlob(await resp.blob())
-                else setDocxError("Failed to fetch original layout.")
-              }
-            } else if (data) {
-              setDocxBlob(data)
-            }
-          } catch (e) {
-            console.error("[reader] DOCX Fetch Error:", e)
-            setDocxError("Failed to synchronize original layout.")
-          }
-        }
 
         // Fetch all pages ordered by page_number
         const { data: pageData, error: pageErr } = await supabase
@@ -321,7 +224,6 @@ export default function ReadPage() {
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
-        <style dangerouslySetInnerHTML={{ __html: docxStyles }} />
         <div className="text-center space-y-4">
           <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
           <p className="font-display text-xl tracking-wider text-muted-foreground uppercase">Syncing volume...</p>
@@ -345,7 +247,6 @@ export default function ReadPage() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <style dangerouslySetInnerHTML={{ __html: docxStyles }} />
       <header className="border-b border-border bg-background/80 backdrop-blur z-50 flex-shrink-0">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
@@ -369,48 +270,21 @@ export default function ReadPage() {
               {/* Original View (DOCX or PDF Images) */}
               {settings.viewMode === "original" && (
                 <div className="animate-fade-in mb-8 relative">
-                  {isPdf ? (
-                    <div className="space-y-4 flex flex-col items-center">
-                      {pages.map((page) => (
-                        <Card key={page.id} id={`pdf-page-${page.page_number}`} className="bg-white shadow-2xl overflow-hidden w-full max-w-[800px] border-none">
-                          <Image
-                            src={page.page_image_url}
-                            alt={`Page ${page.page_number}`}
-                            width={800}
-                            height={1100}
-                            className="w-full h-auto"
-                            unoptimized
-                            priority={page.page_number === pages[currentPageIndex].page_number}
-                          />
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    docxError ? (
-                      <Card className="p-12 text-center bg-white border-destructive/20 shadow-xl">
-                        <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-                        <h3 className="text-xl font-bold mb-2">Original View Unavailable</h3>
-                        <p className="text-muted-foreground max-w-md mx-auto">{docxError}</p>
-                        <Button variant="outline" className="mt-6" onClick={() => window.location.reload()}>Retry Sync</Button>
+                  <div className="space-y-4 flex flex-col items-center">
+                    {pages.map((page) => (
+                      <Card key={page.id} id={`pdf-page-${page.page_number}`} className="bg-white shadow-2xl overflow-hidden w-full max-w-[800px] border-none">
+                        <Image
+                          src={page.page_image_url}
+                          alt={`Page ${page.page_number}`}
+                          width={800}
+                          height={1100}
+                          className="w-full h-auto"
+                          unoptimized
+                          priority={page.page_number === pages[currentPageIndex].page_number}
+                        />
                       </Card>
-                    ) : (
-                      <div className="relative">
-                        {(!docxBlob || isRendering) && (
-                          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-xl">
-                            <div className="text-center">
-                              <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
-                              <p className="text-muted-foreground font-mono text-sm">
-                                {!docxBlob ? "FETCHING DOCUMENT..." : "CALCULATING LAYOUT..."}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        <Card className="bg-white shadow-2xl overflow-hidden mx-auto min-h-[85vh] border-none">
-                          <div ref={onDocxContainerMount} className="docx-viewer-container p-4 md:p-8" />
-                        </Card>
-                      </div>
-                    )
-                  )}
+                    ))}
+                  </div>
                 </div>
               )}
 
