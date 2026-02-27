@@ -157,15 +157,9 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                 console.error("[BookForm] CRITICAL: NEXT_PUBLIC_SUPABASE_URL is missing!")
             }
 
-            console.log("[BookForm] Verifying user with 10s timeout fail-safe...")
+            console.log("[BookForm] Verifying user...")
 
-            // Promise race for timeout
-            const authResponse = await Promise.race([
-                supabase.auth.getUser(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error("Auth handshake timed out after 10s")), 10000))
-            ]) as any;
-
-            const { data: { user }, error: authErr } = authResponse;
+            const { data: { user }, error: authErr } = await supabase.auth.getUser()
 
             if (authErr) {
                 console.error("[BookForm] Auth error:", authErr)
@@ -184,6 +178,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             }
 
             console.log("[BookForm] Auth verified! User:", user.email)
+
             console.log("[BookForm] Session found! Token length:", session.access_token.length)
             console.log("[BookForm] Invoking Edge Function at:", `${supabaseUrl}/functions/v1/upload-book`)
 

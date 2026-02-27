@@ -177,7 +177,7 @@ export async function handleUploadBook(
             storagePath = `${bookId}/original.${ext}`;
 
             const { error: uploadError } = await adminClient.storage
-                .from("book-docs")
+                .from("book-pdfs")
                 .upload(storagePath, bookFile, {
                     contentType: mimeType,
                     upsert: true,
@@ -188,7 +188,7 @@ export async function handleUploadBook(
 
             // Get public URL and save to book record
             const { data: publicUrl } = adminClient.storage
-                .from("book-docs")
+                .from("book-pdfs")
                 .getPublicUrl(storagePath);
 
             await adminClient
@@ -296,7 +296,7 @@ export async function handleUploadBook(
 
         // Clean up Storage files
         try {
-            await adminClient.storage.from("book-docs").remove([`${bookId}/original.pdf`]);
+            await adminClient.storage.from("book-pdfs").remove([`${bookId}/original.pdf`]);
             // List and remove any page/illustration files
             const { data: pageFiles } = await adminClient.storage.from("book-pages").list(bookId);
             if (pageFiles?.length) {

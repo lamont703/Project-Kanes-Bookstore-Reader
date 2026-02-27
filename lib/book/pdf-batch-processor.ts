@@ -34,7 +34,7 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
 
     // ─── 1. Download PDF ───────────────────────────────────────────
     const { data: fileData, error: downloadError } = await supabase.storage
-        .from("book-docs")
+        .from("book-pdfs")
         .download(storagePath);
 
     if (downloadError || !fileData) {
@@ -130,7 +130,7 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
 
     // ─── 5. Update Book Metadata ──────────────────────────────────
     const { data: fileUrl } = supabase.storage
-        .from("book-docs")
+        .from("book-pdfs")
         .getPublicUrl(storagePath);
 
     await supabase.from("books").update({
