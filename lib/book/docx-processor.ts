@@ -37,13 +37,12 @@ export async function processDocx(bookId: string, storagePath: string) {
     // 2. Mammoth Options
     const options = {
         transformDocument: (element: any) => {
-            // Traverse the document and look for manual page breaks
+            // Traverse children
             if (element.children) {
                 element.children = element.children.map(options.transformDocument);
             }
 
-            // Word inserts page breaks as <w:br w:type="page"/>
-            // Mammoth translates this to a run with breakId: "page"
+            // A: Detect Hard Page Breaks (Run-level)
             if (element.type === "run" && element.breakId === "page") {
                 return {
                     ...element,
@@ -51,6 +50,23 @@ export async function processDocx(bookId: string, storagePath: string) {
                     children: [{ type: "text", value: "[:PAGE_BREAK:]" }]
                 };
             }
+
+            // B: Detect "Page Break Before" (Paragraph property)
+            // Some users set this in Paragraph Settings instead of hitting Ctrl+Enter
+            if (element.type === "paragraph" && element.pageBreakBefore) {
+                element.children.unshift({
+                    type: "run",
+                    children: [{ type: "text", value: "[:PAGE_BREAK:]" }]
+                });
+            }
+
+            // C: Detect Section Breaks (which often imply a new page)
+            if (element.type === "section") {
+                // We can't easily turn a section into a marker, 
+                // but we can flag that the next paragraph should break
+                return element;
+            }
+
             return element;
         },
         convertImage: (mammoth.images as any).inline((element: any) => {
