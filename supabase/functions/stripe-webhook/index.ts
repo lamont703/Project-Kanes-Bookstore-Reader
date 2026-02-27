@@ -153,31 +153,35 @@ async function handleSubscriptionInitialSuccess(supabase: any, paymentIntent: an
     // 2. Create Recurring Subscription in Stripe ($3.99/mo) with 30-day trial
     const priceId = Deno.env.get('STRIPE_PREMIUM_RECURRING_PRICE_ID')
     if (priceId) {
-        try {
-            const subscription = await stripe.subscriptions.create({
-                customer: paymentIntent.customer,
-                items: [{ price: priceId }],
-                trial_period_days: 30, // Month 2 starts in 30 days
-                default_payment_method: paymentIntent.payment_method,
-                metadata: { user_id }
-            })
+        if (priceId.startsWith('prod_')) {
+            console.error(`[stripe-webhook] CRITICAL: STRIPE_PREMIUM_RECURRING_PRICE_ID is set to a PRODUCT ID (${priceId}). It must be a PRICE ID (starting with 'price_').`)
+        } else {
+            try {
+                const subscription = await stripe.subscriptions.create({
+                    customer: paymentIntent.customer,
+                    items: [{ price: priceId }],
+                    trial_period_days: 30, // Month 2 starts in 30 days
+                    default_payment_method: paymentIntent.payment_method,
+                    metadata: { user_id }
+                })
 
-            // 3. Create Subscription Record in DB
-            const { error: subError } = await supabase.from('user_subscriptions').upsert({
-                user_id,
-                plan: 'premium',
-                status: 'active',
-                stripe_subscription_id: subscription.id,
-                initial_fee_paid: 49.99,
-                monthly_rate: 3.99,
-                selected_book_ids: selectedBookIds,
-                started_at: new Date().toISOString()
-            }, { onConflict: 'user_id' })
+                // 3. Create Subscription Record in DB
+                const { error: subError } = await supabase.from('user_subscriptions').upsert({
+                    user_id,
+                    plan: 'premium',
+                    status: 'active',
+                    stripe_subscription_id: subscription.id,
+                    initial_fee_paid: 49.99,
+                    monthly_rate: 3.99,
+                    selected_book_ids: selectedBookIds,
+                    started_at: new Date().toISOString()
+                }, { onConflict: 'user_id' })
 
-            if (subError) console.error('[stripe-webhook] Failed to create subscription record:', subError)
+                if (subError) console.error('[stripe-webhook] Failed to create subscription record:', subError)
 
-        } catch (e) {
-            console.error('Failed to create recurring subscription:', e)
+            } catch (e) {
+                console.error('Failed to create recurring subscription:', e)
+            }
         }
     } else {
         console.warn('[stripe-webhook] STRIPE_PREMIUM_RECURRING_PRICE_ID not set. Skipping recurring subscription creation.')
@@ -190,7 +194,11 @@ async function handleSubscriptionInitialSuccess(supabase: any, paymentIntent: an
             book_id: bookId,
             source: 'subscription_signup'
         }))
-        const { error: libError } = await supabase.from('user_library').upsert(libraryEntries)
+        // Use onConflict to ignore if user already has the book
+        const { error: libError } = await supabase
+            .from('user_library')
+            .upsert(libraryEntries, { onConflict: 'user_id,book_id' })
+
         if (libError) console.error('[stripe-webhook] Failed to grant library access:', libError)
     }
 
@@ -201,13 +209,15 @@ async function handleSubscriptionInitialSuccess(supabase: any, paymentIntent: an
         const phoneLast4 = (phone || '0000').slice(-4)
         const promoCode = `KANE-${firstName}-${phoneLast4}`
 
-        const { error: promoError } = await supabase.from('promo_codes').insert({
+        // Use upsert to prevent unique constraint error on code if webhook retries
+        const { error: promoError } = await supabase.from('promo_codes').upsert({
             code: promoCode,
             discount_percent: 35,
             is_active: true,
             owner_id: user_id
-        })
-        if (promoError) console.error('[stripe-webhook] Failed to insert promo code:', promoError)
+        }, { onConflict: 'code' })
+
+        if (promoError) console.error('[stripe-webhook] Failed to update/insert promo code:', promoError)
     } catch (e) {
         console.error('Failed to generate promo code string:', e)
     }

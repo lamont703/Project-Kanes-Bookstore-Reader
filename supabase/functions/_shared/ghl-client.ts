@@ -36,8 +36,8 @@ export const ghlRequest = async (path: string, options: RequestInit = {}) => {
 
     if (!response.ok) {
         const errorText = await response.text()
-        console.error(`GHL Error Response: ${errorText}`)
-        throw new Error(`GHL API error: ${response.status} ${errorText}`)
+        // Throw the raw error text so the caller can parse it if needed
+        throw new Error(`GHL_API_ERROR:${response.status}:${errorText}`)
     }
 
     return response.json()
@@ -85,89 +85,62 @@ export const createOrUpdateContact = async (contact: GHLContact) => {
         throw new Error('GHL_LOCATION_ID is not set')
     }
 
-    // 1. First attempt: Search by email
-    console.log(`Searching for existing GHL contact by email: ${contact.email}`)
-    let existingContact = await lookupContactByEmail(contact.email)
+    // 1. Search for existing contacts by both email and phone
+    const [emailMatch, phoneMatch] = await Promise.all([
+        lookupContactByEmail(contact.email),
+        contact.phone ? lookupContactByPhone(contact.phone) : Promise.resolve(null)
+    ])
 
-    // 2. Second attempt: If no email match, search by phone
-    if (!existingContact && contact.phone) {
-        console.log(`No email match, searching by phone: ${contact.phone}`)
-        existingContact = await lookupContactByPhone(contact.phone)
+    let targetContactId = emailMatch?.id || phoneMatch?.id
+    const sanitizedData = { ...contact }
+
+    // 2. Resolve internal GHL conflicts before sending the request
+    if (emailMatch && phoneMatch && emailMatch.id !== phoneMatch.id) {
+        console.warn(`[ghl-client] Conflict Detected: Email matches GHL ${emailMatch.id}, but Phone matches GHL ${phoneMatch.id}. Prioritizing Email match.`)
+        // We prioritize the email match. To avoid a 400 error from GHL, we must remove the conflicting phone number.
+        delete sanitizedData.phone
+        targetContactId = emailMatch.id
     }
 
-    const performUpdate = async (id: string, data: GHLContact, isRetry = false): Promise<{ contact: any }> => {
+    const performSave = async (id?: string) => {
         try {
-            console.log(`Attempting to update GHL contact: ${id}${isRetry ? ' (Retry)' : ''}`)
-            const result = await updateContact(id, data)
-            return { contact: result.contact || result }
-        } catch (error: any) {
-            // Handle the specific "Duplicate Contact" error
-            if (error.message.includes('400') && error.message.includes('duplicated contacts')) {
-                try {
-                    const errorJson = JSON.parse(error.message.replace('GHL API error: 400 ', ''))
-                    const conflictingId = errorJson.meta?.contactId
-                    const matchingField = errorJson.meta?.matchingField // e.g., "phone"
-
-                    console.warn(`Conflict detected on field: ${matchingField}. Target ID: ${id}, Suggested ID: ${conflictingId}`)
-
-                    // Create a sanitized copy of the data without the conflicting field
-                    const sanitizedData = { ...data }
-                    if (matchingField && matchingField in sanitizedData) {
-                        delete (sanitizedData as any)[matchingField]
-                    }
-
-                    // If it's already a retry, or if it's a circular reference (A -> B -> A), or if GHL has no suggestion:
-                    // Just update the record we are currently on WITHOUT the bad field.
-                    if (isRetry || !conflictingId || conflictingId === id) {
-                        console.log(`Bypassing further conflict; forced update on ${id} (removed ${matchingField})`)
-                        const finalResult = await updateContact(id, sanitizedData)
-                        return { contact: finalResult.contact || finalResult }
-                    }
-
-                    // Otherwise, we try to move to the suggested ID GHL prefers for this data.
-                    return await performUpdate(conflictingId, sanitizedData, true)
-                } catch (parseError) {
-                    console.error('Failed to resolve GHL conflict via retry', parseError)
-                }
+            if (id) {
+                console.log(`[ghl-client] Updating existing contact: ${id}`)
+                const result = await updateContact(id, sanitizedData)
+                return { contact: result.contact || result }
+            } else {
+                console.log(`[ghl-client] Creating new contact for: ${contact.email}`)
+                return await ghlRequest('/contacts/', {
+                    method: 'POST',
+                    body: JSON.stringify({ ...sanitizedData, locationId }),
+                })
             }
-            throw error // Re-throw if we can't handle it
-        }
-    }
-
-    if (existingContact) {
-        return await performUpdate(existingContact.id, contact)
-    }
-
-    // 3. If no existing contact found, try to create
-    console.log(`No existing GHL contact found. Creating new for ${contact.email}`)
-    try {
-        return await ghlRequest('/contacts/', {
-            method: 'POST',
-            body: JSON.stringify({
-                ...contact,
-                locationId,
-            }),
-        })
-    } catch (error: any) {
-        // Even if lookup failed, the POST might fail because GHL is faster at finding duplicates
-        if (error.message.includes('400') && error.message.includes('duplicated contacts')) {
-            try {
-                const errorJson = JSON.parse(error.message.replace('GHL API error: 400 ', ''))
-                const conflictingId = errorJson.meta?.contactId
-                const matchingField = errorJson.meta?.matchingField
-
-                if (conflictingId) {
-                    console.warn(`POST failed; conflict ${conflictingId} on ${matchingField}. Updating that record...`)
-                    const sanitizedData = { ...contact }
-                    if (matchingField && matchingField in sanitizedData) {
-                        delete (sanitizedData as any)[matchingField]
+        } catch (error: any) {
+            if (error.message.startsWith('GHL_API_ERROR:400')) {
+                const errorBody = error.message.split('GHL_API_ERROR:400:')[1]
+                try {
+                    const json = JSON.parse(errorBody)
+                    // If GHL still finds a duplicate we missed (e.g. race condition), log it cleanly
+                    if (json.message?.includes('duplicated')) {
+                        console.warn(`[ghl-client] GHL still reports a duplicate on ${json.meta?.matchingField}. ID: ${json.meta?.contactId || 'Unknown'}`)
+                        // If it's a create (no id), and GHL found an ID for us, try one update
+                        if (!id && json.meta?.contactId) {
+                            const newSanatized = { ...sanitizedData }
+                            if (json.meta.matchingField) delete (newSanatized as any)[json.meta.matchingField]
+                            const retryResult = await updateContact(json.meta.contactId, newSanatized)
+                            return { contact: retryResult.contact || retryResult }
+                        }
                     }
-                    return await performUpdate(conflictingId, sanitizedData)
+                } catch (e) {
+                    console.error('[ghl-client] Failed to parse GHL error body', e)
                 }
-            } catch (p) { }
+                console.error(`[ghl-client] GHL 400 Error: ${errorBody}`)
+            }
+            throw error
         }
-        throw error
     }
+
+    return await performSave(targetContactId)
 }
 
 export const updateContact = async (contactId: string, contact: Partial<GHLContact>) => {
