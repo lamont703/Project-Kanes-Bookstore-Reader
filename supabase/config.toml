@@ -331,6 +331,9 @@ verify_jwt = false
 [functions.get-book-pages]
 verify_jwt = false
 
+[functions.email-ops]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

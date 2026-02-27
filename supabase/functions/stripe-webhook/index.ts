@@ -92,7 +92,8 @@ async function handlePaymentSuccess(supabase: any, paymentIntent: any) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                    'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
                 },
                 body: JSON.stringify({
                     event: 'ORDER_CONFIRMED',
@@ -217,7 +218,8 @@ async function handleSubscriptionInitialSuccess(supabase: any, paymentIntent: an
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
             },
             body: JSON.stringify({
                 event: 'WELCOME_PREMIUM',
@@ -244,7 +246,8 @@ async function handlePaymentFailure(supabase: any, paymentIntent: any) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                    'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
                 },
                 body: JSON.stringify({
                     event: 'PAYMENT_FAILED',
@@ -294,7 +297,8 @@ async function handleSubscriptionUpdate(supabase: any, subscription: any) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                    'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
                 },
                 body: JSON.stringify({
                     event: 'SUBSCRIPTION_CANCELLED',
@@ -320,7 +324,8 @@ async function handleInvoiceFailure(supabase: any, invoice: any) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
             },
             body: JSON.stringify({
                 event: 'PAYMENT_FAILED',
