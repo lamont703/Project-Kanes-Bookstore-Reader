@@ -55,21 +55,14 @@ export function DashboardContent({
     const handleCancelSubscription = async () => {
         setIsCancelling(true)
         try {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (!session) throw new Error("Authentication signal lost. Please log in again.")
-
-            const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/cancel-subscription`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                }
+            const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+                method: 'POST'
             })
 
-            const result = await response.json()
-
-            if (!response.ok) {
-                throw new Error(result.message || "Termination sequence failed. Please try again.")
+            if (error) {
+                // Handle different error formats from invoke
+                const errorMsg = error instanceof Error ? error.message : (error as any).message || "Termination sequence failed."
+                throw new Error(errorMsg)
             }
 
             toast.success("Subscription scheduled for decommissioning.")
@@ -78,7 +71,7 @@ export function DashboardContent({
             setSubscription((prev: any) => ({
                 ...prev,
                 status: 'cancelled',
-                expires_at: result.cancelAt
+                expires_at: data?.cancelAt
             }))
             setShowCancelDialog(false)
         } catch (error: any) {

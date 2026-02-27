@@ -11,15 +11,20 @@ Deno.serve(async (req) => {
     try {
         const authHeader = req.headers.get('Authorization')
         if (!authHeader) {
+            console.error('[cancel-subscription] Missing Authorization header')
             return createErrorResponse(401, 'UNAUTHORIZED', 'Missing authorization header')
         }
 
         const supabase = createAuthClient(authHeader)
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        const token = authHeader.replace('Bearer ', '')
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
         if (authError || !user) {
-            return createErrorResponse(401, 'UNAUTHORIZED', 'User not found')
+            console.error('[cancel-subscription] Auth error or user not found:', authError)
+            return createErrorResponse(401, 'UNAUTHORIZED', 'User not found or session expired')
         }
+
+        console.log(`[cancel-subscription] Processing cancellation for user: ${user.id}`)
 
         // 1. Get the user's subscription
         const { data: subscription, error: subError } = await supabase
