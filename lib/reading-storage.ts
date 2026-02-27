@@ -22,7 +22,7 @@ export const defaultSettings: ReadingSettings = {
   theme: "dark",
   fontSize: 18,
   fontFamily: "serif",
-  viewMode: "original",
+  viewMode: "text",
 }
 
 // Highlights

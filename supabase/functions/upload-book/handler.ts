@@ -275,6 +275,15 @@ export async function handleUploadBook(
         const processResult = await vercelResponse.json();
         const processingTime = Date.now() - startTime;
 
+        // Force status transition to published in DB
+        await adminClient
+            .from("books")
+            .update({
+                status: "published",
+                page_count: processResult.pages
+            })
+            .eq("id", bookId);
+
         console.log(
             `[upload-book] ✅ Complete via Vercel! "${title}" — ` +
             `${processResult.pages} chapters/pages, ${processResult.illustrations} illustrations, ` +

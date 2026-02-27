@@ -62,7 +62,7 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
 
         if (uploadErr) {
             console.error(`[pdf-batch] Illustration upload failed: ${uploadErr.message}`);
-            return;
+            throw new Error(`Failed to upload illustration: ${uploadErr.message}`);
         }
 
         const { data: publicUrl } = supabase.storage
@@ -71,19 +71,27 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
 
         illustrationUrls[illust.positionIndex] = publicUrl.publicUrl;
 
-        await supabase.from("book_illustrations").insert({
+        const { error: illustInsertErr } = await supabase.from("book_illustrations").insert({
             book_id: bookId,
             image_url: publicUrl.publicUrl,
             page_number: illust.pageNumber,
             position_index: illust.positionIndex
         });
+
+        if (illustInsertErr) {
+            console.error(`[pdf-batch] Illustration DB insert failed: ${illustInsertErr.message}`);
+            throw new Error(`Failed to save illustration to database: ${illustInsertErr.message}`);
+        }
     });
 
     console.log(`[pdf-batch] Finished uploading ${result.illustrations.length} illustrations`);
 
     // ─── 4. Upload Page Images and Save Content in Chunked Parallel 
     // Clear existing pages for idempotency
-    await supabase.from("book_pages").delete().eq("book_id", bookId);
+    const { error: deleteErr } = await supabase.from("book_pages").delete().eq("book_id", bookId);
+    if (deleteErr) {
+        console.warn(`[pdf-batch] Failed to clear old pages (usually okay): ${deleteErr.message}`);
+    }
 
     await processInChunks(result.pages, 3, async (page) => {
         const pageImageName = `${bookId}/page_${page.pageNumber}.png`;
@@ -97,7 +105,7 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
 
         if (pageUploadErr) {
             console.error(`[pdf-batch] Page ${page.pageNumber} upload failed: ${pageUploadErr.message}`);
-            return;
+            throw new Error(`Failed to upload page ${page.pageNumber}: ${pageUploadErr.message}`);
         }
 
         const { data: pageUrl } = supabase.storage
@@ -117,13 +125,18 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
             });
         }
 
-        await supabase.from("book_pages").insert({
+        const { error: pageInsertErr } = await supabase.from("book_pages").insert({
             book_id: bookId,
             page_number: page.pageNumber,
             page_image_url: pageUrl.publicUrl,
             content: finalContent,
             word_count: (page.textContent || "").split(/\s+/).length
         });
+
+        if (pageInsertErr) {
+            console.error(`[pdf-batch] Page ${page.pageNumber} DB insert failed: ${pageInsertErr.message}`);
+            throw new Error(`Failed to save page ${page.pageNumber} to database: ${pageInsertErr.message}`);
+        }
     });
 
     console.log(`[pdf-batch] Finished uploading ${result.pages.length} pages`);
@@ -133,11 +146,17 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
         .from("book-pdfs")
         .getPublicUrl(storagePath);
 
-    await supabase.from("books").update({
+    console.log(`[pdf-batch] Finalizing book status to "published" for ${bookId}...`);
+    const { error: finalUpdateErr } = await supabase.from("books").update({
         status: 'published',
         book_file_url: fileUrl.publicUrl,
         page_count: result.metadata.pageCount,
     }).eq("id", bookId);
+
+    if (finalUpdateErr) {
+        console.error(`[pdf-batch] CRITICAL: Final status update failed: ${finalUpdateErr.message}`);
+        throw new Error(`Failed to finalize book status: ${finalUpdateErr.message}`);
+    }
 
     return {
         pages: result.pages.length,

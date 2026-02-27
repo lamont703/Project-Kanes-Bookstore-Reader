@@ -66,11 +66,11 @@ function CheckoutSuccessContent() {
                     </p>
                 )}
                 <p className="text-xl text-muted-foreground max-w-lg mb-8">
-                    Thank you for your purchase. Your digital items are now available in your library, and physical items are being prepared for shipment.
+                    Thank you for your purchase. Your digital items are now available in your dashboard, and physical items are being prepared for shipment.
                 </p>
                 <div className="flex gap-4">
-                    <Button size="lg" variant="outline" onClick={() => router.push("/library")}>
-                        Go to Library
+                    <Button size="lg" variant="outline" onClick={() => router.push("/dashboard")}>
+                        Go to Dashboard
                     </Button>
                     <Button size="lg" onClick={() => router.push("/browse")}>
                         Continue Exploring

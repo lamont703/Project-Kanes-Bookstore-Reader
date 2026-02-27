@@ -150,6 +150,12 @@ export default function CheckoutPage() {
         e.preventDefault()
         if (!validate()) return
 
+        // Stripe USD minimum is $0.50. Prevent calling backend if we know it's too small.
+        if (finalTotal > 0 && finalTotal < 0.50) {
+            toast.error("Stripe requires a minimum purchase of $0.50. Please add more items to your cart.")
+            return
+        }
+
         setIsProcessing(true)
 
         try {
@@ -172,7 +178,6 @@ export default function CheckoutPage() {
             }
 
             // Call Supabase Edge Function via the official client
-            // This automatically handles the apikey and Authorization headers
             const { data: { session } } = await supabase.auth.getSession()
             console.log('Current session for checkout:', session ? 'Valid' : 'None')
 
@@ -181,15 +186,35 @@ export default function CheckoutPage() {
             })
 
             if (functionError) {
-                console.error("Function error:", functionError)
-                console.error("Error details:", JSON.stringify(functionError))
-                toast.error(functionError.message || "Checkout failed. Please try again.")
+                // Try to parse the error message if it's JSON from our standardized errors
+                let errorMessage = "Checkout failed. Please try again."
+                try {
+                    // supabase-js might return the error in functionError.context?.json
+                    const errorDetails = functionError as any
+                    if (errorDetails.context && typeof errorDetails.context.json === 'function') {
+                        const json = await errorDetails.context.json()
+                        errorMessage = json.error?.message || errorMessage
+                    } else if (errorDetails.message) {
+                        errorMessage = errorDetails.message
+                    }
+                } catch {
+                    errorMessage = functionError.message || errorMessage
+                }
+
+                toast.error(errorMessage)
                 return
             }
 
             // Success! We have a client secret and order ID
             setOrderId(data.orderId)
-            setClientSecret(data.clientSecret)
+
+            if (data.isFree) {
+                setOrderComplete(true)
+                clearCart()
+                toast.success("Order processed successfully!")
+            } else {
+                setClientSecret(data.clientSecret)
+            }
         } catch (err) {
             console.error(err)
             toast.error("An unexpected error occurred. Please try again.")
@@ -215,12 +240,12 @@ export default function CheckoutPage() {
                     <p className="text-xl text-muted-foreground max-w-lg mb-8">
                         {hasPhysicalItems
                             ? "Thank you for your purchase. Your physical items will be shipped to your galactic coordinates shortly. Digital items are available immediately."
-                            : "Thank you for your purchase. Your digital items are now available in your library!"
+                            : "Thank you for your purchase. Your digital items are now available in your dashboard!"
                         }
                     </p>
                     <div className="flex gap-4">
-                        <Button size="lg" variant="outline" onClick={() => router.push("/library")}>
-                            Go to Library
+                        <Button size="lg" variant="outline" onClick={() => router.push("/dashboard")}>
+                            Go to Dashboard
                         </Button>
                         <Button size="lg" onClick={() => router.push("/browse")}>
                             Continue Exploring

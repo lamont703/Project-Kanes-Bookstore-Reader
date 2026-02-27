@@ -31,7 +31,7 @@ export async function handleCheckout(authHeader: string, body: any) {
 
     let subtotal = 0
     items.forEach((item: any) => {
-        const variant = variants.find(v => v.id === item.variantId)
+        const variant = variants.find((v: any) => v.id === item.variantId)
         if (variant) {
             subtotal += variant.price * item.quantity
         }
@@ -58,27 +58,44 @@ export async function handleCheckout(authHeader: string, body: any) {
     const taxAmount = (subtotal - discountAmount) * 0.05
     const totalAmount = subtotal - discountAmount + taxAmount + shippingAmount
 
-    // 3. Create Stripe Payment Intent
-    const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(totalAmount * 100), // Stripe expects cents
-        currency: 'usd',
-        customer: await getOrCreateStripeCustomer(adminSupabase, user),
-        metadata: {
-            user_id: user.id,
-            items: JSON.stringify(items.map((i: any) => ({ id: i.bookId, q: i.quantity, f: i.format }))),
-            promo_code: promoCode || null
-        },
-        automatic_payment_methods: {
-            enabled: true,
-        },
-    })
+    // 3. Handle Zero or Small Amounts
+    // Stripe USD minimum is $0.50
+    if (totalAmount > 0 && totalAmount < 0.50) {
+        throw {
+            status: 400,
+            code: 'AMOUNT_TOO_SMALL',
+            message: 'Stripe requires a minimum purchase amount of $0.50 USD. Please add more items to your cart or use a discount that covers the full amount.'
+        }
+    }
 
-    // 4. Create Order in DB (Pending status)
+    let paymentIntentId = null
+    let clientSecret = null
+
+    if (totalAmount > 0) {
+        // 4. Create Stripe Payment Intent for non-zero amounts
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(totalAmount * 100), // Stripe expects cents
+            currency: 'usd',
+            customer: await getOrCreateStripeCustomer(adminSupabase, user),
+            metadata: {
+                user_id: user.id,
+                items: JSON.stringify(items.map((i: any) => ({ id: i.bookId, q: i.quantity, f: i.format }))),
+                promo_code: promoCode || null
+            },
+            automatic_payment_methods: {
+                enabled: true,
+            },
+        })
+        paymentIntentId = paymentIntent.id
+        clientSecret = paymentIntent.client_secret
+    }
+
+    // 5. Create Order in DB
     const { data: order, error: orderError } = await adminSupabase
         .from('orders')
         .insert({
             user_id: user.id,
-            status: 'pending',
+            status: totalAmount > 0 ? 'pending' : 'paid', // Mark as paid if $0
             subtotal,
             discount_amount: discountAmount,
             shipping_amount: shippingAmount,
@@ -86,7 +103,7 @@ export async function handleCheckout(authHeader: string, body: any) {
             total: totalAmount,
             has_physical_items: shippingAmount > 0,
             promo_code_id: promoCodeId,
-            stripe_payment_intent_id: paymentIntent.id,
+            stripe_payment_intent_id: paymentIntentId,
             shipping_name: shippingAddress ? `${shippingAddress.firstName} ${shippingAddress.lastName}` : null,
             shipping_address: shippingAddress?.address,
             shipping_city: shippingAddress?.city,
@@ -101,7 +118,7 @@ export async function handleCheckout(authHeader: string, body: any) {
         throw { status: 500, code: 'DATABASE_ERROR', message: 'Failed to create order' }
     }
 
-    // 4.1 Create Promo Usage entry
+    // 5.1 Create Promo Usage entry
     if (promoCodeId) {
         await adminSupabase.from('promo_code_usages').insert({
             promo_code_id: promoCodeId,
@@ -111,9 +128,9 @@ export async function handleCheckout(authHeader: string, body: any) {
         })
     }
 
-    // 5. Create Order Items
+    // 6. Create Order Items
     const orderItems = items.map((item: any) => {
-        const variant = variants.find(v => v.id === item.variantId)
+        const variant = variants.find((v: any) => v.id === item.variantId)
         return {
             order_id: order.id,
             book_id: item.bookId,
@@ -134,8 +151,9 @@ export async function handleCheckout(authHeader: string, body: any) {
     }
 
     return {
-        clientSecret: paymentIntent.client_secret,
-        orderId: order.id
+        clientSecret,
+        orderId: order.id,
+        isFree: totalAmount === 0
     }
 }
 
@@ -146,10 +164,26 @@ async function getOrCreateStripeCustomer(supabase: any, user: any) {
         .eq('id', user.id)
         .single()
 
-    if (profile?.stripe_customer_id) {
-        return profile.stripe_customer_id
+    let customerId = profile?.stripe_customer_id
+
+    // If we have an ID, verify it exists in the CURRENT Stripe environment (Test vs Live)
+    if (customerId) {
+        try {
+            await stripe.customers.retrieve(customerId)
+            return customerId
+        } catch (error: any) {
+            // If Stripe says "No such customer", we need to create a new one for this environment
+            if (error.raw?.code === 'resource_missing' || error.statusCode === 404) {
+                console.log(`Customer ${customerId} not found in current Stripe environment. Creating new one.`)
+                customerId = null
+            } else {
+                // For other errors (API down, network, etc), rethrow
+                throw error
+            }
+        }
     }
 
+    // Create new customer if none exists or if existing one was from a different environment
     const customer = await stripe.customers.create({
         email: user.email,
         metadata: {
