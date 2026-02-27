@@ -171,15 +171,28 @@ export async function handleUploadBook(
 
         // ─── 4. Upload original DOCX ────────────────────────────────
         if (bookFile) {
+            const docxPath = `${bookId}/original.docx`;
             const { error: docxUploadError } = await adminClient.storage
                 .from("book-docs")
-                .upload(`${bookId}/original.docx`, bookFile, {
+                .upload(docxPath, bookFile, {
                     contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     upsert: true,
                 });
 
             if (docxUploadError) throw docxUploadError;
             console.log("[upload-book] Original DOCX uploaded to Storage");
+
+            // Get public URL and save to book record
+            const { data: publicUrl } = adminClient.storage
+                .from("book-docs")
+                .getPublicUrl(docxPath);
+
+            await adminClient
+                .from("books")
+                .update({ book_file_url: publicUrl.publicUrl })
+                .eq("id", bookId);
+
+            console.log("[upload-book] Book record updated with file URL");
         }
 
         // ─── 5. Upload cover image ─────────────────────────────────

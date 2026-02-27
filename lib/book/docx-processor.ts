@@ -163,8 +163,15 @@ export async function processDocx(bookId: string, storagePath: string) {
         });
     }
 
-    // 7. Mark Book as Published
-    await supabase.from("books").update({ status: 'published' }).eq("id", bookId);
+    // 7. Mark Book as Published and Ensure File URL is set
+    const { data: publicUrl } = supabase.storage
+        .from("book-docs")
+        .getPublicUrl(storagePath);
+
+    await supabase.from("books").update({
+        status: 'published',
+        book_file_url: publicUrl.publicUrl
+    }).eq("id", bookId);
 
     return {
         pages: pages.length,
