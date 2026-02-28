@@ -53,8 +53,6 @@ export default function CheckoutPage() {
         }
     }, [items, router, orderComplete, isMounted])
 
-    if (!isMounted) return null
-
     // Dealer Code State
     const [dealerCode, setDealerCode] = useState("")
     const [dealerCodeApplied, setDealerCodeApplied] = useState(false)
@@ -108,23 +106,7 @@ export default function CheckoutPage() {
         return true
     }
 
-    // Redirect if not logged in (check Supabase auth)
-    useEffect(() => {
-        async function checkAuth() {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) {
-                router.push("/login?redirect=/checkout&message=purchase")
-            }
-        }
-        checkAuth()
-    }, [router, supabase])
-
-    // Redirect if cart is empty (and not just completed)
-    useEffect(() => {
-        if (items.length === 0 && !orderComplete) {
-            router.push("/cart")
-        }
-    }, [items, router, orderComplete])
+    if (!isMounted) return null
 
     const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
     const gst = total * 0.05
