@@ -81,6 +81,34 @@ export function DashboardContent({
         }
     }
 
+    const handleReactivateSubscription = async () => {
+        setIsCancelling(true) // Reuse loading state
+        try {
+            const { error } = await supabase.functions.invoke('reactivate-subscription', {
+                method: 'POST'
+            })
+
+            if (error) {
+                const errorMsg = error instanceof Error ? error.message : (error as any).message || "Reactivation sequence failed."
+                throw new Error(errorMsg)
+            }
+
+            toast.success("Subscription transmission re-established!")
+
+            // Update local state
+            setSubscription((prev: any) => ({
+                ...prev,
+                status: 'active',
+                expires_at: null,
+                cancelled_at: null
+            }))
+        } catch (error: any) {
+            toast.error(error.message)
+        } finally {
+            setIsCancelling(false)
+        }
+    }
+
     const handleSaveProfile = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsSaving(true)
@@ -434,8 +462,13 @@ export function DashboardContent({
                                         <p className="text-sm leading-relaxed mb-4">
                                             Your subscription has been scheduled for decommissioning. Elite access will terminate on <span className="text-primary font-mono font-bold">{new Date(subscription.expires_at).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' })}</span>.
                                         </p>
-                                        <Button asChild variant="outline" className="w-full border-secondary/30 text-secondary hover:bg-secondary/10">
-                                            <Link href="/book-club">RE-ACTIVATE TRANSMISSIONS</Link>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full border-secondary/30 text-secondary hover:bg-secondary/10"
+                                            onClick={handleReactivateSubscription}
+                                            disabled={isCancelling}
+                                        >
+                                            {isCancelling ? "ESTABLISHING..." : "RE-ACTIVATE TRANSMISSIONS"}
                                         </Button>
                                     </div>
                                 </div>

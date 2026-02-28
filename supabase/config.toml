@@ -334,6 +334,9 @@ verify_jwt = false
 [functions.cancel-subscription]
 verify_jwt = false
 
+[functions.reactivate-subscription]
+verify_jwt = false
+
 [functions.email-ops]
 verify_jwt = false
 
