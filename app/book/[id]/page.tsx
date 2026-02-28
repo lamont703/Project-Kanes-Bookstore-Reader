@@ -32,7 +32,7 @@ export async function generateStaticParams() {
 
 export default async function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createClient()
+  const supabase = createStaticClient()
 
   const { data: b, error } = await supabase
     .from('books')
