@@ -1,12 +1,12 @@
-# Kane's Komet: The Data Model Explained in Plain English (Final)
+# Kane's Komet: The Data Model Explained in Plain English (As-Built)
 
-> This guide translates the finalized technical database design into plain English. Every decision below is based on the owner's direct answers to our clarifying questions.
+> This guide reflects the **actual, implemented** database as it exists today in the Supabase project `kpafjhkrjipiyfjizyaw`. Every decision below has been confirmed against the live migration files.
 
 ---
 
 ## 1. Executive Summary: The "Big Picture"
 
-Kane's Komet Book Reader is a **digital bookstore combined with a members-only book club**. The database has **20 tables** spread across six areas:
+Kane's Komet Book Reader is a **digital bookstore combined with a members-only book club**. The database has **20 core tables** spread across six areas:
 
 | Area | What It Does |
 |---|---|
@@ -15,21 +15,18 @@ Kane's Komet Book Reader is a **digital bookstore combined with a members-only b
 | **The Store** | Handles shopping carts, orders, payments (via Stripe), and dealer discount codes. |
 | **The Book Club** | Manages monthly book picks, community events, and RSVPs. |
 | **The Community** | Powers the discussion forum where premium members can chat, reply, and vote on posts. |
-| **The Reader** | Remembers exactly where you left off reading, your highlights, bookmarks, and even your font preferences — across all your devices. |
+| **The Reader** | Remembers exactly where you left off reading, your highlights, bookmarks, and display preferences — across all your devices. |
 
-### The Big Migration
+### What's Been Built
 
-Right now, the app saves everything on the user's computer (in something called **localStorage**). The new backend moves all of that to a real server so that:
-- Your reading progress follows you from phone to laptop.
-- Your shopping cart follows you across devices and persists even if you aren't logged in yet.
-- Your purchase history is permanent and secure.
+The backend is **fully operational**. All data lives in a real Supabase (PostgreSQL) database at `kpafjhkrjipiyfjizyaw.supabase.co`. The app is deployed to Vercel, connects to Stripe for payments, and uses GoHighLevel for all outbound emails.
 
 ---
 
 ## 2. The People: Users & Subscriptions
 
 ### Who Can Sign Up?
-Anyone with an email and password. No Google or Apple login — just email.
+Anyone with an email and password. No Google or Apple login — just email. Supabase Auth handles the actual registration securely.
 
 ### Two Types of People
 1. **Free Readers** — They can browse the store, buy books, and read them in the app. That's it.
@@ -42,7 +39,7 @@ Anyone with an email and password. No Google or Apple login — just email.
    - **A KANE's T-shirt and a special free gift** (these items are exclusive perks and never sold in the app)
 
 ### What About Admins?
-There are only two roles: `reader` and `admin`. Right now, the admin team is the project owner and the developer. In the future, more team admins may be added. Admins can see and change everything.
+There are only two roles: `reader` and `admin`. Admins can see and change everything. The admin panel at `/admin` is protected by server-side middleware that checks the user's role from the database.
 
 ### What Happens If Someone Gets Banned?
 - They **can still read** any books they've already purchased.
@@ -57,27 +54,29 @@ Other users can **only** see a person's **display name** in discussions. No prof
 ## 3. The Bookshelf: Books & Content
 
 ### How Books Get Into the System
-1. An admin uploads a **PDF** of the book.
+1. An admin uploads a **PDF** of the book through the `/admin/upload` page.
 2. An admin uploads a **standard-sized book cover image**.
-3. A **rendering tool** converts each PDF page into a high-quality image (WebP format) that preserves the exact visual layout of the original page.
-4. **Text is also extracted** from each page — but only for search indexing, not for display. The reader shows the rendered page images instead.
+3. The `upload-book` Edge Function converts each PDF page into a high-quality **WebP image** that preserves the exact visual layout.
+4. **Text is also extracted** from each page — but only for search indexing, not for display.
 5. **Inline illustrations** are extracted from the PDF with their page positions and stored separately.
-6. The reader app shows each page as a rendered image — everything looks exactly like the original printed book, page by page, with "Page 1 of 45" navigation.
+6. The reader app shows each page as a rendered image — everything looks exactly like the original printed book, with **"Page 1 of 45" navigation**.
 
 ### Key Fields Per Book
-- **One author** and **one illustrator** per book. The illustrator's name is shown publicly on the book detail page.
+- **One author** and **one optional illustrator** per book. The illustrator's name is shown publicly on the book detail page.
+- **Book Club Eligibility**: An `is_book_club_eligible` flag determines which books can appear in the subscription modal book picker. Admins control this.
 - **Formats (Variants)**: Every book can be purchased in three ways:
    - **ebook**: Digital version, added to your library immediately.
    - **Paper Book**: Physical copy, shipped to your address.
-   - **Komet Card**: Physical commemorative card, shipped to your address. **Also grants digital reading access** — the ebook is automatically added to your library so you can read it in the app.
-- **What You Can Read**: Only the **ebook** version (and Komet Card digital access) can be opened and read inside the app. Paper Book orders are tracked in your order history but don't show up as readable books.
-- **Series support**: Some books are part of a series (e.g., "Brute Syndicate #3"). The series name and order number are stored so they can be displayed as a label on the book card. There is **no dedicated "Series" page** — users can simply filter or search by series name.
-- **Inventory Management**: Admins can independently toggle availability for each format (**ebook**, **Paper Book**, and **Komet Card**).
-   - If a physical version (like a **Paper Book**) is marked "Out of Stock," it remains visible with a label, but the purchase option for that specific format is disabled.
-   - The admin dashboard allows management of these stock levels at the individual variant level.
-- **Genres are fixed**: Crime, Children, PTP (Prayers, Thoughts, and Poetry), Spiritual, Adult, Sports, Self-Help, Cooking. Only a developer can add new genres.
-- **Simplified Catalog**: To focus exclusively on the core reading experience, we have removed secondary metadata like **page counts**, **published years**, and **ISBNs** from the public display.
-- **No user reviews or ratings**: The rating feature has been completely eliminated. Books do not have star ratings or review sections.
+   - **Komet Card**: Physical commemorative card, shipped to your address. **Also grants digital reading access** — the ebook is added to your library when the webhook confirms payment.
+- **What You Can Read**: Only the **ebook** version (and Komet Card digital access) appear as readable books in your library. Paper Book orders are tracked in order history only.
+- **Series support**: Some books are part of a series (e.g., "Brute Syndicate #3"). The series name and order number are stored and displayed as a label on the book card.
+- **Inventory Management**: Admins can independently toggle availability for each format. Out-of-stock formats remain visible with a label, but the purchase option is disabled.
+- **Genres are fixed**: Crime, Children, PTP (Prayers, Thoughts, and Poetry), Spiritual, Adult, Sports, Self-Help, Cooking.
+- **No user reviews or ratings**. These have been completely removed from the platform.
+- **Simplified Catalog**: Page counts, published years, and ISBNs have been removed.
+
+### Book Deletion
+When an admin deletes a book, the database performs a **cascade deletion** — automatically cleaning up all related `order_items`, `user_library` entries, and `book_club_selections` tied to that book. This prevents orphaned data and was implemented in migration `20260227200000`.
 
 ---
 
@@ -85,50 +84,60 @@ Other users can **only** see a person's **display name** in discussions. No prof
 
 ### Payment Processor: Stripe
 Stripe handles all money:
-- **Book purchases**: One-time payments via Stripe PaymentIntents.
-- **Subscriptions**: Stripe manages the recurring $3.99/month billing automatically.
+- **Book purchases**: One-time payments via Stripe PaymentIntents (handled by the `process-checkout` Edge Function).
+- **Subscriptions**: Stripe manages the recurring $3.99/month billing (handled by the `create-subscription` Edge Function).
+- **Webhook**: The `stripe-webhook` Edge Function listens for Stripe events and updates order status, grants library access, and triggers emails.
 
 ### Tax
-A flat **5% GST** is applied to every order. No variation by state or country.
+A flat **5% GST** is applied to every order.
 
 ### All Sales Are Final
 No refunds, no cancellations. Once you buy a book, it's yours.
 
 ### No Duplicate Purchases
-The system prevents a user from buying an **ebook** they already own. If the ebook is already in their library (from a purchase, a signup freebie, or a monthly pick), they can't buy it again. However, they **can still buy physical copies** (Paper Book or Komet Card) of books they already own digitally — for example, as gifts.
+The system prevents a user from buying an **ebook** they already own. However, they **can** buy physical copies of books they already own digitally (as gifts, for example).
 
 ### Dealer Codes (The Affiliate System)
-Every premium member gets a unique **dealer code** formatted like: `KANE-EVANS-4821` (KANE prefix + part of their name + last 4 of phone number).
+Every premium member gets a unique **dealer code** formatted like: `KANE-EVANS-4821`.
 
 Here's how it works:
 - The code gives **35% off** any book purchase at checkout (not subscription fees).
 - It can be shared with anyone and used **unlimited times** by **multiple people**.
 - **Self-use prevention**: You **cannot use your own dealer code** on your own purchases.
-- **Every use is tracked**: the system records who used the code, which order it was applied to, and how much the discount was worth. This lets the business know which "dealer" (premium member) is driving sales.
+- **Every use is tracked** so the business can see which "dealer" (premium member) is driving sales.
 - When a premium member cancels their subscription or gets banned, their code is **automatically deactivated**.
 - **Stripe integration**: The code is also created as a **Stripe Promotion Code**, so it can be used across any application connected to the same Stripe account.
 
+### Library Sources
+Books can enter a user's library through four sources (tracked by the `source` field):
+1. **`purchase`** — Bought at checkout (ebook or Komet Card).
+2. **`subscription_signup`** — The 2 free books chosen during Book Club signup.
+3. **`book_club_monthly`** — Monthly picks for active premium members.
+4. **`admin_gift`** — Manually granted by an admin.
+
 ### Email Confirmations
-When a purchase is completed, **GoHighLevel** (an external email marketing tool) sends the confirmation email — not the app itself.
+When a purchase is completed, **GoHighLevel** sends the confirmation email via the `email-ops` Edge Function — not the app itself.
 
 ---
 
 ## 5. The Book Club: Selections, Events & RSVPs
 
 ### Monthly Book Picks
-Each month, the admin selects a featured book. When a book becomes the "current" pick, it is **automatically added to every active premium member's library**.
+Each month, the admin selects a featured book. When a book becomes the "current" pick, it is **automatically added** to every active premium member's library.
+
+### Book Selection at Signup
+The subscription modal shows up to **5 books** that are flagged as `is_book_club_eligible = true`. Users must choose exactly 2. Adult-restricted books are hidden from users under 18.
 
 ### Membership Cancellation & Access
 - **Keep Everything**: Any book a user receives (purchased, signup freebies, OR monthly picks) **remains in their library forever**.
-- **No New Picks**: If a user cancels their membership, they stop receiving *future* monthly picks, but they keep everything they already had.
-- **Ban Protection**: Even if a user is banned, they always keep access to every book currently in their library.
+- **No New Picks**: If a user cancels their membership, they stop receiving future monthly picks, but keep everything they already had.
+- **Reactivation**: Re-subscribing means paying $49.99 again, picking 2 more free books, and having the existing dealer code reactivated (same code, not a new one).
 
 ### Events
 - Can be **virtual** (with a meeting link) or **in-person** (with a physical address).
-- **No max capacity** — unlimited RSVPs.
+- No max capacity — unlimited RSVPs.
 - **Account required** to RSVP — no guest RSVPs.
 - **Free users can RSVP to public events**; premium members can RSVP to all events.
-- **No calendar invites** are sent.
 - GoHighLevel handles event reminder emails.
 
 ---
@@ -136,17 +145,20 @@ Each month, the admin selects a featured book. When a book becomes the "current"
 ## 6. The Community: Discussions
 
 ### Who Can Participate?
-Discussions are for **premium members only**. Free readers and guests **cannot see** topics or posts. The community section is completely hidden from non-premium users.
+Discussions are for **premium members only**. Free readers and guests **cannot see** topics or posts at all.
+
+### Discussion Categories
+Discussion topics can be categorized as: `General`, `Book Club`, `News`, or any of the book genres (Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking).
 
 ### Who Creates Topics?
 **Only admins** can create, pin, feature, or delete discussion topics.
 
 ### Posting Rules
-- Premium members can post comments and replies.
+- Premium members can post comments and replies (2 levels deep max).
 - You can **edit** your own comment within **15 minutes** of posting it. After that, it's locked.
 - You can **delete** your own comment at **any time**.
-- Admins can delete any comment (manual moderation — no automated word filters).
-- Other users see only your **display name** next to your posts — no other personal info.
+- Admins can delete any comment (manual moderation).
+- Other users see only your **display name** — no other personal info.
 
 ### Voting
 Users can upvote or downvote posts. Each user gets one vote per post.
@@ -165,118 +177,118 @@ If you read to page 12 on your phone, you'll see page 12 when you open the app o
 - Highlights are **always private** — no one else can see them.
 
 ### Bookmarks
-- Bookmarks work at the **page level** — you bookmark an entire page (e.g., "page 12"), not a specific paragraph.
+- Bookmarks work at the **page level** — you bookmark an entire page, not a specific paragraph.
 - You can add an optional label to each bookmark.
 - **Cap: 10 bookmarks per book** (for all users).
 
 ### Reader Settings
-Your preferred **font size**, **font family**, **theme** (dark, light, sepia), and **line height** are saved server-side so they follow you across devices.
+Because the reader displays rendered PDF page images (not re-flowed text), the display settings are limited to:
+- **Zoom level**: 75%, 100%, 125%, or 150%.
+- **Theme**: Dark (dark background), Light (white background), or Sepia (warm parchment look).
+
+Font size, font family, and line height controls do **not** apply to the page-image reader.
 
 ---
 
-## 8. Enums: The Fixed Lists
+## 8. Fixed Lists (Enums)
 
-An "enum" is a fixed list of allowed options. Instead of free-text that could have typos, the database only accepts values from these lists:
+The database uses fixed sets of allowed values to prevent data errors:
 
-| Enum | Options | Notes |
+| List | Options | Notes |
 |---|---|---|
 | **User role** | reader, admin | |
-| **T-shirt size** | xs, s, m, l, xl, xxl, xxxl | For merch |
+| **T-shirt size** | xs, s, m, l, xl, xxl, xxxl | For merch fulfillment |
 | **Subscription plan** | free, premium | |
-| **Subscription status** | active, cancelled, expired, past_due | No "paused" — cancel only |
-| **Genre** | Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking | PTP = Prayers, Thoughts, and Poetry |
+| **Subscription status** | active, cancelled, expired, past_due | No "paused" option |
+| **Genre** | Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking | |
 | **Book status** | draft, published | |
-| **Order status** | pending, confirmed, fulfilled | No "cancelled" — all sales are final |
-| **Library source** | purchase, subscription_signup, book_club_monthly | Tracks *how* a book entered the library (all sources are permanent) |
+| **Book format** | ebook, paper_book, komet_card | |
+| **Order status** | pending, confirmed, fulfilled | No "cancelled" — all sales final |
+| **Library source** | purchase, subscription_signup, book_club_monthly, admin_gift | |
 | **Highlight color** | yellow, green, blue, pink | |
 | **Reading theme** | dark, light, sepia | |
-| **Selection status** | current, upcoming, past | For monthly book club picks |
-| **Book format** | ebook, paper_book, komet_card | New variants |
+| **Selection status** | current, upcoming, past | |
 | **Event type** | virtual, in_person | |
 | **Event status** | upcoming, past, cancelled | |
 | **RSVP status** | confirmed, cancelled | |
-| **Discussion category** | Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking | Categories match the book genres |
+| **Discussion category** | General, Book Club, News, Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking | |
 | **Vote type** | up, down | |
 
 ---
 
 ## 9. Relationships: The Digital Web
 
-Nothing in the app exists in a vacuum. Here's how the major pieces connect:
-
 - A **User** has one **Subscription**, one set of **Reading Settings**, and one **Promo Code** (if premium).
 - A **User** can have many **Cart Items**, **Orders**, **Library Books**, **Highlights**, **Bookmarks**, **RSVPs**, **Discussion Posts**, and **Votes**.
-- A **Book** has many **Pages** (rendered images) and many **Illustrations**.
+- A **Book** has many **Pages** and many **Illustrations**. It also has an `is_book_club_eligible` flag.
 - A **Book** can appear in many users' **Libraries**, **Carts**, and **Orders**.
-- An **Order** has many **Order Items** (line items) and optionally uses one **Promo Code**.
-- Each **Promo Code** has a history of **Usages** that tracks who used it and on which order.
-- A **Discussion Topic** has many **Posts**, and posts can have **Replies** (nested comments).
-- Each **Post** can have many **Votes** (one per user).
+- An **Order** has many **Order Items** and optionally uses one **Promo Code**.
+- When a **Book is deleted** by an admin, all Order Items, Library entries, and Book Club Selections for that book are automatically cleaned up (cascading delete).
 
 ---
 
 ## 10. Indexes: Speed Boosters
 
-We create "shortcuts" in the database so common actions are instant:
+The database has performance shortcuts so common actions are instant:
 - **Searching for a book** by title or author → full-text search index.
 - **Filtering by genre** on the Browse page → genre + status index.
+- **Finding books eligible for Book Club selection** → `is_book_club_eligible` partial index.
 - **Looking up your cart or library** → user ID index.
 - **Checking a dealer code at checkout** → unique code index.
 - **Loading a discussion thread** → topic ID + timestamp index.
-
-Without these, the app would get slower as data grows. With them, everything stays fast.
 
 ---
 
 ## 11. Validation: The Rulebook
 
-These rules prevent bad data from ever entering the system:
-
 | Rule | Why |
 |---|---|
-| Book price must be greater than $0 | Free access is handled through subscriptions, not zero-price books |
+| Book price must be greater than $0 | Free access is handled through subscriptions |
 | Cart quantity must be at least 1 | Can't have 0 items in your cart |
-| Font size must be between 12–32px | Prevents unreadable text |
-| Max 10 highlights per book | Keeps the reader usable and the database lean |
+| Reader zoom must be 75, 100, 125, or 150 | Keeps the reader usable |
+| Max 10 highlights per book | Keeps the reader lean |
 | Max 10 bookmarks per book | Same as above |
 | One RSVP per user per event | Prevents duplicate signups |
-| Comments editable for 15 minutes only | Encourages thoughtful posting, prevents rewriting history |
-| Can't buy an ebook you already own | Prevents accidental duplicate ebook purchases. Physical copies can still be purchased (e.g., as gifts). |
+| Comments editable for 15 minutes only | Encourages thoughtful posting |
+| Can't re-purchase an ebook you already own | Prevents accidental duplicates |
 | Only premium members can post in discussions | Community is a paid perk |
+| Exactly 2 books must be chosen at signup | Per business design |
+| Only 5 books are shown in the signup selector | Only `is_book_club_eligible = true` books appear |
 
 ---
 
 ## 12. Permissions: Who Sees What
 
 ### Guests (not logged in)
-Can browse the book catalog, add books to their cart, see book club selections, and view public events. They **cannot** checkout, post, or see discussions. When they create an account, their guest cart is automatically saved to their new profile.
+Browse the book catalog, add books to their cart, see book club selections, and view public events. Cannot checkout, post, or see discussions.
 
 ### Free Readers (logged in, no subscription)
-Everything guests can do, **plus**: add to cart, purchase books, read owned books, use the reader with highlights/bookmarks/settings, view their order history, and **RSVP to public events**. They **cannot** see any part of the community discussions.
+Everything guests can do, **plus**: purchase books, read owned books, use the reader with highlights/bookmarks/settings, view order history, and **RSVP to public events**. Cannot see any part of the community discussions.
 
-### Premium Members (active book club subscription)
-Everything free readers can do, **plus**: access monthly book picks, RSVP to events, post in discussions, vote on posts, use their dealer code.
+### Premium Members (active subscription)
+Everything free readers can do, **plus**: access monthly book picks, RSVP to all events, post in discussions, vote on posts, use their dealer code.
 
 ### Banned Users
-Can **only** read the books currently in their library (purchased, signup picks, and monthly picks received prior to the ban) with full reader features (progress, highlights, bookmarks, settings). Everything else is locked out. Subscription is auto-cancelled.
+Can **only** read the books currently in their library with full reader features (progress, highlights, bookmarks, settings). Everything else is locked out. Subscription is auto-cancelled.
 
 ### Admins
-Full control over everything: manage users, books, events, discussions, selections, and view all data.
+Full control over everything: manage users, books, events, discussions, selections, and view all data. The admin panel at `/admin` requires the `role = 'admin'` check.
 
 ---
 
 ## 13. Audit & Safety
 
 ### Timestamps
-Every single row in every table remembers **when it was created** and **when it was last changed**.
+Every row in every table records **when it was created** and **when it was last changed**.
 
 ### Soft Delete
-When an admin "deletes" a book, discussion topic, or user — it's not actually erased. It's marked as "hidden" with a timestamp. This means:
-- Mistakes can be **undone**.
-- Data integrity is preserved (you won't have orphaned orders pointing to deleted books).
+When an admin "deletes" a book, discussion topic, or user — it's not actually erased. It's marked with a `deleted_at` timestamp. Mistakes can be undone, and data integrity is preserved.
+
+### Hard Cascade Delete (Books)
+When a book record is fully deleted via the admin catalog page, the cascade deletion migration ensures all related `order_items`, `user_library` entries, and `book_club_selections` are removed automatically — preventing 409 Conflict errors.
 
 ### Admin Audit Log
-When an admin takes a sensitive action (banning a user, deleting a book, cancelling a subscription), the system records **who did it, what they did, and when**. This creates an accountability trail.
+An `audit_log` table records sensitive admin actions (banning users, deleting books, cancelling subscriptions), creating an accountability trail.
 
 ---
 
@@ -284,17 +296,18 @@ When an admin takes a sensitive action (banning a user, deleting a book, cancell
 
 | Design Choice | Why It Matters |
 |---|---|
-| **Pages rendered as images** | Instead of loading an entire book at once, the reader loads one page image at a time ("Page 1 of 45" navigation) — much faster. The rendered images preserve the exact PDF layout. |
-| **Illustrations as separate records** | Images are loaded on-demand as the reader reaches them. |
-| **Debounced reading progress** | The app waits 30 seconds between saving your scroll position to the server, instead of saving on every pixel of scrolling. This avoids overwhelming the database. |
-| **Denormalized counters** | Instead of counting "likes" or "attendees" every time a page loads, the database keeps a running total that updates automatically via triggers. |
-| **Stripe + GoHighLevel** | Payments and emails are handled by specialized services, not our own code. This means less can go wrong. |
+| **Pages rendered as images** | The reader loads one page image at a time — much faster than loading an entire book. |
+| **Illustrations as separate records** | Loaded on-demand as the reader reaches them. |
+| **Debounced reading progress** | The app waits 5 seconds between saving your page position to the server. Avoids database overload. |
+| **Denormalized counters** | Discussion post counts, vote totals, and event attendee counts update via database triggers — no recalculation on every page load. |
+| **Book club eligibility flag** | Allows the admin to curate a small, targeted list of books for the signup modal without complex queries. |
+| **Stripe + GoHighLevel** | Payments and emails are handled by specialized services, reducing what our code needs to manage. |
 
 ---
 
 ## 15. What's NOT Being Built
 
-Based on the owner's decisions, these features are **explicitly excluded**:
+Based on current decisions, these features are **explicitly excluded**:
 
 - ❌ Social login (Google, Apple)
 - ❌ User reviews or ratings
@@ -308,23 +321,21 @@ Based on the owner's decisions, these features are **explicitly excluded**:
 - ❌ Analytics dashboard
 - ❌ Membership pause option
 - ❌ Refunds
-- ❌ Gift purchases (dedicated gifting flow — but users can buy physical copies of books they already own to give as gifts)
 - ❌ Dedicated series page
 - ❌ Mobile app
-- ❌ In-app sales of physical merchandise (T-shirts/gifts)
+- ❌ In-app sales of physical merchandise
 
 ---
 
 ## 16. Key Integrations Summary
 
-| Service | What It Does | How We Connect |
+| Service | What It Does | Connection Details |
 |---|---|---|
-| **Supabase** | Database (PostgreSQL), authentication, file storage, Edge Functions (API) | Core platform |
-| **Stripe** | Processes book payments and manages monthly subscription billing | Stripe Customer ID + Subscription ID stored in our database. Webhooks notify us of payment events. |
-| **GoHighLevel** | Sends all outbound emails (order confirmations, subscription welcome, event reminders, reply notifications, payment failures, ban notices) | GHL Contact ID stored in our user table. Integration via webhook and/or API (TBD). |
+| **Supabase** | Database (PostgreSQL), authentication, file storage, Edge Functions | Project ID: `kpafjhkrjipiyfjizyaw`. Connected via `NEXT_PUBLIC_SUPABASE_URL` and anon key in the frontend. |
+| **Stripe** | Processes book payments and manages monthly subscription billing | Stripe Customer ID + Subscription ID stored in our `users` table. Webhooks delivered to the `stripe-webhook` Edge Function. Uses `STRIPE_WEBHOOK_SECRET` for verification. |
+| **GoHighLevel (GHL)** | Sends all outbound emails (order confirmations, subscription welcome, event reminders, payment failures, ban notices) | GHL Contact ID stored in the `users.ghl_contact_id` field. All email triggers go through the `email-ops` Edge Function and the `ghl-sync` Edge Function for contact sync. |
+| **Vercel** | Hosts the Next.js frontend | Deployed from the main Git branch. Uses environment variables matching those in `.env.local`. |
 
 ---
 
-### Final Thought
-
-This data model ensures that **Kane's Komet** is not just a pretty website, but a robust, professional-grade platform. A reader can highlight a quote on their phone in the morning and find it waiting on their tablet in the evening. A premium member can share their dealer code with friends and see their referral impact. And the admin can manage the entire bookstore and community from a single dashboard — all backed by enterprise-grade infrastructure.
+*Last updated: February 2026 — reflects live codebase*

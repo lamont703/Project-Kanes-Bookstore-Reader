@@ -1,369 +1,405 @@
-# Kane's Komet: The API Design Explained in Plain English
+# Phase 3: API Design — Plain English (As-Built)
 
-> This guide translates the Phase 3 technical API specification into everyday language. If you've read the data model guide, this is the natural next step — we're now defining **how the frontend talks to the backend**.
-
----
-
-## 1. What Is an API and Why Do We Need One?
-
-### The Simple Analogy
-
-Think of your app as a restaurant:
-- The **frontend** (your Next.js website) is the dining room — it's what the customer sees.
-- The **backend** (Supabase database) is the kitchen — it's where the real work happens.
-- The **API** is the **waiter** — it takes orders from the dining room, delivers them to the kitchen, and brings the food back.
-
-Right now, your app doesn't have a waiter. The dining room has a mini-fridge under each table (that's `localStorage`) with pre-made sandwiches (that's your `mock-books.ts` and `mock-user-data.ts` files). This works for a demo, but it means:
-- If a customer moves to a different table (device), their food doesn't follow them.
-- The kitchen can't actually cook anything new.
-- There's no real security — anyone could open the mini-fridge.
-
-The API fixes all of this by creating a structured communication system between the frontend and backend.
+> This document explains **how the API contract actually works** in the live Kane's Komet Book Reader. Every endpoint, rule, and integration described is real and deployed.
 
 ---
 
-## 2. What We're Building: The API Contract
+## 1. What Is an API?
 
-An **API contract** is a formal agreement that says: *"When the frontend asks for X, the backend will always respond with Y."* It's like a menu — both the kitchen and the dining room agree on what's available and how to order it.
+An API is the **set of agreements** between the frontend (what you see on screen) and the backend (where data is stored). When you click "Buy Now," the frontend sends a message to the backend following a specific format. This document explains what messages are sent, what they contain, and what comes back.
 
-### What the Contract Defines
+In Kane's Komet, there are two types of APIs:
 
-For every feature in your app, we specify:
-1. **The URL** (where to send the request) — like an address
-2. **The method** (what kind of request) — are you asking for something, creating something, updating something, or deleting something?
-3. **What you send** (the request) — what information the frontend provides
-4. **What you get back** (the response) — what the backend returns
-5. **What can go wrong** (the errors) — clear error messages for each failure case
+1. **Supabase Edge Functions** — server-side code that handles business operations (checkout, subscriptions, emails)
+2. **Next.js API Routes** — lightweight server routes that act as a proxy or handle admin operations
 
 ---
 
-## 3. The Four Types of Requests
+## 2. The Foundation: How Requests Work
 
-Every conversation between your frontend and backend uses one of four "verbs":
+### The Four Actions
+- **GET** — "Give me information" (loading your library, browsing books)
+- **POST** — "Do something / create something" (placing an order, adding to cart)
+- **PUT / PATCH** — "Change something" (updating a book, editing a setting)
+- **DELETE** — "Remove something" (deleting a discussion post)
 
-| Verb | What It Does | Real-Life Equivalent | App Example |
-|---|---|---|---|
-| **GET** | "Give me information" | Looking at a menu | Loading the book catalog on the Browse page |
-| **POST** | "Create something new" | Placing an order | Adding a book to your cart |
-| **PUT / PATCH** | "Update something" | Changing your order | Editing your profile information |
-| **DELETE** | "Remove something" | Cancelling an item | Removing a book from your cart |
+### Authentication
+Most requests require you to be logged in. The app sends your login token (a **JWT** — a secure ticket) in the `Authorization` header of every request. The server checks this ticket before doing anything.
 
----
+**Public requests** (no login needed): browsing books, viewing book club selections, seeing public events.
 
-## 4. Every Feature, Broken Down
+**Protected requests** (login required): checkout, library access, reading pages, subscriptions, discussions.
 
-Here's how each section of your app will talk to the backend:
+### Responses
+Every response from our Edge Functions comes back in the same format:
 
-### 4.1 Signing Up & Logging In
+**On success:**
+```json
+{
+  "clientSecret": "pi_1234_secret_xyz",
+  "orderId": "uuid-here"
+}
+```
 
-**What happens today:** Clicking "Login" just sets a flag in your browser's memory (`localStorage`). There's no real authentication.
+**On error:**
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Cart is empty",
+    "details": []
+  }
+}
+```
 
-**What the API does:**
-- **Register**: The frontend sends the user's name, email, phone, date of birth, and password. The backend creates a real account and sends back a secure token (like a digital wristband) that proves who you are.
-- **Login**: The frontend sends email + password. The backend verifies them and sends back the same kind of token.
-- **Every request after login**: The frontend includes this token in every message to the backend, so the backend always knows who's asking.
-
-**What can go wrong:**
-- Email already registered → "This email is already in use."
-- Password too short → "Password must be at least 8 characters."
-- Wrong password on login → "Invalid credentials."
-
----
-
-### 4.2 Browsing Books
-
-**What happens today:** The Browse page reads from a hardcoded list in `lib/mock-books.ts`.
-
-**What the API does:**
-- The frontend asks: *"Give me all published books, filtered by Crime genre, sorted by title."*
-- The backend responds with a list of books, each including their title, author, cover image, description, genre, and all three format options (ebook, paper book, Komet Card) with prices and stock status.
-
-**Smart features:**
-- **Pagination**: Instead of loading all books at once (slow), the API sends 20 at a time with a "next page" token. Scroll down, load more.
-- **Search**: Type "Brute" in the search bar and the backend searches through all book titles and authors instantly using a special fast-search index.
-- **Filtering**: Filter by genre, and the backend only returns matching books.
+This means the frontend always knows exactly where to look for data and errors, regardless of which endpoint was called.
 
 ---
 
-### 4.3 The Shopping Cart
+## 3. Books: Browsing the Catalog
 
-**What happens today:** Your cart is stored in your browser's `localStorage` via `context/cart-context.tsx`. Change browsers or devices? Cart is gone.
+### How Books Are Fetched
 
-**What the API does:**
-- **Guests** (not logged in): The cart is saved to the server using a temporary session ID. When they create an account, the cart transfers to their new profile.
-- **Logged-in users**: The cart is saved to the server under their user account. It follows them across all devices.
-- **Adding to cart**: The frontend sends the book ID, format (ebook/paper/Komet Card), and quantity. The backend saves it.
-- **Smart checks**: The backend will refuse to add an ebook that the user already owns, or if that format is out of stock. Ebook quantity is capped at 1; physical formats (Paper Book, Komet Card) allow multiple copies. Users who already own the ebook can still purchase Paper Book or Komet Card copies (e.g., as gifts).
+The browse page queries Supabase **directly** from the browser using the safe public (anon) key. No Edge Function is needed because Row-Level Security handles access control automatically:
 
----
+- **What you can see**: All books with `status = 'published'`
+- **What drafts do**: Hidden — the database refuses to return them to non-admin users
+- **What admins see**: All books (published + draft)
+- **Age-restricted books**: The database returns them, but the frontend hides them unless the user is 18+
 
-### 4.4 Checkout & Orders
+### Book Data Structure
 
-**What happens today:** The checkout page simulates a purchase with a `setTimeout` — no real payment happens.
+Each book comes back with:
+- `id`, `title`, `author`, `illustrator` (optional)
+- `description`, `genre` (one of the fixed 8 genres)
+- `cover_image_url` (Supabase Storage URL, publicly accessible)
+- `series_name` + `series_order` (if part of a series)
+- `status` (draft/published)
+- `is_book_club_eligible` (true/false — controls subscription modal)
+- `is_age_restricted` (true/false)
+- **Nested `book_variants`**: each format (ebook, paper book, Komet Card) with price and in-stock status
 
-**What the API does:**
-1. The frontend sends: shipping info (only if physical items are in the cart) + Stripe payment token + optional dealer code.
-2. The backend does several things in one coordinated operation:
-   - Validates the cart and checks stock.
-   - If a dealer code is provided, validates it (including preventing self-use) and applies the 35% discount to all items.
-   - Calculates the subtotal, discount, $5.99 flat-rate shipping (if physical items present), 5% GST tax, and final total.
-   - Charges the customer via Stripe.
-   - Creates the order record in the database.
-   - For any ebooks or Komet Cards purchased, immediately adds the book to the user's digital library.
-   - Clears the cart.
-   - Triggers GoHighLevel to send a confirmation email.
-3. The frontend receives the confirmed order details.
+### Searching and Filtering
 
-**What can go wrong:**
-- Empty cart → "Your cart is empty."
-- Invalid dealer code → "This code is no longer active."
-- Using your own dealer code → "You cannot use your own dealer code."
-- Stripe payment fails → "Payment could not be processed."
-- Ebook already owned → "You already own this ebook."
+All searching and filtering on the Browse page is **client-side** — all published books are loaded at once, then filtered in the browser:
+- Search: matches title or author (case-insensitive)
+- Genre filter: exact match
+- Sort: A-Z, Z-A, price low-to-high, price high-to-low
+
+Note: the database has a full-text search index ready for server-side search if the catalog grows large enough to need it.
 
 ---
 
-### 4.5 Your Library & Reading
+## 4. Authentication: Login and Signup
 
-**What happens today:** Your library comes from `lib/mock-user-data.ts`. Reading progress, highlights, and bookmarks are saved to `localStorage` via `lib/reading-storage.ts`.
+Authentication is handled entirely by **Supabase Auth**. The frontend uses the Supabase SDK:
 
-**What the API does:**
-- **Library**: Fetches all books you own from the server, along with how you got each one (purchased, signup freebie, or monthly book club pick).
-- **Reading experience**: The reader displays each page as a rendered image that preserves the exact visual layout of the original PDF — everything looks exactly like the printed book. Navigation shows "Page 1 of 45" style pagination.
-- **Reading progress**: As you read, the app saves your position (current page + percentage) to the server every 30 seconds. When you open the app on another device, it picks up exactly where you left off.
-- **Highlights**: When you highlight text, it's saved to the server with the color and optional note. Highlights work at the text/paragraph level (you select specific text on a page). Limited to 10 per book.
-- **Bookmarks**: Bookmarks work at the page level — you simply bookmark an entire page (e.g., "page 12"). Saved to the server, limited to 10 per book.
-- **Reader settings**: Your font size, font choice, theme (dark/light/sepia), and line height are saved server-side so they follow you everywhere.
+```
+User types email + password → supabase.auth.signInWithPassword()
+↓
+Supabase returns a JWT session (stored in a cookie)
+↓
+Middleware reads cookie on every page load, refreshes if expired
+↓
+Frontend context (auth-context) knows: user, isAdmin, isPremium
+```
 
----
+**What happens on signup:**
+1. `supabase.auth.signUp()` creates the auth user
+2. A database **trigger** automatically creates the user's profile in `public.users`
+3. The `ghl-sync` function is called to create a GoHighLevel contact for the new user
 
-### 4.6 Premium Subscription (Book Club)
+**No social login**: Email + password only.
 
-**What happens today:** The subscription modal in `subscription-modal.tsx` simulates a purchase.
-
-**What the API does:**
-- **Subscribe**: The frontend sends the Stripe payment info, the 2 chosen free books, t-shirt size, and mailing address. The backend creates a one-time $49.99 Stripe charge, then a $3.99/month subscription (first invoice delayed 30 days), adds the 2 books to the library, generates a unique dealer code (also created in Stripe as a Promotion Code for cross-app use), syncs t-shirt size and address to GoHighLevel, and triggers a welcome email.
-- **Cancel**: The frontend sends a cancellation request. The backend cancels the Stripe subscription, deactivates the dealer code, but **keeps all books in the library**.
-- **Re-subscribe**: Users who return pay $49.99 again, pick 2 more free books, and their existing dealer code is reactivated (same code, not a new one).
-- **Check status**: The frontend can ask "Is this user premium?" and gets back the subscription plan, status, and dates.
-
----
-
-### 4.7 Dealer Codes (The Affiliate System)
-
-**What the API does:**
-- **At checkout**: When a buyer enters a dealer code like `KANE-EVANS-4821`, the frontend sends it to the backend for validation. The backend checks if the code exists, is active, the owning premium member isn't banned, and the user isn't trying to use their own code. If valid, it returns "35% off all items."
-- **Self-use prevention**: A user cannot apply their own dealer code to their own purchases — they can only share it with others.
-- **For the dealer**: A premium member can view their own code and see how many times it's been used.
+**No password reset API doc needed**: Handled entirely by Supabase's built-in flow.
 
 ---
 
-### 4.8 Book Club Features
+## 5. Shopping Cart
 
-**What the API does:**
-- **Monthly selections**: The frontend fetches the list of past, current, and upcoming monthly book picks. This is public — anyone can see what the book club is reading.
-- **Events**: The frontend fetches upcoming and past events. Guests and free users only see public events. Premium members see all events.
-- **RSVPs**: A logged-in user can RSVP to an event. Free users can RSVP to public events; premium users can RSVP to all events. The backend ensures you can only RSVP once per event.
+The cart is **not stored in the database** for logged-in users during browsing. It lives in the browser's `localStorage` and is managed entirely client-side via React Context.
 
----
+This means:
+- **Instant**: Adding/removing items is instant, no network request
+- **Guest-friendly**: Anyone can add items before logging in
+- **Not synced across devices**: If you add items on your phone and switch to your laptop, the cart is empty on the laptop
 
-### 4.9 Community Discussions
-
-**What happens today:** Discussions come from `lib/mock-book-club-data.ts`.
-
-**What the API does:**
-- **Access control**: If you're not a premium member, the backend returns a "Forbidden" error — the entire discussions section is invisible to free users.
-- **Topics**: Premium members can browse discussion topics (created by admins). Each topic has a category that matches the book genres (Crime, Children, PTP, etc.) and shows its title, post count, and member count.
-- **Posts & Replies**: Premium members can create posts, reply to other posts (2 levels deep max: post → reply), and vote (upvote/downvote). Each user gets one vote per post.
-- **Editing**: You can edit your own comment within 15 minutes. After that, it's locked forever.
-- **Deleting**: You can delete your own comment anytime. Admins can delete any comment.
-- **Privacy**: Only your display name is shown — no email, no profile picture, nothing else.
+When you proceed to checkout, the items are sent to the `process-checkout` Edge Function, which validates them all against the real database.
 
 ---
 
-### 4.10 Admin Features
+## 6. Checkout: Placing an Order
 
-The admin panel has its own set of API calls for managing the entire platform:
+**Endpoint**: Supabase Edge Function — `process-checkout`  
+**Called via**: `supabase.functions.invoke('process-checkout', { body: ... })`  
+**Auth**: Required
 
-| Feature | What the Admin Can Do |
+### What You Send
+
+```json
+{
+    "items": [
+        { "bookId": "uuid", "variantId": "uuid", "format": "ebook", "quantity": 1 }
+    ],
+    "promoCode": "KANE-SMITH-4821",
+    "shippingAddress": {
+        "firstName": "Jane",
+        "lastName": "Doe",
+        "address": "123 Main St",
+        "city": "New York",
+        "zip": "10001",
+        "country": "United States"
+    }
+}
+```
+
+Notes:
+- `promoCode` is optional
+- `shippingAddress` is only required if any item is a physical format (paper book or Komet Card). For ebook-only orders, it's omitted entirely.
+
+### What Comes Back
+
+```json
+{
+    "clientSecret": "pi_abc123_secret_xyz789",
+    "orderId": "uuid-of-created-order",
+    "isFree": false
+}
+```
+
+- `clientSecret`: Used by Stripe.js to show the payment form
+- `orderId`: Used to show the order confirmation number
+- `isFree`: If the total is $0 (e.g., 100% dealer code), skip Stripe entirely
+
+### What the Backend Does
+
+1. Validates each item against the real database (confirms prices and stock status)
+2. Applies the dealer code if provided (checks it's valid, active, and not your own code)
+3. Calculates: subtotal, 35% discount (if code), $5.99 flat shipping (if physical items), 5% GST
+4. Creates or retrieves your Stripe Customer account
+5. Creates a Stripe PaymentIntent for the calculated total
+6. Saves the order and order items to the database
+7. Returns the payment client secret to the frontend
+
+### What Stripe Then Does (Webhook)
+
+When Stripe confirms the payment:
+- Order status → `confirmed`
+- Ebook purchases → added to your library automatically
+- Shipping address → saved to your profile
+- Confirmation email → sent via GoHighLevel
+
+---
+
+## 7. Book Club Subscriptions
+
+**Endpoint**: Supabase Edge Function — `create-subscription`  
+**Called via**: `supabase.functions.invoke('create-subscription', { body: ... })`  
+**Auth**: Required
+
+### What You Send
+
+```json
+{
+    "selectedBookIds": ["uuid-book-1", "uuid-book-2"],
+    "tshirtSize": "m",
+    "mailingAddress": "123 Cosmic Way, Star City, 10001",
+    "fullName": "Jane Doe",
+    "phone": "555-123-4567"
+}
+```
+
+### What Comes Back
+
+```json
+{
+    "clientSecret": "pi_abc123_secret_xyz789"
+}
+```
+
+The frontend shows the Stripe payment form for the $49.99 first month fee.
+
+### What Stripe Then Does (Webhook)
+
+When Stripe confirms the $49.99 payment:
+1. Your profile is updated: name, phone, T-shirt size, mailing address
+2. A $3.99/month subscription is created in Stripe (starts after a 30-day free period)
+3. Your Book Club subscription record is created in the database
+4. Your 2 chosen books are added to your library (permanently)
+5. Your dealer code is generated: `KANE-FIRSTNAME-PHONELAST4` (e.g., `KANE-JANE-4567`)
+6. A welcome email is sent via GoHighLevel
+
+### Cancel and Reactivate
+
+| Action | What Happens |
 |---|---|
-| **Books** | Create, edit, delete books. Update prices and stock for each format. Upload PDFs for text extraction. |
-| **Users** | View all users, search/filter, change subscription status, ban users. |
-| **Book Club** | Create/edit monthly selections, manage events. |
-| **Discussions** | Create/edit/pin/feature topics, delete any post for moderation. |
-
-When an admin bans a user, the backend automatically:
-1. Marks the user as banned.
-2. Cancels their Stripe subscription.
-3. Deactivates their dealer code.
-4. Removes access to community features.
-5. But **keeps all their books readable**.
+| **Cancel** | Subscription set to cancel at the end of the current billing period. You keep access until then. |
+| **Reactivate** | Cancellation reversed. Subscription resumes. Dealer code reactivated (same code). |
+| **Re-subscribe** | Pay $49.99 again, choose 2 new books, get the same dealer code back. |
 
 ---
 
-## 5. How Errors Work
+## 8. Library and Reading
 
-Every time something goes wrong, the backend sends back a clear, structured error message. This is important because the frontend needs to know **what** went wrong so it can show the user the right message.
+### Your Library
 
-**Example error:**
-```
-The frontend asks to add a highlight to a book.
-The backend responds: "Error! You've already reached the maximum of 10
-highlights for this book."
-```
+Your library is a list of books you have access to read. Books enter it through:
+- Buying an **ebook** at checkout
+- Buying a **Komet Card** at checkout (grants digital access on webhook)
+- Your **2 free books** chosen at subscription signup
+- The **monthly Book Club pick** (added automatically each month for active premium members)
+- **Admin gift** (an admin manually grants you a book)
 
-Every error includes:
-- **A code** (like `VALIDATION_ERROR` or `FORBIDDEN`) — for the frontend to programmatically react to.
-- **A message** — for the developer (and sometimes the user) to read.
-- **Details** — for specific field-level issues (e.g., "The email field is invalid").
+The library is stored in the `user_library` table. The database ensures you can never have the same book twice (unique constraint).
 
----
+The books in your library show up on your Dashboard. Each one has a "Read Now" button.
 
-## 6. Our Recommended Tools
+### Loading a Book to Read
 
-We evaluated several tools and recommend this combination:
+When you open a book in the reader (`/read/[id]`), the app fetches:
+- **Book metadata**: title, author, illustrator
+- **All page images**: one by one, each page is a WebP image rendered from the original PDF
+- **Illustrations**: inline artwork extracted from the PDF
+- **Your reading progress**: so the reader can auto-jump to where you left off
+- **Your highlights and bookmarks**: displayed in the sidebar
 
-### OpenAPI (The Specification)
+Access control is enforced by the database — if the book isn't in your library, the page images simply aren't returned.
 
-Think of OpenAPI as a **blueprint**. It's a single file (written in YAML format) that describes every endpoint, every request, and every response in your API. Benefits:
-- Other tools can **read this blueprint** and auto-generate documentation, test suites, and even starter code.
-- It's a **text file in your Git repo** — trackable, reviewable, and version-controlled.
-- It's the **industry standard** — used by Google, Stripe, and most professional API teams.
+### Saving Reading Progress
 
-### Bruno (The Testing Tool)
-
-Think of Bruno as your **API test lab**. Instead of Postman (which requires cloud accounts and subscriptions), Bruno is:
-- **Free and open-source** — no paid tiers.
-- **Stored in your Git repo** — your API test collections are saved as plain text files right alongside your code. No cloud sync needed.
-- **Automated testing** — you can write test scripts that verify each API response is correct. For example: *"After I call the checkout endpoint, verify that the order status is 'confirmed' and the total is correct."*
-- **CI/CD ready** — you can run all tests automatically whenever code is pushed, catching broken endpoints before they reach production.
-
-### Why Not Postman?
-
-Postman is a great tool, but it has moved toward a cloud-first subscription model. For your project:
-- Bruno keeps everything **local and in Git** — no cloud dependency.
-- Bruno is **completely free** for everything you need.
-- Bruno's test collections are **plain text files** — easy to review in pull requests.
-
-### Mock Server (Prism)
-
-Before the backend is actually built, a tool called **Prism** can read your OpenAPI blueprint and **pretend to be the backend**. It returns fake (but correctly structured) responses so the frontend developer can build and test pages without waiting for the real backend.
+Progress is saved automatically as you read, but with a **5-second delay** before writing to the database. This prevents the database from being overloaded if you're quickly flipping pages. If you close the book within 5 seconds of turning a page, the last page may not be saved.
 
 ---
 
-## 7. The Migration Plan: From Mock Data to Real API
+## 9. Community Discussions
 
-Here's how each piece of your current frontend will transition to using real API calls:
+Discussions are **premium members only**. The database enforces this — free users and guests literally cannot retrieve discussion topics or posts.
 
-| What You Have Now | Where It Lives | What Replaces It |
+| Action | Who Can Do It |
+|---|---|
+| Read discussions | Premium members, admins |
+| Create a topic | Admins only |
+| Post a comment | Premium members (not banned) |
+| Edit a comment | Author, within 15 minutes of posting |
+| Delete a comment | Author (any time), admins (any time) |
+| Vote (up/down) | Premium members (one vote per post) |
+
+### Discussion Categories
+
+Topics can be: `General`, `Book Club`, `News`, `Crime`, `Children`, `PTP`, `Spiritual`, `Adult`, `Sports`, `Self-Help`, `Cooking`
+
+---
+
+## 10. GoHighLevel: How Emails Work
+
+The app **never sends emails directly**. Instead, it tells GoHighLevel (the email platform) to send the email by applying a "tag" to the user's GHL contact record. GHL automation workflows then send the appropriate templated email.
+
+| Event | GHL Tag Applied | Email Sent |
 |---|---|---|
-| Hardcoded book list | `lib/mock-books.ts` | API call: "Get all books" |
-| Hardcoded book content (pages) | `lib/mock-book-content.ts` | API call: "Get pages for this book" |
-| Hardcoded user library & orders | `lib/mock-user-data.ts` | API calls: "Get my library" and "Get my orders" |
-| Hardcoded admin users | `lib/mock-admin-data.ts` | API call: "Get all users" (admin) |
-| Hardcoded book club data | `lib/mock-book-club-data.ts` | API calls: "Get selections," "Get events," "Get topics" |
-| Shopping cart in browser memory | `context/cart-context.tsx` | API calls: "Get/add/remove cart items" |
-| Reading progress in browser memory | `lib/reading-storage.ts` | API calls: "Save/get reading progress, highlights, bookmarks, settings" |
-| Fake login flag in browser | `localStorage` | Real Supabase authentication with secure tokens |
-| Simulated checkout | Checkout page `setTimeout` | Real Stripe payment + order creation API |
-| Simulated subscription signup | Subscription modal | Real Stripe subscription + dealer code API |
+| Order confirmed | `ORDER_CONFIRMED` | Order confirmation with details |
+| New premium member | `WELCOME_PREMIUM` | Welcome + what to do next |
+| Payment failed | `PAYMENT_FAILED` | Instructions to update payment method |
+| Subscription cancelled | `SUBSCRIPTION_CANCELLED` | Farewell + account details |
+| Event RSVP | Handled by GHL automation | Event reminder closer to the date |
 
-### The Three-Phase Rollout
-
-1. **Phase A — Mock Server**: Set up Prism to serve fake API responses. Frontend developers start replacing hardcoded imports with `fetch()` calls. Everything still uses fake data, but the **communication pattern** is real.
-
-2. **Phase B — Backend Build**: Build the real Supabase tables, Edge Functions, and security policies. Run Bruno tests to verify each endpoint matches the contract.
-
-3. **Phase C — Connect**: Point the frontend's `fetch()` calls from the mock server to the real Supabase backend. Run end-to-end tests.
+All email triggers flow through the `email-ops` Edge Function. GHL contacts are created/updated by the `ghl-sync` Edge Function.
 
 ---
 
-## 8. Security: Who Can Do What
+## 11. Admin Operations
 
-The API enforces strict rules about who can access what. This is handled through the secure token (JWT) that's sent with every request:
+Admins have additional API access through the `/api/admin/*` Next.js routes, all protected by the service-role key (which bypasses Row-Level Security):
 
-| User Type | What They Can Access via API |
+| What Admins Can Do | How |
 |---|---|
-| **Guest** (no account) | Browse books, view public events, manage a temporary cart |
-| **Free Reader** (logged in) | Everything above + purchase books, read owned books, highlights, bookmarks, reader settings, order history, profile, RSVP to public events |
-| **Premium Member** | Everything above + discussions, all events, event RSVPs, book club picks, dealer code |
-| **Banned User** | Read owned books only (highlights, bookmarks, settings still work). Everything else blocked. |
-| **Admin** | Full control over everything |
-
-The backend **never trusts the frontend**. Even if someone tried to hack the frontend to access discussions without being premium, the backend would check their subscription status and reject the request.
-
----
-
-## 9. What Happens Behind the Scenes with External Services
-
-Your app integrates with three external services. Here's how the API coordinates with them:
-
-### Stripe (Payments)
-- When a user checks out, the API creates a Stripe PaymentIntent and charges their card.
-- When a user subscribes, the API creates a Stripe Subscription for recurring billing.
-- Stripe sends **webhook notifications** back to the API (e.g., "payment succeeded," "subscription cancelled," "payment failed") so the backend can update its records.
-
-### GoHighLevel (Email)
-- The API triggers GoHighLevel to send emails for: welcome messages, order confirmations, subscription events, event reminders, and ban notifications.
-- The app itself never sends emails — it delegates to GoHighLevel.
-
-### Supabase Storage (Files)
-- Book cover images and PDFs are stored in Supabase Storage buckets.
-- The API returns URLs pointing to these files, and the frontend displays them.
+| Fetch all users | Next.js API route with service-role client |
+| Ban / unban users | Next.js API route with service-role client |
+| Change user roles | Next.js API route with service-role client |
+| Create/edit/delete books | Direct Supabase SDK via admin panel |
+| Upload a PDF | `upload-book` Edge Function |
+| Manage book club selections | Next.js API route |
+| Create/manage events | Direct Supabase SDK via admin panel |
+| Create/delete discussion topics | Direct Supabase SDK via admin panel |
+| Gift books to users | Direct database write via service-role client |
 
 ---
 
-## 10. Performance: Keeping Things Fast
+## 12. Dealer Code Validation at Checkout
 
-Several design decisions keep the API responsive as the platform grows:
+**Endpoint**: `/api/validate-dealer-code` (Next.js API Route)  
+**Method**: POST  
+**Auth**: Not strictly required for validation (anyone can check), but self-use prevention requires auth at checkout time
 
-| Design Choice | What It Means |
+### What You Send
+```json
+{ "code": "KANE-SMITH-4821" }
+```
+
+### What Comes Back (success)
+```json
+{ "discountPercent": 35, "message": "Dealer code applied! 35% off your order." }
+```
+
+### What Comes Back (error)
+```json
+{ "error": "Invalid or expired dealer code." }
+```
+
+The self-use prevention check ("you can't use your own code") is enforced in the `process-checkout` Edge Function when the order is actually submitted, not in this validation step.
+
+---
+
+## 13. Error Handling
+
+All errors use the same format:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE_HERE",
+    "message": "Human readable message",
+    "details": [{ "field": "zip", "issue": "Must be 5 digits" }]
+  }
+}
+```
+
+**Common error codes you might see:**
+
+| Code | Meaning | HTTP Status |
+|---|---|---|
+| `VALIDATION_ERROR` | Something in the request was malformed or missing | 400 |
+| `UNAUTHORIZED` | Not logged in, or invalid JWT | 401 |
+| `FORBIDDEN` | Logged in, but don't have permission for this | 403 |
+| `NOT_FOUND` | Resource doesn't exist | 404 |
+| `CONFLICT` | Already exists (duplicate subscription, etc.) | 409 |
+| `BUSINESS_RULE_VIOLATION` | Tried to use your own dealer code, etc. | 422 |
+| `AMOUNT_TOO_SMALL` | Stripe requires minimum $0.50 | 400 |
+| `INTERNAL_ERROR` | Something unexpected happened on our side | 500 |
+
+---
+
+## 14. Testing Tools Recommendation
+
+For local development and testing of the Edge Functions:
+
+| Tool | Use |
 |---|---|
-| **Pagination** | Book lists load 20 at a time, not all at once |
-| **Cursor-based paging** | More efficient than "page 1, page 2" for large datasets |
-| **Debounced reading progress** | Your reading position saves every 30 seconds, not on every scroll |
-| **Database indexes** | Special "shortcuts" so common lookups (search, genre filter, cart) are instant |
-| **Lazy page loading** | The reader loads one page at a time instead of the entire book |
-| **Rate limiting** | Prevents abuse (e.g., max 10 login attempts per minute per IP) |
+| **Bruno** | Manual API testing — import as a collection, test each function with real payloads. Free, offline-first, and stores tests as code in your repo. |
+| **Stripe CLI** — `stripe listen --forward-to localhost` | Forward Stripe webhook events to your locally running Edge Function for end-to-end checkout testing |
+| **Supabase Studio** | Inspect DB changes after API calls — verify records, check RLS, query live data |
+| **OpenAPI** | Document endpoints for onboarding new developers — specs can be generated from our existing function types |
 
 ---
 
-## 11. What's NOT in This API
+## 15. Production URL Reference
 
-Based on previous decisions, these features have been intentionally excluded:
-
-- ❌ Social login (Google, Apple)
-- ❌ User reviews or ratings
-- ❌ Wishlists
-- ❌ Audiobooks
-- ❌ In-app notifications
-- ❌ Analytics or data export APIs
-- ❌ Refund/cancellation endpoints for orders
-- ❌ Gift purchase endpoints
-- ❌ Public user profiles (only display_name is ever shown)
-
----
-
-## 12. Quick Glossary
-
-| Term | What It Means |
+| Service | Base URL |
 |---|---|
-| **API** | Application Programming Interface — the rules for how two systems talk to each other |
-| **Endpoint** | A specific URL that the frontend sends requests to (e.g., `/books` to get all books) |
-| **JWT** | JSON Web Token — a secure digital pass that proves who you are after logging in |
-| **REST** | The architectural style we're using — resources have URLs and you interact with them using GET/POST/PUT/DELETE |
-| **Webhook** | A message sent automatically from one service to another when something happens (e.g., Stripe tells us "payment succeeded") |
-| **Edge Function** | A small piece of server code that runs close to the user for speed; used for complex operations like checkout |
-| **Mock Server** | A fake backend that returns pre-defined responses so the frontend can be developed before the real backend exists |
-| **OpenAPI** | The industry-standard format for describing an API's endpoints, like a blueprint |
-| **Bruno** | A free, Git-friendly tool for testing and automating API requests |
-| **Prism** | A tool that reads an OpenAPI spec and pretends to be the backend |
-| **RLS** | Row-Level Security — database rules that ensure users can only see their own data |
-| **Pagination** | Loading data in small chunks instead of all at once |
-| **Cursor** | A bookmark that tells the API "start from here" when loading the next page of results |
+| **Frontend (Vercel)** | `https://kanes-komet.vercel.app` (example) |
+| **Supabase Edge Functions** | `https://kpafjhkrjipiyfjizyaw.supabase.co/functions/v1/` |
+| **Supabase REST API** | `https://kpafjhkrjipiyfjizyaw.supabase.co/rest/v1/` |
+| **Supabase Auth** | `https://kpafjhkrjipiyfjizyaw.supabase.co/auth/v1/` |
 
 ---
 
-### Final Thought
-
-This API contract is the **bridge** between your beautiful frontend and the powerful backend we're building. With this document locked in, both sides of the app can be developed simultaneously — the frontend team replaces mock data with real API calls, while the backend team builds the Supabase infrastructure to match these exact specifications. The mock server ensures nobody is waiting on anyone else.
+*Last updated: February 2026 — reflects live deployed API*

@@ -1,458 +1,418 @@
-# Kane's Komet: Backend Architecture Explained in Plain English
+# Phase 4: Backend Architecture — Plain English (As-Built)
 
-> This guide translates the Phase 4 technical architecture specification into everyday language. If you've read the API design guide (Phase 3), this is the natural next step — we're now planning **how the backend is built, organized, and secured**.
-
----
-
-## 1. What Is "Backend Architecture" and Why Does It Matter?
-
-### The Simple Analogy
-
-In Phase 2, we designed the **recipe book** (data model — what ingredients we need and how they're organized).  
-In Phase 3, we designed the **menu** (API contract — what the customer can order and what they'll receive).  
-Now in Phase 4, we're designing the **kitchen itself** — where every station is, which chef handles which dish, where the ingredients are stored, and how orders flow from the front of house to the back.
-
-Without a well-designed kitchen:
-- Chefs bump into each other (code conflicts)
-- Orders get mixed up (bugs from unclear responsibilities)
-- The health inspector shuts you down (security vulnerabilities)
-- Adding a new dish requires renovating the whole kitchen (poor scalability)
-
-This document plans the kitchen **before we start cooking**.
+> This document explains **how the backend actually works today** — not as a plan, but as an implemented system. Every function, integration, and design decision described below has been deployed and verified against the live codebase.
 
 ---
 
-## 2. Our Tech Stack: What We're Using and Why
+## 1. What is the "Backend"?
 
-### Supabase: Our All-in-One Backend
+The backend is everything the user **can't see** — the database, the server-side logic that runs when you click a button, and the connections to external services like Stripe and GoHighLevel.
 
-Instead of stitching together five different services, we're using **Supabase** — a platform that bundles everything we need:
-
-| What We Need | What Supabase Provides | What It Replaces |
-|---|---|---|
-| **Database** | PostgreSQL (a powerful, reliable database) | Building our own database server |
-| **User Authentication** | Built-in signup/login with secure tokens | Building a custom login system or paying for Auth0 |
-| **Server-Side Code** | Edge Functions (small programs that run on Supabase's servers) | Setting up and managing our own servers (AWS, etc.) |
-| **File Storage** | Cloud storage for images and PDFs | Setting up Amazon S3 separately |
-| **Security Rules** | Row-Level Security (database-level access control) | Writing custom security middleware |
-
-### Why Supabase Over Alternatives?
-
-- **vs. Firebase**: Firebase uses a NoSQL database (like a filing cabinet with no fixed structure). Our app has complex relationships between users, books, orders, subscriptions, and discussions — PostgreSQL (a relational database, like a well-organized spreadsheet system) handles this much better.
-- **vs. Building from Scratch (AWS/Custom Servers)**: We'd need to set up and maintain servers, databases, authentication, file storage, and security separately. Supabase gives us all of this out of the box, with a generous free tier.
-- **vs. Other BaaS (Appwrite, Firebase)**: Supabase is open-source, uses industry-standard PostgreSQL, and has the best developer experience for our Next.js + TypeScript stack.
-
-### Our Programming Language: TypeScript Everywhere
-
-The frontend is already built in TypeScript. The backend Edge Functions also use TypeScript (via Deno, a modern JavaScript runtime). This means:
-- One language for the entire project
-- Shared validation rules between frontend and backend
-- Any developer can work on any part of the codebase
+For Kane's Komet, the backend is **Supabase** — a platform that provides:
+- A **database** (where all data lives)
+- **User accounts and login** (Authentication)
+- **File storage** (book covers, page images, PDFs)
+- **Edge Functions** (server-side code that runs on every request)
 
 ---
 
-## 3. How the Project Is Organized: The Folder Structure
+## 2. The Folder Structure
 
-This is one of the most important decisions in the architecture. Think of it like organizing a house — everything has a room, and you always know where to find things.
-
-### The Big Picture
+The project is organized like this:
 
 ```
-Your Project/
-│
-├── app/              ← The "Dining Room" (what users see)
-├── components/       ← The "Furniture" (reusable UI pieces)
-├── lib/              ← The "Toolbox" (shared utilities)
-│   ├── supabase/     ← How the frontend talks to the backend
-│   └── validators/   ← Rules for checking user input
-│
-├── supabase/         ← The "Kitchen" (ALL backend code)
-│   ├── migrations/   ← The "Blueprints" (database structure)
-│   ├── functions/    ← The "Chefs" (server-side logic)
-│   ├── seed/         ← The "Pantry" (test data)
-│   └── tests/        ← The "Quality Control" (automated testing)
-│
-├── api-spec/         ← The "Menu" (API documentation + testing)
-└── docs/             ← The "Manual" (project documentation)
+app/                   → All Next.js pages (the frontend)
+  api/                 → Next.js API Routes (server-side bridge code)
+  admin/               → Admin panel pages
+  book-club/           → Book Club pages
+  browse/              → Book browse + search
+  cart/                → Shopping cart
+  checkout/            → Checkout flow
+  dashboard/           → User dashboard
+  login/               → Login/signup
+  read/[id]/           → Book reader
+components/            → Reusable UI pieces
+lib/                   → Shared TypeScript utilities
+  supabase/            → Supabase client setup + types
+  book/                → Book utilities
+  types/               → TypeScript interfaces
+supabase/              → All Supabase backend code
+  functions/           → Edge Functions (server-side code)
+    _shared/           → Shared utilities for functions
+    cancel-subscription/
+    create-subscription/
+    email-ops/
+    get-book-pages/
+    ghl-sync/
+    process-checkout/
+    reactivate-subscription/
+    stripe-webhook/
+    upload-book/
+  migrations/          → Database schema files (run in order)
+docs/                  → Project documentation
 ```
 
-### Why This Organization?
+### The Simple Rule: One Responsibility Per Function
 
-**Separation of Concerns** — every type of code has its own designated place:
-
-| Type of Code | Where It Lives | Who Works on It |
-|---|---|---|
-| What users see (pages, buttons, forms) | `app/`, `components/` | Frontend developer |
-| How the frontend connects to Supabase | `lib/supabase/` | Frontend developer |
-| Rules for checking user input | `lib/validators/` | Both (shared code) |
-| Database structure and security | `supabase/migrations/` | Backend developer |
-| Complex operations (checkout, subscription) | `supabase/functions/` | Backend developer |
-| Test data for development | `supabase/seed/` | Backend developer |
-| Automated tests | `supabase/tests/` | Both |
-
-**Benefits of this approach:**
-- A frontend developer never accidentally breaks a database migration
-- A backend developer never accidentally breaks a UI component
-- New developers immediately know where to find and place their code
-- The project can scale to a larger team without chaos
-
-### The Backend Folder in Detail
-
-The `supabase/` folder is the heart of the backend. Here's what each subfolder does:
-
-**`migrations/`** (The Blueprints)
-- Think of these as **step-by-step instructions** for building the database
-- Each file is numbered (00001, 00002, ...) and runs in order
-- File 00001 creates the basic types (like "what are the allowed genres?")
-- Files 00002–00008 create the actual tables (users, books, orders, etc.)
-- Files 00010–00011 add performance optimizations and automatic updates
-- Files 00012–00019 add security rules (who can see/edit what)
-
-**`functions/`** (The Chefs)
-- These are small programs that run on Supabase's servers
-- Each complex operation gets its own folder (checkout, subscribe, etc.)
-- They share common tools via a `_shared/` folder (like a communal spice rack)
-
-**`seed/`** (The Pantry)
-- Fake data for testing: test users, sample books, example orders
-- Makes development faster — you don't have to manually create test data every time
-
-**`tests/`** (Quality Control)
-- Automated tests that verify the security rules work correctly
-- Automated tests for each server-side function
+Each Edge Function does **exactly one job**. Nothing more. This makes bugfixes easy — if something is wrong with checkout, you look in `process-checkout`. If subscriptions are wrong, you look in `create-subscription`.
 
 ---
 
-## 4. The Database: How Data Is Stored
+## 3. The Database: Where Everything Lives
 
-### How We Build It: Migrations
+The database is a real **PostgreSQL** database hosted by Supabase. Every user, book, order, and comment lives here.
 
-The database is built through a series of **migration files** — numbered SQL scripts that run in order. Think of it like following a recipe step by step:
+### The 9 Migration Files
 
-1. **Step 1** (00001): Define all the categories (genres, user roles, order statuses, etc.)
-2. **Step 2** (00002): Create the users table
-3. **Step 3** (00003): Create the books tables (books, variants, pages, illustrations)
-4. **Step 4** (00004): Create the shopping tables (cart, orders, library, promo codes)
-5. **Step 5** (00005): Create the subscription table
-6. **Step 6** (00006): Create the reading experience tables (progress, highlights, bookmarks, settings)
-7. **Step 7** (00007): Create the book club tables (selections, events, RSVPs)
-8. **Step 8** (00008): Create the discussion tables (topics, posts, votes)
-9. **Step 9** (00009): Create the admin audit log
-10. **Step 10** (00010): Add performance optimizations (indexes)
-11. **Step 11** (00011): Add automatic update triggers
+The database was built step-by-step through **migration files** — SQL scripts that run in sequence to shape the database exactly as needed:
 
-**Why migrations instead of just creating tables directly?**
-- They're **version-controlled** — every change is tracked in Git
-- They're **reproducible** — anyone can rebuild the exact same database from scratch
-- They're **safe** — if something goes wrong, you know exactly which step caused it
-
-### What Happens Automatically
-
-The database has built-in automation (called "triggers"):
-
-- **Timestamps**: When you update any record, the `updated_at` field is automatically set to the current time. No code needed.
-- **Counters**: When someone RSVPs to an event, the event's `attendee_count` goes up automatically. When someone posts in a discussion, the `post_count` goes up automatically.
-- **User profile creation**: When someone registers through Supabase Auth, a profile row is automatically created in the `users` table.
-
----
-
-## 5. Security: Three Layers of Protection
-
-Security is implemented at three levels — like a house with a fence, a locked door, AND an alarm system:
-
-### Layer 1: The Fence (Route Protection)
-
-The Next.js frontend checks if you're logged in before showing certain pages:
-- Trying to visit `/dashboard` without logging in? → Redirected to `/login`
-- Trying to visit `/admin` without being an admin? → Redirected to home page
-- This is fast but **not enough by itself** (someone could bypass the frontend)
-
-### Layer 2: The Locked Door (Database Security Rules — RLS)
-
-Every table in the database has **Row-Level Security** (RLS) policies. These are rules enforced by the database itself — even if someone bypasses the frontend, the database refuses to hand over data they shouldn't see:
-
-- **Your profile**: Only you can see your own email, phone, and address. Other users can only see your display name.
-- **Books**: Anyone can browse published books. Only book owners can read pages.
-- **Cart**: You can only see your own cart. Other users can't see yours.
-- **Discussions**: Only premium members can see or post in discussions. The database rejects requests from free users.
-- **Admin**: Admins can see and modify everything.
-
-**Example in plain language:**
-> "When a user asks for discussion topics, the database checks: 'Does this user have an active premium subscription?' If yes, show the topics. If no, return nothing — as if the topics don't exist."
-
-### Layer 3: The Alarm System (Edge Function Guards)
-
-For complex operations, the server-side code adds extra checks:
-- **Checkout**: Before processing payment, it verifies the cart isn't empty, items are in stock, promo codes are valid (including self-use prevention), and the user doesn't already own any of the ebooks.
-- **Subscribe**: Before creating a subscription, it verifies the user isn't already subscribed.
-- **Post in discussion**: Before saving a post, it checks the user has an active premium subscription and isn't banned.
-- **Edit a post**: Before allowing an edit, it checks the post is less than 15 minutes old.
-
-### Who Can Do What (Summary)
-
-| User Type | Access Level |
+| File | What It Created |
 |---|---|
-| **Guest** (no account) | Browse books, view public events, manage a session-based cart |
-| **Free Reader** | All above + purchase, read owned books, highlights, bookmarks, reader settings, profile, order history, RSVP to public events |
-| **Premium Member** | All above + discussions, all events, RSVPs, book club picks, dealer code |
-| **Banned User** | Read owned books only (highlights, bookmarks, settings still work). Everything else blocked. |
-| **Admin** | Full control over everything |
+| `20260221000000_initial_schema.sql` | The **entire database** — all 21 tables, all rules |
+| `20260221000001_rls_policies.sql` | **Security rules** — who can see/edit what |
+| `20260221000002_user_sync_trigger.sql` | **Auto-profile creation** — when you register, your profile is auto-created |
+| `20260221100000_reading_rls_policies.sql` | Security rules specifically for the reader |
+| `20260221200000_storage_buckets.sql` | **Storage buckets** for PDFs, covers, pages, illustrations |
+| `20260222161000_fix_user_sync_metadata.sql` | Fixed the profile trigger to correctly read name data |
+| `20260223101000_add_book_club_eligibility.sql` | Added `is_book_club_eligible` flag to books |
+| `20260223110000_add_library_source_gift.sql` | Added `admin_gift` as a way for admins to give books |
+| `20260227200000_cascade_book_deletion.sql` | Fixed admin book deletion (prevented database errors) |
+
+### Why Migrations?
+Instead of manually making changes to the database, every change is written as a numbered SQL file. This means the entire database can be rebuilt from scratch — on any computer, any server — just by running the files in order. That's critical for Vercel deployments, team collaboration, and debugging.
 
 ---
 
-## 6. Server-Side Logic: Edge Functions
+## 4. Security: Three Layers
 
-### What Are Edge Functions?
+Security is not handled in one place — it's enforced at **three separate levels** so that even if one layer is bypassed, the others hold:
 
-Edge Functions are small programs that run on Supabase's servers (not in the user's browser). They handle operations that are too complex or sensitive for the frontend to manage directly.
+### Layer 1: Frontend Route Protection
+The `middleware.ts` file (at `lib/supabase/middleware.ts`) intercepts every page request in Next.js. If a user tries to visit `/dashboard` or `/admin` without being logged in, they're redirected automatically. This is the first gate.
 
-### Why Can't the Frontend Do Everything?
+### Layer 2: Row-Level Security (RLS)
+Every table in the database has **Row-Level Security** enabled. RLS is a database-level rule that says "this user can only read/write their own rows." For example:
+- You can see your own orders, but not anyone else's.
+- You can edit your own reading progress, but not someone else's.
+- Free readers cannot see any discussion topics or posts — the database refuses to return those rows entirely.
 
-Some operations involve **multiple steps that must all succeed or all fail**. If the frontend handled these, a network glitch mid-operation could leave things in a broken state:
+RLS is declared in SQL and enforced by PostgreSQL itself, not by our application code. This means even if the app code has a bug, the database still protects the data.
 
-**Example — Checkout:**
-1. Validate the cart ✓
-2. Charge the credit card ✓
-3. Create the order ✓
-4. Add ebooks and Komet Card purchases to the library ← *Network drops here*
-5. Clear the cart ✗
-6. Send confirmation email ✗
+### Layer 3: Edge Function Guards
+Each Edge Function has its own authorization checks. For example:
+- Before processing a checkout, `process-checkout` verifies the user is authenticated.
+- Before creating a subscription, `create-subscription` confirms no subscription already exists.
+- Admin-only operations (booking management, user management) verify the requesting user has `role = 'admin'` before executing.
 
-If the frontend ran this, steps 4–6 would fail silently. With an Edge Function, all steps happen on the server in a controlled transaction — if any step fails, everything rolls back cleanly.
-
-### What Gets an Edge Function vs. What Doesn't
-
-| Operation | Edge Function? | Why |
-|---|---|---|
-| Browse books | ❌ No | Simple database read — RLS handles security |
-| Update profile | ❌ No | Simple database write — RLS handles security |
-| Save reading progress | ❌ No | Simple database write — RLS handles security |
-| **Checkout** | ✅ Yes | 7+ coordinated steps across DB + Stripe + GoHighLevel (cart validation, promo code checks including self-use prevention, shipping determination, payment, order creation, library additions, email) |
-| **Subscribe** | ✅ Yes | One-time $49.99 Stripe charge + $3.99/mo subscription (delayed 30 days) + DB updates + promo code generation (DB + Stripe Promotion Code) + GoHighLevel sync + email |
-| **Cancel subscription** | ✅ Yes | Stripe cancellation + DB updates + promo deactivation |
-| **Ban user** | ✅ Yes | Update user + cancel Stripe + deactivate promo + email |
-| **Upload book** | ✅ Yes | PDF page rendering (WebP images for layout preservation) + text extraction (for search) + inline illustration extraction with positions |
-| **Stripe webhook** | ✅ Yes | Routes Stripe notifications to correct handler |
-| **Validate promo code** | ✅ Yes | Multi-table lookup + business rule checks |
-
-### How Each Edge Function Is Organized
-
-Every function follows the same pattern:
-1. **`index.ts`** — The "front door." Receives the request, checks authentication, passes it along.
-2. **`handler.ts`** — The "brain." Orchestrates the steps in the right order.
-3. **`*-ops.ts`** files — Specialists. Each handles one specific task (Stripe payment, database write, email trigger).
-
-This means if we ever need to change how we handle payments (e.g., switching from Stripe to another provider), we only modify `stripe-ops.ts` — nothing else changes.
+This means no amount of clever manipulation of the frontend can bypass server-side rules.
 
 ---
 
-## 7. Input Validation: Three Safety Nets
+## 5. The Edge Functions: The Engine Room
 
-When a user types something into a form, their input is checked **three times**:
+Edge Functions are **server-side JavaScript/TypeScript code** that runs in Deno (a modern JavaScript runtime). They're the action layer — executed when something needs to actually happen.
 
-### Safety Net 1: The Frontend (Immediate Feedback)
-- **When**: As the user types
-- **How**: Zod validation schemas + React Hook Form
-- **Example**: Typing an invalid email shows "Please enter a valid email" instantly — no server call needed
-- **Why it's not enough**: A hacker could bypass the frontend and send data directly to the backend
+### Currently Deployed Functions
 
-### Safety Net 2: The Edge Function (Business Logic Check)
-- **When**: When the request reaches the server
-- **How**: Same Zod schemas, re-verified server-side
-- **Example**: The checkout function re-validates the shipping address before charging the card
-- **Why it's not enough**: If someone found a way to write directly to the database, this wouldn't help
+| Function | What It Does |
+|---|---|
+| `process-checkout` | Creates a Stripe PaymentIntent for book purchases. Saves the order and order items to the database. Also creates/verifies the Stripe Customer. |
+| `stripe-webhook` | Receives events from Stripe when payments succeed or fail. Confirms orders, grants library access for ebook purchases, triggers welcome/confirmation/cancellation emails. Also handles monthly subscription renewal via the Stripe `customer.subscription.updated` event. |
+| `create-subscription` | Handles the initial $49.99 Book Club signup payment. Creates the Stripe PaymentIntent for the initial fee. |
+| `cancel-subscription` | Cancels the user's Stripe subscription at period end. |
+| `reactivate-subscription` | Reactivates a previously cancelled subscription. |
+| `email-ops` | Dispatches email events to GoHighLevel (GHL). Adds tags like `ORDER_CONFIRMED`, `WELCOME_PREMIUM`, `PAYMENT_FAILED`, `SUBSCRIPTION_CANCELLED` to GHL contacts. |
+| `ghl-sync` | Syncs a user's profile data (name, email, phone, etc.) to GoHighLevel as a contact. Called after signup and after profile updates. |
+| `get-book-pages` | Fetches a book's page images from Supabase Storage. Used for the reader experience. |
+| `upload-book` | Receives a PDF upload from the admin panel, extracts each page as a WebP image, extracts inline illustrations, extracts page text for search, and saves everything to Supabase Storage and the database. |
 
-### Safety Net 3: The Database (Final Guarantee)
-- **When**: When data is actually being saved
-- **How**: PostgreSQL CHECK constraints, UNIQUE constraints, NOT NULL requirements
-- **Example**: The database will physically reject a book price of -$5, a progress percent of 150%, or a duplicate email — no matter how the data got there
-- **This is the last line of defense** — even if the frontend AND the Edge Function are compromised, the database enforces data integrity
-
----
-
-## 8. Error Handling: Clear Messages for Every Failure
-
-When something goes wrong, the backend always sends back a structured error message with three pieces of information:
-
-1. **A code** — for the frontend to programmatically decide what to do (e.g., show a toast, redirect to login, disable a button)
-2. **A message** — a human-readable explanation
-3. **Details** — optional specifics about which field caused the problem
-
-### Standard Error Types
-
-| Error | When It Happens | User Sees |
-|---|---|---|
-| **Validation Error** (400) | Missing or invalid input | "Please fill in all required fields" |
-| **Unauthorized** (401) | Not logged in, or session expired | Redirected to login page |
-| **Forbidden** (403) | Logged in but doesn't have permission | "This feature requires a premium membership" |
-| **Not Found** (404) | Resource doesn't exist | "Book not found" |
-| **Conflict** (409) | Duplicate action | "You already own this book" or "Email already registered" |
-| **Business Rule Violation** (422) | Valid input, but breaks a rule | "You've reached the maximum of 10 highlights for this book" |
-| **Rate Limited** (429) | Too many requests | "Please slow down. Try again in a moment." |
-| **Server Error** (500) | Something broke unexpectedly | "Something went wrong. Please try again later." |
-
----
-
-## 9. File Storage: Where Books and Images Live
-
-### Four Storage Buckets
-
-Think of these as four labeled filing cabinets:
-
-| Cabinet | What's Inside | Who Can Access |
-|---|---|---|
-| **Book Covers** | The cover images shown on book cards | Everyone (public) |
-| **Book PDFs** | Original uploaded PDF files | Admin only |
-| **Book Pages** | Rendered page images (WebP) that preserve the exact PDF layout | Only users who own the book |
-| **Book Illustrations** | Inline illustrations extracted from PDFs (displayed within pages) | Only users who own the book |
-| **Avatars** | User profile images | Only the user themselves |
-
-### How It Works
-
-1. Admin uploads a PDF → stored in the "Book PDFs" cabinet
-2. An Edge Function renders each PDF page as a high-quality WebP image (preserving the exact visual layout) and also extracts plain text for search indexing
-3. Rendered page images are stored in the "Book Pages" cabinet
-4. Inline illustrations are extracted with their page positions and stored in the "Book Illustrations" cabinet
-5. The book cover image is stored in the "Book Covers" cabinet
-6. When a reader opens a book, they see the rendered page images — everything looks exactly like the original printed book, page by page ("Page 1 of 45" navigation). Only book owners can access these images.
-
----
-
-## 10. External Services: How We Connect to Stripe and GoHighLevel
-
-### Stripe (Payments)
-
-Stripe handles all money. Our backend talks to Stripe in two ways:
-
-**Our app → Stripe** (when we need something):
-- "Create a one-time charge of $49.99 for this new premium member"
-- "Create a $3.99/month subscription with the first invoice delayed 30 days"
-- "Create a Stripe Promotion Code for this dealer code"
-- "Cancel this subscription"
-
-**Stripe → Our app** (when Stripe tells us something happened):
-- "Payment succeeded" → We confirm the order and add ebooks/Komet Cards to the library
-- "Monthly payment went through" → We extend the subscription
-- "Monthly payment failed" → We mark the subscription as past due and send an email
-- "Subscription was cancelled" → We deactivate the dealer code
-
-These "Stripe telling us" messages are called **webhooks**. We have a dedicated Edge Function (`stripe-webhook`) that receives these messages, verifies they're really from Stripe (not a hacker), and routes them to the correct handler.
-
-### GoHighLevel (Email)
-
-GoHighLevel handles all outbound emails and contact management. Our app never sends emails directly — instead, it tells GoHighLevel "send a welcome email to jane@example.com" and GoHighLevel handles the formatting, delivery, and tracking. A GoHighLevel contact is created for **every** new user, including free accounts. For premium subscribers, we also sync their t-shirt size and mailing address.
-
-Emails are triggered by:
-- New user registration → Welcome email
-- Order confirmed → Order confirmation email
-- Subscription created → Premium welcome email
-- Subscription cancelled → Cancellation acknowledgment
-- Payment failed → Payment failure notification
-- User banned → Ban notification
-
----
-
-## 11. Environment Variables: Keeping Secrets Safe
-
-The app needs several secret keys (Stripe API keys, Supabase service keys, GoHighLevel credentials). These are **never stored in the code** — they're stored in environment variables:
-
-- **`.env.local`** — Your machine's local secrets (never committed to Git)
-- **`.env.example`** — A template showing what variables are needed (committed to Git, but with no real values)
-- **Supabase Dashboard** — Production secrets are configured through the Supabase web interface
-
-This means:
-- A developer who clones the project sees `.env.example` and knows what keys to set up
-- No real secrets are ever visible in the Git history
-- Production and development use different keys automatically
-
----
-
-## 12. Development Workflow: How a Developer Works Day-to-Day
-
-### Starting the Project
+### How a Function Works (simplified)
 
 ```
-Step 1: Start the local Supabase instance (database, auth, storage — all local)
-Step 2: Run database migrations (builds all tables from scratch)
-Step 3: Load seed data (fills tables with test users, books, etc.)
-Step 4: Start Edge Functions locally (so checkout, subscribe, etc. work)
-Step 5: Start the Next.js frontend (the website)
+1. Request arrives (from frontend or external service like Stripe)
+2. CORS check (is this request from an allowed origin?)
+3. Auth check (is this user logged in? Do they have permission?)
+4. Validation (is the data in the correct format?)
+5. Business logic (do the actual thing: write to DB, call Stripe, etc.)
+6. Response (send back success or error)
 ```
 
-All five steps are standard commands. A new developer can go from "just cloned the repo" to "fully working local environment" in about 5 minutes.
-
-### Deploying to Production
-
-When code is pushed to the `main` branch on GitHub:
-1. **Automated checks** run (linting, type checking, tests)
-2. **Database migrations** are applied to the production database
-3. **Edge Functions** are deployed to Supabase's edge network
-4. **Frontend** is deployed to Vercel (or similar)
-
-If any step fails, the deployment stops and the team is notified.
-
 ---
 
-## 13. Scalability: Planning for Growth
+## 6. The `_shared` Utilities
 
-The architecture is designed to handle growth without major rewrites:
+The `/supabase/functions/_shared/` folder holds code used by **multiple Edge Functions** — so it's written once and imported by all:
 
-| Concern | How We Handle It |
+| File | What It Contains |
 |---|---|
-| **Database getting slow** | Performance indexes on every frequently-queried column (search, genre filter, user lookup) |
-| **Too many database writes** | Reading progress saves every 30 seconds (not on every scroll). Counters are updated via triggers, not recalculated. |
-| **Book catalog growing** | Cursor-based pagination loads 20 books at a time. Full-text search uses PostgreSQL's built-in high-speed search. |
-| **Large books** | Pages are rendered as individual images. The reader loads one page image at a time ("Page X of Y" navigation), not the entire book. |
-| **Many concurrent users** | Supabase includes built-in connection pooling (efficiently sharing database connections). |
-| **Edge Function speed** | Each function is small and focused (< 500 lines). Minimal imports keep startup times fast. |
-| **File storage** | Cover images are served from Supabase's CDN (global edge network) for fast loading anywhere in the world. |
+| `supabase-client.ts` | Creates Supabase database connections (one that respects security rules, one that bypasses them for admin operations) |
+| `stripe-client.ts` | Initializes the Stripe SDK with the API key |
+| `ghl-client.ts` | A client for talking to the GoHighLevel API — handles creating, updating, and conflict-resolving contacts |
+| `cors.ts` | Standard CORS headers — which websites are allowed to call our functions |
+| `errors.ts` | Standard error shapes — every error from every function looks the same |
+
+### CORS Configuration
+CORS answers the question: "Is this website allowed to talk to our backend?"
+
+Allowed origins are configured in `cors.ts` and are based on the deployed frontend URLs (e.g., the Vercel production URL and `localhost:3000` for local development). Without this, browsers block all cross-domain requests.
 
 ---
 
-## 14. What's NOT in the Architecture
+## 7. The Checkout Flow: Step by Step
 
-Based on previous decisions, these are intentionally excluded:
+Here's exactly what happens when a user buys a book:
 
-- ❌ Self-hosted servers or Docker containers (Supabase is fully managed)
-- ❌ GraphQL (REST is simpler and sufficient for our needs)
-- ❌ Redis or external caching layers (PostgreSQL performance is sufficient at our scale)
-- ❌ WebSocket real-time features (future consideration for live discussions)
-- ❌ Microservices (monolithic Supabase project is simpler and appropriate for our team size)
-- ❌ Custom email service (GoHighLevel handles everything)
-- ❌ Multiple databases (single PostgreSQL instance for all data)
+```
+User clicks "Buy Now" → checkout page
+  ↓
+Frontend calls process-checkout Edge Function
+  ↓
+process-checkout:
+  1. Verifies the user is logged in
+  2. Fetches real prices from the database
+  3. Applies dealer code discount (if any) — validates code is active + not self-used
+  4. Calculates total: subtotal - discount + 5% GST + $5.99 shipping (if physical)
+  5. Creates/verifies Stripe Customer (stores Stripe Customer ID in users table)
+  6. Creates Stripe PaymentIntent (returns client secret to frontend)
+  7. Saves the order and order items to the database (status: 'pending')
+  ↓
+Frontend shows Stripe payment form (uses client secret)
+  ↓
+User enters card details → Stripe processes payment
+  ↓
+Stripe sends webhook event "payment_intent.succeeded"
+  ↓
+stripe-webhook Edge Function receives event:
+  1. Updates order status to 'confirmed'
+  2. Updates user's mailing address from shipping data
+  3. For each ebook item: adds book to user_library (source: 'purchase')
+  4. Sends 'ORDER_CONFIRMED' event to email-ops → GoHighLevel sends confirmation email
+```
 
 ---
 
-## 15. Quick Glossary
+## 8. The Subscription Flow: Step by Step
 
-| Term | What It Means |
+Here's what happens when a user joins the Book Club:
+
+```
+User completes subscription modal:
+  - Enters name, phone, T-shirt size, mailing address
+  - Picks 2 free books
+  ↓
+Frontend calls create-subscription Edge Function
+  ↓
+create-subscription:
+  1. Verifies the user is logged in
+  2. Gets or creates a Stripe Customer
+  3. Creates a Stripe PaymentIntent for $49.99 (with all metadata: user_id, selected_book_ids, etc.)
+  4. Returns the client_secret to the frontend
+  ↓
+Frontend shows Stripe payment form
+  ↓
+User enters card details → Stripe processes $49.99 payment
+  ↓
+Stripe sends webhook event "payment_intent.succeeded" with metadata.type = "subscription_initial"
+  ↓
+stripe-webhook Edge Function receives event:
+  1. handleSubscriptionInitialSuccess() is called:
+  2. Updates user profile (name, phone, T-shirt size, mailing address)
+  3. Creates a Stripe recurring subscription at $3.99/month with a 30-day trial
+  4. Creates the user_subscriptions record in the DB (plan: 'premium', status: 'active')
+  5. Adds the 2 selected books to user_library (source: 'subscription_signup')
+  6. Generates dealer code: KANE-FIRSTNAME-PHONELAST4 (saved to promo_codes table)
+  7. Sends 'WELCOME_PREMIUM' event to email-ops → GoHighLevel sends welcome email
+```
+
+---
+
+## 9. Validation: Data Gets Checked Three Times
+
+| Stage | Who Does It | What Gets Checked |
+|---|---|---|
+| **Frontend** | React + Zod (forms) | Form fields, required inputs, email format |
+| **Edge Function** | TypeScript + manual checks | Auth, business rules (e.g., self-use of promo code), Stripe amount minimums |
+| **Database** | PostgreSQL CHECK constraints | Price > 0, quantity ≥ 1, progress 0–100, zoom ∈ {75,100,125,150} |
+
+This triple-check means no bad data can sneak in at any level.
+
+---
+
+## 10. Error Handling: Consistent and Predictable
+
+Every error from every Edge Function uses the **same shape**:
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Cart is empty",
+    "details": {}
+  }
+}
+```
+
+This means the frontend always knows what to look for. It doesn't have to guess whether errors will be in `err.message` or `err.data.reason` or somewhere else.
+
+The `errors.ts` shared file defines all error codes. Functions throw errors like:
+```typescript
+throw { status: 400, code: 'VALIDATION_ERROR', message: 'Cart is empty' }
+```
+And the error handler catches it and wraps it in the standard shape.
+
+---
+
+## 11. File Storage: Three Buckets
+
+Supabase Storage is configured with separate buckets for different file types. Each has its own security settings:
+
+| Bucket | Contents | Who Can Access |
+|---|---|---|
+| `book-covers` | Cover images (JPG/WebP) | Public (anyone can view) |
+| `book-pdfs` | Original PDF uploads | Admin only |
+| `book-pages` | Rendered page images (WebP) | Library owners only |
+| `book-illustrations` | Extracted inline illustrations | Library owners only |
+
+The `upload-book` Edge Function handles the entire PDF processing pipeline:
+1. Admin uploads a PDF via `/admin/upload`
+2. PDF is written to `book-pdfs` bucket
+3. Each page is rendered as a WebP image (with fonts and layout preserved)
+4. Page images are stored in `book-pages` bucket
+5. Inline illustrations are extracted and stored in `book-illustrations`
+6. All image URLs, page text (for search), and metadata are saved to `book_pages` and `book_illustrations` tables
+
+---
+
+## 12. External Services: Stripe and GoHighLevel
+
+### Stripe — Payments
+Stripe handles all money. The app never stores credit card numbers. Instead:
+- The frontend uses Stripe.js (with the publishable key `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`)
+- The backend uses the secret key to create PaymentIntents and manage subscriptions
+- Stripe sends **webhook events** to the `stripe-webhook` function to confirm when payments succeed or fail
+- The webhook is verified using a `STRIPE_WEBHOOK_SECRET` to ensure it's actually from Stripe
+
+**Events handled:**
+- `payment_intent.succeeded` → Fulfill order or activate subscription
+- `payment_intent.payment_failed` → Trigger payment failure email
+- `customer.subscription.updated` → Sync subscription status
+- `customer.subscription.deleted` → Cancel subscription + trigger cancellation email
+- `invoice.payment_failed` → Trigger payment failure email for recurring billing
+
+### GoHighLevel (GHL) — Emails
+Kane's Komet does **not** send emails directly. All outbound communication goes through GoHighLevel:
+
+- **Order confirmation** → `ORDER_CONFIRMED` tag applied → GHL automation sends the email
+- **Welcome email** → `WELCOME_PREMIUM` tag → GHL sends premium welcome
+- **Payment failure** → `PAYMENT_FAILED` tag → GHL sends retry instructions
+- **Cancellation** → `SUBSCRIPTION_CANCELLED` tag → GHL sends farewell email
+- **Event reminders** → GHL handles these via automation
+
+The GHL client (in `_shared/ghl-client.ts`) handles:
+- Looking up contacts by email
+- Creating new contacts
+- Resolving duplicate conflicts (a common GHL API edge case — handled with merge logic)
+- Updating contact fields and applying tags
+
+---
+
+## 13. Environment Variables
+
+### Frontend (Next.js / Vercel)
+
+| Variable | Purpose |
 |---|---|
-| **Supabase** | An open-source backend platform that provides a database, authentication, file storage, and serverless functions — all in one package |
-| **PostgreSQL** | The database engine Supabase uses. It's one of the most powerful and reliable databases in the world, used by companies like Apple and Instagram |
-| **Edge Function** | A small server-side program that runs on Supabase's servers. Used for complex operations like checkout and subscription management |
-| **Deno** | The runtime that executes Edge Functions. Similar to Node.js but more modern and secure |
-| **RLS (Row-Level Security)** | Database rules that control who can read or modify specific rows. Think of it as a security guard for each row in each table |
-| **Migration** | A numbered SQL file that makes a specific change to the database (create a table, add a column, etc.). Migrations run in order to build the full database |
-| **Seed Data** | Fake data loaded into the database for development and testing purposes |
-| **Trigger** | An automatic action the database performs when something happens (e.g., "when a new RSVP is created, increase the event's attendee count") |
-| **Zod** | A TypeScript library for validating data. We use it on both the frontend and backend to check user input |
-| **CHECK Constraint** | A database-level rule that rejects invalid data (e.g., "price must be greater than 0") |
-| **Environment Variable** | A secret or configuration value stored outside the code (like API keys). Never committed to Git. |
-| **Webhook** | A message sent from one service to another when something happens (e.g., Stripe tells our app "payment succeeded") |
-| **CDN** | Content Delivery Network — a global network of servers that serves files (like images) from the location closest to the user |
-| **Connection Pooling** | A technique for efficiently sharing database connections among many users, preventing the database from being overwhelmed |
-| **Idempotent** | An operation that produces the same result regardless of how many times you call it. Important for reliability (e.g., if a network retry sends the same request twice, it shouldn't charge the customer twice) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Safe-to-expose browser key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side admin key (bypasses RLS) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe frontend key |
+| `NEXT_PUBLIC_SHIPPING_RATE` | $5.99 flat shipping rate |
+| `NEXT_PUBLIC_TAX_RATE` | 0.05 (5% GST) |
+| `INTERNAL_API_SECRET` | Shared secret for internal API route protection |
+
+### Edge Functions (Supabase Dashboard Secrets)
+
+| Variable | Purpose |
+|---|---|
+| `SUPABASE_URL` | Supabase instance URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin-level database access |
+| `STRIPE_SECRET_KEY` | Stripe payment operations |
+| `STRIPE_WEBHOOK_SECRET` | Validates incoming Stripe webhook events |
+| `STRIPE_PREMIUM_RECURRING_PRICE_ID` | Stripe Price ID for $3.99/month plan |
+| `GHL_API_KEY` | GoHighLevel API access |
+| `GHL_LOCATION_ID` | GHL sub-account location |
+| `INTERNAL_API_SECRET` | Must match the frontend value |
 
 ---
 
-### Final Thought
+## 14. The Reader: How It Works
 
-This architecture document is the **blueprint for the kitchen**. Before writing a single line of backend code, we now know:
-- Exactly where every file goes (folder structure)
-- What technology handles each concern (Supabase, Stripe, GoHighLevel)
-- How security is enforced at every level (frontend + database + server logic)
-- How data is validated at every boundary (frontend + Edge Function + database)
-- How errors are communicated clearly to the user
-- How the system will scale as the platform grows
+The `app/read/[id]/page.tsx` is the most complex frontend component. Here's what it loads on startup:
 
-With the data model (Phase 2), API contract (Phase 3), and architecture (Phase 4) all locked in, the next step is **Phase 5: Implementation** — where we actually build the SQL migrations, write the Edge Functions, and connect everything together.
+1. **Book metadata** — title, author, illustrator
+2. **All pages** — fetched from `book_pages` (page number + image URL)
+3. **All illustrations** — fetched from `book_illustrations` (for inline display)
+4. **Reading progress** — last page read (from `reading_progress` table) — auto-resumes
+5. **Bookmarks** — user's bookmarks for this book
+6. **Highlights** — user's highlights for this book
+7. **Reading settings** — current zoom/theme
+
+When the user reads:
+- Page navigation updates `current_page` and `progress_percent` in the database
+- Progress is **debounced** (waits 5 seconds of no change before saving)
+- New highlights/bookmarks are inserted immediately
+- Settings changes (zoom, theme) are saved immediately
+
+---
+
+## 15. Admin Panel: `/admin`
+
+The admin panel is a full management interface at `/admin`. Routes include:
+
+| Path | Function |
+|---|---|
+| `/admin` | Dashboard (overview stats) |
+| `/admin/books` | Book catalog management (add, edit, delete, upload) |
+| `/admin/upload` | PDF upload pipeline (triggers `upload-book` Edge Function) |
+| `/admin/users` | User management (view, ban, role changes) |
+| `/admin/book-club` | Book Club selections management |
+| `/admin/discussions` | Discussion topic management |
+| `/admin/events` | Event management |
+
+Access is server-side protected: the Supabase middleware in `lib/supabase/middleware.ts` checks `role = 'admin'` and redirects unauthorized users before the page loads.
+
+---
+
+## 16. What's Intentionally Excluded
+
+These features **do not exist** and are not planned:
+
+- ❌ No Google/Apple/Social login
+- ❌ No user ratings or reviews
+- ❌ No wishlists
+- ❌ No audiobooks
+- ❌ No refunds (all sales final)
+- ❌ No membership pause (cancel only)
+- ❌ No in-app notifications
+- ❌ No analytics dashboard
+- ❌ No data export
+- ❌ No calendar invites for events
+- ❌ No dedicated "series" page
+- ❌ No gamification / reading streaks
+
+---
+
+## 17. Scalability: Built to Grow
+
+| Design | Why It Matters |
+|---|---|
+| **Page images** | The reader loads one WebP image per page rather than a full book — fast even on slow connections |
+| **Debounced progress saves** | The frontend waits 5 seconds before writing progress — prevents database overload on fast page-flipping |
+| **Denormalized counters** | Post counts, vote totals, attendee counts are pre-computed and updated by triggers, not recalculated on every request |
+| **Partial index on `is_book_club_eligible`** | The book club signup modal only needs to query a tiny subset of books — the index makes this instant |
+| **Vercel + Supabase Edge** | Both run on global CDN infrastructure — the app is geographically close to users worldwide |
+| **Cascade deletions** | Admin can safely delete books without manual cleanup — the database handles it atomically |
+
+---
+
+*Last updated: February 2026 — reflects live deployed codebase*

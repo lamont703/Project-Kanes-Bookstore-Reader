@@ -68,7 +68,9 @@ async function handlePaymentSuccess(supabase: any, paymentIntent: any) {
                 .eq('id', order.user_id)
         }
 
-        // 2. Fulfill the order: Add ebooks to library
+        // 2. Fulfill the order: Add digital access to library
+        //    - 'ebook'      → direct digital purchase
+        //    - 'komet_card' → physical card that also grants digital reading access
         const { data: items } = await supabase
             .from('order_items')
             .select('*, variant:book_variants(*)')
@@ -76,12 +78,12 @@ async function handlePaymentSuccess(supabase: any, paymentIntent: any) {
 
         if (items) {
             for (const item of items) {
-                if (item.variant.format === 'ebook') {
+                if (item.variant.format === 'ebook' || item.variant.format === 'komet_card') {
                     await supabase.from('user_library').upsert({
                         user_id: order.user_id,
                         book_id: item.variant.book_id,
                         source: 'purchase'
-                    })
+                    }, { onConflict: 'user_id,book_id' })
                 }
             }
         }

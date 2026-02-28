@@ -1,345 +1,357 @@
-# Phase 1: Frontend Audit — Plain English Guide
+# Phase 1: Frontend Audit — Plain English (As-Built)
 
-**Project:** Kane's Komet Book Reader  
-**Phase:** 1 of 6 — Frontend Audit  
-**Date:** 2026-02-18  
+> This document describes the **actual, implemented frontend** of Kane's Komet Book Reader — every page, feature, and behavior as it exists in the live codebase today.
 
 ---
 
-## What Is This Document?
+## 1. What Is Kane's Komet?
 
-This document explains, in plain English, everything the Kane's Komet Book Reader frontend currently does — every page, every button, every form, and every piece of data it touches. The purpose is to create a clear picture of what the backend needs to support. Think of this as the "what does the app do right now?" document before we build the real engine behind it.
+Kane's Komet is a **digital bookstore + members-only book club**. Users can:
+- Browse and buy books in multiple formats (digital, physical, Komet Card)
+- Read their purchased books in the in-app reader
+- Join the Book Club for premium access and exclusive perks
+- Participate in community discussions (premium only)
 
----
-
-## The Big Picture
-
-Kane's Komet Book Reader is an online bookstore with a cosmic/funky theme. Right now, it's a good-looking front porch with nothing behind the door — all the data is fake (hardcoded mock data), the login is pretend, and nothing actually saves to a server. The backend we're about to build will be the real house behind that porch.
-
-The app has **5 major areas**:
-
-1. **The Bookstore** — Browse, search, and buy books
-2. **The Book Club** — A subscription service with perks and monthly book picks
-3. **The Reader** — An in-browser reading experience with highlights and bookmarks
-4. **The Community** — Discussion forums and events
-5. **The Admin Panel** — For managing everything behind the scenes
+The frontend is built with **Next.js (App Router)**, **React**, **TypeScript**, and **TailwindCSS**. It runs on **Vercel** and connects to a **Supabase** backend.
 
 ---
 
-## Area 1: The Bookstore
+## 2. The Pages: A Complete Map
 
-### What Users Can Do
+### Public Pages (No Login Required)
 
-**Browse Books**
-- Users land on a catalog page showing all available books as cards in a grid.
-- They can **search** by typing a book title or author name.
-- They can **filter** by genre using clickable genre buttons (Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking).
-- They can **sort** by title (A-Z) or price (low to high, high to low).
-- Each book card shows: cover image, title, author, genre tag, and price.
+| Page | URL | What It Shows |
+|---|---|---|
+| **Landing / Home** | `/` | Hero section, feature highlights, call to action |
+| **Browse Books** | `/browse` | Full book catalog with search and genre filters |
+| **Book Detail** | `/book/[id]` | Book info, formats, pricing, add-to-cart |
+| **Shopping Cart** | `/cart` | Cart contents, format badges, remove items |
+| **Book Club** | `/book-club` | Premium access info, current selection, events |
+| **Login** | `/login` | Email/password login and signup |
 
-**View a Book's Details**
-- Clicking on a book card takes you to a detail page.
-- The detail page shows: cover image, genre badge, title, author, full description, and pricing options.
-- Users can pick a **format**: ebook, paper book, or "Komet Card" (a proprietary format). Each format has a different price.
+### Protected Pages (Login Required)
 
-**Add to Cart**
-- From either the browse page or the book detail page, users can click "Add to Cart."
-- The button changes to "Added to Cart" with a checkmark for 2 seconds to confirm.
-- The cart icon in the top navigation bar updates with a count of items.
-- Users do NOT need to be logged in to add items to the cart.
+| Page | URL | What It Shows |
+|---|---|---|
+| **Checkout** | `/checkout` | Shipping (if physical), dealer code, Stripe payment |
+| **Dashboard** | `/dashboard` | Library, subscriptions, order history |
+| **Book Reader** | `/read/[id]` | In-app book reader (page images) |
 
-**View the Cart**
-- The cart page shows each item with its cover image, title, format (as a colored badge), quantity, and price.
-- There's an order summary showing subtotal, GST (5% tax), and the total.
-- Users can remove individual items or clear the entire cart.
-- If a user tries to proceed to checkout without being logged in, they're redirected to the login page with a message saying "Please sign in to complete your purchase."
+### Admin Pages (Admin Role Required)
 
-**Checkout**
-- The checkout page has a shipping form (first name, last name, address, city, zip code, country) pre-filled with demo values.
-- It shows a mock payment section ("Card ending in 4242").
-- There's a final order summary with all items, subtotal, shipping ($5.99), GST, and grand total.
-- Clicking "Place Order" shows a 2-second processing animation, then a confirmation screen.
-- The cart is cleared after a successful order.
-- **None of this actually processes a real payment or creates a real order.** It's all simulated.
-
-### What the Backend Needs to Support
-
-- A **books database** with all the info: title, author, description, genre, cover image, and pricing per format (ebook/paper/komet card).
-- **Search and filtering** on the server side (so we're not loading every book just to filter).
-- A **cart system** — either stored on the server (tied to user accounts) or validated at checkout time.
-- **Real order processing** — accepting shipping details, validating payment, creating order records.
-- **Inventory tracking** — knowing whether each format of each book is in stock.
+| Page | URL | What It Does |
+|---|---|---|
+| **Admin Overview** | `/admin` | Stats, quick links |
+| **Books Catalog** | `/admin/books` | View, search, edit, delete books |
+| **Upload Book** | `/admin/upload` | PDF upload pipeline |
+| **Book Club Mgmt** | `/admin/book-club` | Manage monthly selections |
+| **User Management** | `/admin/users` | View users, ban, change roles |
+| **Discussion Topics** | `/admin/discussions` | Create and manage discussion topics |
+| **Events** | `/admin/events` | Create and manage book club events |
 
 ---
 
-## Area 2: The Book Club
+## 3. The Header: Always Present
 
-### What Users See
+The `SiteHeader` component appears on **every page**. It's smart — it shows different content depending on who you are:
 
-**Book Club Landing Page**
-- A big hero section showing the pricing: **$49.99 one-time** setup fee plus **$3.99/month** ongoing.
-- The current month's featured book selection with cover art, theme name, and description.
-- A list of **6 membership benefits**:
-  1. Official Komet T-Shirt
-  2. 2 Free E-Books
-  3. Surprise Gift Item
-  4. Kane Dealer Code (35% off all future purchases)
-  5. $3.99/mo E-Book Access (1 book per month)
-  6. Community Access
-- A collection of 5 "bundle books" users can pick from during sign-up.
-- Upcoming and past monthly selections (past ones scroll horizontally).
-- Upcoming public events.
-- A big "Subscribe" call-to-action button (hidden if the user is already a member).
+| Situation | What the Header Shows |
+|---|---|
+| **Guest (not logged in)** | Logo, nav links, cart icon, Login button |
+| **Free reader** | Logo, nav links, cart icon with count (bounces when item added), Dashboard link, Logout |
+| **Premium member** | Same as above, with visual indicator of premium status |
+| **Admin** | Same as above, plus Admin Panel link |
 
-**Subscription Sign-Up Flow (4-Step Modal)**
-
-When a user clicks "Subscribe," a modal walks them through 4 steps:
-
-1. **Personal Details** — Full name, email, phone, date of birth, mailing address, t-shirt size (XS through 3XL). All are required except phone.
-
-2. **Pick Your Books** — Choose exactly 2 books from a selection of 5. Users under 18 (based on their date of birth) won't see one specific title that's flagged as adult content. Users must select exactly 2 to continue. (Note: Reference to page counts has been removed for simplicity).
-
-3. **Payment & Summary** — Shows what they're getting (membership, 2 selected books, t-shirt). Has a credit card form (name, card number, expiry, CVC). Displays: One-time Membership: $49.99, Monthly E-Book: $3.99/mo, Total Due Today: $53.98. **No actual payment processing happens.**
-
-4. **Confirmation** — Success screen with a confetti-style message. Sets the user as "logged in" and reloads the page.
-
-### What the Backend Needs to Support
-
-- **Subscription management** — creating subscriptions, tracking status (active/cancelled), billing dates, and history.
-- **Payment processing** (Stripe or similar) — charging $49.99 initially, then $3.99/month recurring.
-- **Fulfillment tracking** — T-shirt shipment, book delivery.
-- **Discount code system** — The 35% "Kane Dealer Code" needs to be a real promo code that works at checkout.
-- **Monthly book selection management** — assigning books to months, tracking current/upcoming/past.
-- **Age verification** — Server-side check to restrict adult content for users under 18.
+**Cart badge animation**: When an item is added to the cart, the cart icon bounces to give visual feedback. This is handled by comparing the previous and current cart count via a React `useRef`.
 
 ---
 
-## Area 3: The Digital Reader
+## 4. The Bookstore: Browse, Choose, Buy
 
-### What Users Can Do
+### Browse Page (`/browse`)
 
-**Read Books**
-- The reader opens in a full-screen view showing one chapter at a time.
-- Users navigate between chapters using "Previous Chapter" and "Next Chapter" buttons.
-- A chapter selector dropdown lets users jump to any chapter directly.
+**What it does:**
+- Shows all published books as cards in a grid
+- Search bar filters by title/author in real-time
+- Genre dropdown filters (Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, Cooking)
+- Sort options: A-Z, Z-A, by price
+- Each card shows: cover image, title, author, genre badge, series label (if applicable), format badges, and an "Add to Cart" button
 
-**Customize the Reading Experience**
-- **Font size** — adjustable from 12px to 32px in 2px increments.
-- **Font family** — Serif, Sans-Serif, or Monospace.
-- **Line height** — adjustable from 1.2 to 2.5 in 0.2 increments.
-- **Text alignment** — Left-aligned or Justified.
-- **Theme** — Dark mode, Light mode, or Sepia (warm parchment look).
+**Add to Cart button behavior:**
+- Clicking shows a quick format selector (ebook, paper book, Komet Card) if multiple formats exist
+- After selecting format and clicking again, the button temporarily changes to a checkmark/success state to confirm
+- Cart count in header updates instantly
 
-**Highlight Text**
-- Users can select text and a color popup appears with 4 colors: yellow, green, blue, pink.
-- They can optionally add a note to the highlight.
-- Highlights are saved and visible in a sidebar panel.
+**No login required** to browse or add to cart. Login is only required at checkout.
 
-**Bookmark Pages**
-- Users can bookmark the current reading position with an optional note.
-- Bookmarks appear in the sidebar with the chapter name and any attached note.
+### Book Detail Page (`/book/[id]`)
 
-**Track Reading Progress**
-- The app automatically saves which chapter the user is on.
-- Progress is stored locally (in the browser) and shown as a percentage on the library dashboard.
+**What it shows:**
+- Book cover image
+- Title, author, illustrator (if one exists), genre, series info
+- Description
+- Purchase options for each available format (ebook, paper book, Komet Card)
+- Each format shows its price and a dedicated "Add to Cart" button
+- Out-of-stock formats show an "Out of Stock" label instead of a button
 
-### What the Backend Needs to Support
+**What's NOT shown:**
+- No page count, published year, or ISBN (removed)
+- No user ratings or reviews (removed entirely)
+- No "Quick Stats" section
 
-- **Book content delivery** — Serving chapter text from a database or file storage.
-- **Highlights storage** — Saving highlights per user per book, with text, color, chapter reference, and optional notes.
-- **Bookmarks storage** — Saving bookmarks per user per book, with chapter reference and optional notes.
-- **Reading progress sync** — So users can pick up where they left off on any device.
-- **Reading settings sync** — So users' font/theme preferences follow them across devices.
+### Shopping Cart (`/cart`)
 
----
+**What it shows:**
+- Each cart item: book cover, title, format badge, quantity controls, price, remove button
+- Order summary: subtotal, shipping note
+- "Checkout" button → redirects to `/login?redirect=/checkout` if not logged in, otherwise to `/checkout`
 
-## Area 4: The Community
-
-### Discussions
-
-**What's There Now**
-- A list page showing discussion threads with: title, author name, category label, stats (replies, likes, views), and last reply info.
-- Links to individual discussion thread pages (these exist in the routes but aren't fully built out).
-
-**What's Missing**
-- The ability to actually create a new discussion post.
-- The ability to reply to existing discussions.
-- User profiles for discussion participants.
-
-### Events
-
-**What's There Now**
-- A page showing upcoming events with: date, title, description, time, location (with virtual/in-person indicators), attendee count, and an RSVP button.
-- An RSVP modal is referenced but the implementation is minimal.
-
-**What the Backend Needs to Support**
-- **Discussion threads** — CRUD for topics, posts/replies, like/vote system.
-- **Event management** — CRUD for events, RSVP tracking, attendee counts.
-- **User attribution** — Tying discussions and RSVPs back to user accounts.
+**Cart persistence:**
+- Cart state is stored in browser memory via React Context + `localStorage`
+- Works for guests (no account needed to add items)
+- Guest carts are not automatically merged with account carts on login (future consideration)
 
 ---
 
-## Area 5: The Admin Panel
+## 5. The Checkout Flow
 
-The admin panel is a separate section of the app with its own sidebar navigation. Here's what each section does:
+**URL**: `/checkout`  
+**Required**: Must be logged in  
+**Redirects**: Non-authenticated users are sent to `/login?redirect=/checkout&message=purchase`
 
-### Admin Dashboard (`/admin`)
-- Shows 4 navigation cards: Catalog, Monthly Selection, Discussion Topics, Events.
-- Shows a "Community Snapshot" table of the 5 most recent users with their name, email, subscription tier (free vs. premium), and last active date.
+### The Four-Step Visual Flow
 
-### Catalog Management (`/admin/books`)
-- A table of all books with: cover thumbnail, title + author, genre badge, price, published/draft status, and action buttons (view, edit, delete).
-- Search by title or author, filter by genre, sort by title or price.
-- "Add New Book" button links to a book creation form.
-- "Edit" button links to an edit form.
-- "Delete" shows a confirmation dialog, then shows a success toast (but doesn't actually delete since there's no real database).
-- Loading skeletons appear for 1.2 seconds to simulate data fetching.
+**Step 1: Shipping (if physical items)**  
+If any cart item is NOT an ebook, a shipping form appears with:
+- First name, Last name (required)
+- Street address (min 5 chars)
+- City, Zip (5-digit or 9-digit US format), Country
+- Real-time field validation with error highlighting
+- If ebook only → shipping form is hidden, replaced with "Digital Delivery" card
 
-### Monthly Selection Management (`/admin/book-club`)
-- Shows the currently active book club selection prominently with the book cover, title, author, month, theme, and description.
-- Below that, a list of past and upcoming selections.
-- A "New Featured Volume" button opens a dialog where the admin can:
-  - Browse and select a book from the catalog (searchable grid with thumbnails).
-  - Set the target month and year.
-  - Add a theme name and description.
-  - Save the selection.
+**Step 2: Dealer Code**
+- Input field for optional dealer code
+- "Apply" button (or press Enter) → calls `/api/validate-dealer-code`
+- Success: shows code, discount %, and dollar amount saved in green
+- Applied code locked to the session (can be removed with "Remove" button)
+- The backend prevents self-use of your own code
 
-### Discussion Management (`/admin/discussions`)
-- Lists all discussion topics with: category badge, featured/pinned indicators, title, description, post count, member count, and last activity date.
-- Each topic has buttons to: pin/unpin, feature/unfeature, edit, delete.
-- "New Topic" button opens a create dialog with: title, description, category dropdown (General, Book Club, Sci-Fi, Fantasy, News), linked book dropdown (optional), pin toggle, feature toggle.
-- Loading skeletons on initial load.
+**Step 3: Order Summary (sticky sidebar)**
+- Lists all items with cover image, title, format badge, price
+- Shows: Subtotal, Dealer Discount (if applied), Shipping ($5.99 or "Free (Digital)"), GST (5%), Total
 
-### Event Management (`/admin/events`)
-- Lists upcoming and past events separately, each showing: cover image, date, time, type badge (virtual/in-person), title, description, attendee count, location, public/private indicator.
-- Each event has edit and delete buttons.
-- "Schedule Event" button opens a create dialog with: title, description, date, time, environment type (virtual/in-person), location/link, cover image URL, public toggle.
-- Loading skeletons on initial load.
+**Step 4: Payment**
+- "Continue to Payment" button → calls Edge Function `process-checkout`
+- On success: Stripe `<Elements>` component loads the embedded Stripe payment form (night theme, Komet red primary color)
+- User enters card details in the Stripe form
+- On payment success: cart is cleared, confirmation screen appears
+- Confirmation shows order number (first 8 chars of order ID, uppercased)
+
+**Free orders** (100% dealer discount): Order is processed without showing Stripe form. Confirmation appears directly.
+
+---
+
+## 6. The Dashboard: Your Personal Space
+
+**URL**: `/dashboard`  
+**Required**: Must be logged in
+
+Implemented in the `DashboardContent` component. Sections include:
+
+### Your Library
+- All books in the user's library (purchased, subscription freebies, gifts, monthly picks)
+- Each book shows: cover, title, author, format source badge, "Read Now" button → `/read/[id]`
+- If library is empty: prompt to browse the store
+
+### Subscription Status
+- Shows current plan (Free or Premium)
+- If premium: shows subscription status (Active, Cancelled, Past Due)
+- If active: shows "Cancel Subscription" button → calls `cancel-subscription` Edge Function
+- If cancelled: shows "Reactivate" button → calls `reactivate-subscription` Edge Function
+- If free: shows "Join the Book Club" button → opens subscription modal
+
+### Order History
+- List of all past orders with date, total, status badge
+- Expandable to show individual items per order
+
+### Dealer Code (Premium only)
+- Shows the user's unique dealer code (formatted `KANE-NAME-####`)
+- One-click copy to clipboard
+- Sharing instructions
+
+### Account Details
+- Display name, email
+- Subscription details
+
+---
+
+## 7. The Subscription Modal
+
+**Triggered by**: "Join the Book Club" button anywhere on the site  
+**Component**: `SubscriptionModal`
+
+A multi-step modal flow:
+
+| Step | Name | What Happens |
+|---|---|---|
+| 1 | **What You Get** | Overview of premium perks |
+| 2 | **Book Club Details** | Terms, pricing ($49.99 + $3.99/mo) |
+| 3 | **Choose Books** | Select 2 books from up to 5 eligible books (`is_book_club_eligible = true`). Adult books hidden for under-18 users. |
+| 4 | **Your Info** | Full name, phone, mailing address, T-shirt size |
+| 5 | **Payment** | Stripe embedded form (calls `create-subscription` Edge Function) |
+| 6 | **Success** | Confirmation, dealer code shown, redirect to dashboard |
+
+**Validation:**
+- Step 3: Must select exactly 2 books (min 2, max 2)
+- Step 4: All fields required
+- Step 5: Stripe handles card validation
+
+---
+
+## 8. The Book Reader: Reading Experience
+
+**URL**: `/read/[id]`  
+**Required**: Must be logged in + book must be in library (enforced by RLS on book_pages)
+
+### What the Reader Does
+
+- **Page navigation**: Previous / Next buttons to navigate through rendered page images
+- **"Page X of Y" display**: Shows current position in the book
+- **Auto-resume**: On first load, jumps to last read page (from `reading_progress` table)
+- **Progress saved**: Every page change saves progress to the database (debounced 5 seconds)
+- **Highlights panel**: Sidebar shows existing highlights; can add new ones in 4 colors (yellow, green, blue, pink); optional note per highlight
+- **Bookmarks panel**: Sidebar shows existing bookmarks; can bookmark the current page with an optional label
+- **Settings panel**: Theme (Dark/Light/Sepia) and Zoom (75%/100%/125%/150%) controls
+- **Two-panel layout**: Main reading area + collapsible sidebar (highlights, bookmarks, settings)
+
+### Key Technical Behaviors
+
+- Pages load as rendered WebP images (exact PDF visual fidelity preserved)
+- The reader component (`app/read/[id]/page.tsx`) is a "client component" (`"use client"`)
+- Reading settings that don't map to the page-image reader (font size, font family) are stored in `localStorage` via `lib/reading-storage.ts` — they are **not** persisted to the server-side `reading_settings` table. The server persists only zoom and theme.
+- Highlights are capped at 10 per book. New highlight attempts beyond 10 show an error toast.
+- Bookmarks are capped at 10 per book.
+
+---
+
+## 9. The Book Club Page
+
+**URL**: `/book-club`  
+**Required**: Public page (no login needed to view)
+
+**What it shows:**
+- "Kane's Komet Book Club" hero section with "Premium Access" framing
+- Current monthly book selection (publicly visible)
+- Upcoming selections (if any)
+- Book club events (public events visible to everyone; premium events visible only to premium + admin)
+- RSVP buttons (login required to RSVP)
+
+**Premium upsell:**
+- Non-premium users see a "Join the Book Club" CTA that opens the subscription modal
+
+**Discussion rooms section:**
+- Displays the discussion forum rooms (categories)
+- Locked card + "premium members only" message for non-premium users
+- Responsive layout — mobile-optimized with correct stacking behavior
+
+---
+
+## 10. The Admin Panel
+
+**URL**: `/admin/*`  
+**Required**: Must be logged in with `role = 'admin'`
+
+**Layout**: Admin sidebar navigation + content area
+
+### Admin Sidebar Navigation
+Links to: Dashboard, Books, Upload, Book Club, Users, Discussions, Events
+
+### Book Catalog (`/admin/books`)
+- Search bar, status filter (Draft/Published), pagination
+- Table of all books with title, author, genre, status, variants, created date
+- Edit button → opens edit modal/form
+- Delete button → soft-delete (marks `deleted_at`)
+- **Book Club Eligibility checkbox** on each book edit: sets `is_book_club_eligible = true/false`
+
+### Upload Book (`/admin/upload`)
+- Upload cover image + PDF file
+- Fields: title, author, illustrator (optional), genre, series info, age restriction toggle, price per format (ebook required; paper book + Komet Card optional)
+- Submits to `upload-book` Edge Function
+- Progress indicator during PDF processing
 
 ### User Management (`/admin/users`)
-- Table showing: name + email, join date, subscription tier badge, books owned count, last active date, and actions dropdown.
-- Search by name or email.
-- Filter by: All Users or Book Club Users (premium).
-- Actions dropdown for each user has: "Manage Subscription" (opens a dialog to switch between free and premium) and "Ban User" (button exists but doesn't do anything yet).
+- Table of all users: name, email, role, subscription status, join date
+- Ban/unban toggle
+- Role change (reader ↔ admin)
 
-### What the Backend Needs to Support
+### Book Club Management (`/admin/book-club`)
+- Data fetched from Supabase in real time
+- Create new monthly selection: choose book, set month/year/theme/status
+- Delete existing selections
+- All data via Next.js API route `/api/admin/`
 
-- **All CRUD operations** need to actually persist data to a database.
-- **Role-based access control** — Only admins should be able to access `/admin` pages. Right now, the nav link is just hidden from non-admins in JavaScript, which means anyone who types the URL can access it.
-- **Image upload** — For book covers and event images. Right now these just reference URLs or files in the public folder.
-- **Real user management** — Creating, reading, updating user accounts and their subscription statuses.
-- **Audit logging** — Tracking who made what changes and when (especially for admin actions).
+### Discussion Topics (`/admin/discussions`)
+- Create discussion topics with title, description, category (General/Book Club/News/genre), optional book link
+- Pin/feature flags
+- Delete topics (soft delete)
 
----
-
-## How Data Currently Works (and Why It Needs to Change)
-
-### Currently: Everything is Fake
-
-The app uses **mock data files** — TypeScript files that export hardcoded arrays and objects:
-- `lib/mock-books.ts` — 8 fake books with titles, authors, prices, and format variants.
-- `lib/mock-book-club-data.ts` — Fake book club selections, discussion topics, events, and subscription info.
-- `lib/mock-book-content.ts` — Fake chapter content for the reader.
-- `lib/mock-user-data.ts` — Fake user library with 4 "owned" books and reading progress.
-- `lib/mock-admin-data.ts` — 5 fake admin users with names, emails, and subscription tiers.
-
-### Currently: Browser Storage for State
-
-Anything that needs to persist between page reloads uses the browser's `localStorage`:
-- **Shopping cart** — Stored as `komet_cart` in the browser.
-- **Login status** — Just a flag called `komet_subscription_active` set to `"true"`.
-- **Reading highlights, bookmarks, progress, and settings** — All stored locally under keys like `komet-highlights`, `komet-bookmarks`, etc.
-
-### Why This Needs to Change
-
-1. **Data disappears** — If a user clears their browser data or switches devices, everything is gone: cart, reading progress, highlights, login status.
-2. **No real security** — Anyone can set `komet_subscription_active = "true"` in their browser console and "become" a logged-in admin.
-3. **No shared state** — Admin changes (adding books, managing events) only exist in the current browser tab. Other users never see them.
-4. **No payments** — The checkout and subscription flows don't charge anyone or create real orders.
-5. **No user accounts** — There's no database of users. "Registering" just sets a browser flag.
+### Events (`/admin/events`)
+- Create, edit events: title, date, time, location, type (virtual/in-person), cover image, public/private toggle
+- Manage status (upcoming/past/cancelled)
 
 ---
 
-## What the Backend Needs to Handle (Summary)
+## 11. Login & Auth
 
-### User Accounts
-- Registration with name, email, phone, date of birth, and password.
-- Login and logout with real sessions or tokens.
-- Password hashing and security.
-- User profiles with purchase history, reading progress, and preferences.
+**URL**: `/login`  
+**Flow**: Email + password only. No social login.
 
-### Book Management
-- A database of books with all their info (title, author, description, genre, cover image, prices per format, stock levels).
-- Search, filter, and sort capabilities on the server.
-- Image storage for book covers.
-
-### Shopping & Orders
-- A real cart system (server-side or validated at checkout).
-- Order creation with payment processing (Stripe integration).
-- Order history for users.
-- Shipping rate calculation (currently hardcoded at $5.99).
-- Tax calculation (currently hardcoded at 5% GST).
-
-### Subscriptions
-- Book Club subscription management with recurring billing.
-- Subscription status tracking (active, cancelled, expired).
-- Discount code generation and validation (35% Kane Dealer Code).
-- Monthly book assignment to subscribers.
-
-### Reading Experience
-- Chapter content storage and delivery.
-- Per-user highlights, bookmarks, and reading progress stored server-side.
-- Reading preference sync across devices.
-
-### Community
-- Discussion forum with threads and replies.
-- Event management with RSVP tracking.
-
-### Admin Tools
-- Server-side admin access control (not just hiding nav links).
-- Real CRUD operations that persist to the database.
-- Image upload for book covers and event banners.
-- User management with subscription control.
+- Supabase Auth handles authentication
+- On successful login: session cookie set, redirect to original destination (or `/dashboard`)
+- Registration on the same page (toggle between Login/Register forms)
+- On registration: Supabase creates the auth user → DB trigger auto-creates `public.users` profile → `ghl-sync` is called to create the GHL contact
 
 ---
 
-## Known Problems to Fix
+## 12. State Management
 
-### Security Issues
-
-1. **Fake login** — Biggest issue. There's no real authentication. A cookie or token-based auth system is needed.
-2. **No admin protection** — Anyone can access admin pages by typing the URL. Need server-side middleware to check user roles.
-3. **No payment security** — Credit card forms exist but don't connect to any payment processor. Need Stripe or equivalent.
-4. **No form validation on the server** — All validation happens (barely) in the browser. Need server-side validation for all inputs. Passwords will be required to match and be at least 8 characters.
-
-### Data Problems
-
-1. **Genre mismatch** — Standardizing on the list: Crime, Children, PTP, Spiritual, Adult, Sports, Self-Help, and Cooking.
-2. **Missing data fields** — The `book.pageCount` references are being removed.
-3. **Two different discussion data shapes** — Standardizing on the detailed model for both views.
-4. **No pagination** — All pages load every item at once. With real data, this will need pagination or infinite scrolling.
-
-### Missing Features
-
-1. **No order history** — Users can't see their past purchases.
-2. **No user profile page** — No way to update account info, password, etc.
-3. **No image upload** — Admins can't upload book covers or event images through the app.
-4. **No email system** — No order confirmations, welcome emails, event reminders, etc.
-5. **No search within the reader** — Can't search for text within a book.
-6. **Discussion participation** — Users can interact with admin-created topics by posting comments and replies, but they cannot create their own topics.
+| State Type | Where It Lives | Mechanism |
+|---|---|---|
+| Cart | Client-side | React Context (`cart-context`) + `localStorage` |
+| Auth state | Client-side | React Context (`auth-context`) — wraps Supabase session |
+| Reading progress | Server | `reading_progress` table — synced on page change |
+| Reading settings (zoom, theme) | Server | `reading_settings` table |
+| Reading settings (font, etc.) | Client only | `localStorage` via `lib/reading-storage.ts` |
+| Admin data | Server | Fetched via Next.js API routes (service-role client) |
 
 ---
 
-## What Comes Next
+## 13. Identified Issues & Known Limitations
 
-This audit tells us exactly what the backend needs to do. The next phases will:
-
-- **Phase 2 (Data Modeling)** — ✅ Already completed. Define the database tables and relationships.
-- **Phase 3 (API Design)** — Define the exact endpoints, request/response formats, and error handling.
-- **Phase 4 (Authentication)** — Build real login, registration, and session management.
-- **Phase 5 (Core APIs)** — Build the book catalog, cart, checkout, and order APIs.
-- **Phase 6 (Integration)** — Connect the frontend to the real backend, replacing all mock data.
+| Issue | Notes |
+|---|---|
+| **Komet Card doesn't grant digital access yet** | The `stripe-webhook` only grants `user_library` access for `format === 'ebook'`. Komet Card webhook grant is a known TODO. |
+| **Guest cart not merged on login** | If a guest adds items and then logs in, their cart items are not merged with any server-side guest session. |
+| **Font/line-height reader settings** | The `ReadingSettingsPanel` component shows font size, family, line height controls — but these don't apply to the page-image reader and are only stored in `localStorage`, not synced to server. |
+| **No loading skeletons on admin tables** | Admin pages fetch data on mount without skeleton UI for loading states. |
 
 ---
 
-*This document is the plain English companion to the technical audit. For exact data structures, API endpoint specifications, and code-level details, refer to `phase1-frontend-audit-technical.md`.*
+## 14. Tech & Tools Used
+
+| Tool | Purpose |
+|---|---|
+| **Next.js 14 (App Router)** | Frontend framework + SSR |
+| **React 18** | Component model |
+| **TypeScript** | Type safety |
+| **TailwindCSS** | Utility-first styling |
+| **Supabase JS SDK** | Auth + realtime database queries |
+| **Stripe.js + @stripe/react-stripe-js** | Embedded payment form |
+| **Lucide React** | Icon library |
+| **Sonner** | Toast notifications |
+| **shadcn/ui (radix primitives)** | UI component library |
+| **Zod** | Schema validation on forms |
+
+---
+
+*Last updated: February 2026 — reflects live deployed codebase*
