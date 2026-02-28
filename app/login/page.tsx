@@ -26,6 +26,7 @@ function AuthContent() {
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
 
   // Registration State
   const [regData, setRegData] = useState({
@@ -42,6 +43,7 @@ function AuthContent() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoggingIn(true)
+    setLoginError(null)
 
     const { error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
@@ -49,16 +51,20 @@ function AuthContent() {
     })
 
     if (error) {
+      let errorMessage = error.message
       if (error.message.toLowerCase().includes("email not confirmed")) {
-        toast.error("Please confirm your email before logging in. Check your inbox for the activation link!")
-      } else {
-        toast.error(error.message)
+        errorMessage = "Please confirm your email before logging in. Check your inbox for the activation link!"
+      } else if (error.message.toLowerCase().includes("invalid login credentials")) {
+        errorMessage = "Incorrect email or password. Please double check your entries and try again."
       }
+
+      setLoginError(errorMessage)
+      toast.error(errorMessage)
       setIsLoggingIn(false)
     } else {
       toast.success("Welcome back, Explorer!")
-      router.push(redirectPath)
-      router.refresh()
+      // Use window.location.href for a full refresh to ensure cookies and state are synced
+      window.location.href = redirectPath
     }
   }
 
@@ -106,8 +112,8 @@ function AuthContent() {
     } else {
       if (data.session) {
         toast.success("Welcome to Kane's Komets!")
-        router.push(redirectPath)
-        router.refresh()
+        // Use window.location.href for a full refresh to ensure cookies and state are synced
+        window.location.href = redirectPath
       } else {
         // Fallback if email confirmation is re-enabled
         toast.success("Account created! Check your email to confirm.")
@@ -174,6 +180,13 @@ function AuthContent() {
           <div className="p-6">
             <TabsContent value="login">
               <form className="space-y-6" onSubmit={handleLogin}>
+                {loginError && (
+                  <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive animate-in fade-in slide-in-from-top-1">
+                    <AlertDescription className="font-medium">
+                      {loginError}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground" htmlFor="login-email">
                     EMAIL
