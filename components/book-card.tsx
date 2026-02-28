@@ -17,9 +17,10 @@ export function BookCard({ book }: BookCardProps) {
   const [isAdded, setIsAdded] = useState(false)
   const [selectedFormat, setSelectedFormat] = useState<BookFormat>("ebook")
 
-  const currentVariant = book.variants.find(v => v.format === selectedFormat) || book.variants[0]
+  const currentVariant = book.variants.find(v => v.format === selectedFormat) ?? book.variants[0] ?? null
 
   const handleAddToCart = () => {
+    if (!currentVariant) return
     addToCart({
       id: book.id,
       variantId: currentVariant.id || "",
@@ -42,9 +43,11 @@ export function BookCard({ book }: BookCardProps) {
             fill
             className="object-cover transition-transform group-hover:scale-105"
           />
-          <div className="absolute top-2 right-2 bg-secondary/90 backdrop-blur-sm text-secondary-foreground px-2 py-1 rounded text-sm font-bold">
-            ${currentVariant.price}
-          </div>
+          {currentVariant && (
+            <div className="absolute top-2 right-2 bg-secondary/90 backdrop-blur-sm text-secondary-foreground px-2 py-1 rounded text-sm font-bold">
+              ${currentVariant.price}
+            </div>
+          )}
         </div>
       </Link>
 
@@ -63,32 +66,38 @@ export function BookCard({ book }: BookCardProps) {
         </div>
 
         {/* Variant Selection */}
-        <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
-          {book.variants.map((v) => (
-            <button
-              key={v.format}
-              onClick={() => setSelectedFormat(v.format)}
-              disabled={!v.available}
-              className={`flex-1 flex flex-col items-center py-1.5 rounded transition-all ${selectedFormat === v.format
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "hover:bg-background/50 text-muted-foreground"
-                } ${!v.available ? "opacity-30 cursor-not-allowed" : ""}`}
-            >
-              {v.format === "ebook" && <Tablet className="w-3.5 h-3.5" />}
-              {v.format === "paper_book" && <BookIcon className="w-3.5 h-3.5" />}
-              {v.format === "komet_card" && <CreditCard className="w-3.5 h-3.5" />}
-              <span className="text-[10px] font-bold uppercase mt-0.5">
-                {v.format === "ebook" ? "E-Book" : v.format === "paper_book" ? "Paper" : "Komet Card"}
-              </span>
-            </button>
-          ))}
-        </div>
+        {book.variants.length > 0 ? (
+          <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
+            {book.variants.map((v) => (
+              <button
+                key={v.format}
+                onClick={() => setSelectedFormat(v.format)}
+                disabled={!v.available}
+                className={`flex-1 flex flex-col items-center py-1.5 rounded transition-all ${selectedFormat === v.format
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "hover:bg-background/50 text-muted-foreground"
+                  } ${!v.available ? "opacity-30 cursor-not-allowed" : ""}`}
+              >
+                {v.format === "ebook" && <Tablet className="w-3.5 h-3.5" />}
+                {v.format === "paper_book" && <BookIcon className="w-3.5 h-3.5" />}
+                {v.format === "komet_card" && <CreditCard className="w-3.5 h-3.5" />}
+                <span className="text-[10px] font-bold uppercase mt-0.5">
+                  {v.format === "ebook" ? "E-Book" : v.format === "paper_book" ? "Paper" : "Komet Card"}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center p-2 bg-muted/30 rounded-lg">
+            <span className="text-xs text-muted-foreground">No formats available</span>
+          </div>
+        )}
 
         <Button
           className={`w-full transition-all ${isAdded ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
           size="sm"
           onClick={handleAddToCart}
-          disabled={isAdded}
+          disabled={isAdded || !currentVariant}
         >
           {isAdded ? (
             <>
@@ -98,7 +107,7 @@ export function BookCard({ book }: BookCardProps) {
           ) : (
             <>
               <ShoppingCart className="w-4 h-4 mr-2" />
-              Add to Cart
+              {currentVariant ? "Add to Cart" : "Unavailable"}
             </>
           )}
         </Button>

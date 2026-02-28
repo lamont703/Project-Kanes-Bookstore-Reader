@@ -32,8 +32,13 @@ export function SiteHeader() {
     }, [cartCount])
 
     const handleLogout = async () => {
-        await signOut()
-        window.location.reload()
+        try {
+            await signOut()
+            // Forcing a hard redirect to home to clear all state and ensure navigation
+            window.location.href = "/"
+        } catch (error) {
+            console.error("Logout failed:", error)
+        }
     }
 
     // Close menu when route changes

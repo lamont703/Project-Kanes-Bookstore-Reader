@@ -74,11 +74,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [supabase])
 
     const signOut = async () => {
-        await supabase.auth.signOut()
-        setUser(null)
-        setSession(null)
-        setProfile(null)
-        setSubscription(null)
+        try {
+            // Use local state clearing for immediate UI feedback
+            setUser(null)
+            setSession(null)
+            setProfile(null)
+            setSubscription(null)
+
+            // Trigger Supabase sign out
+            await supabase.auth.signOut()
+        } catch (error) {
+            console.error("Error in signOut:", error)
+        }
     }
 
     const isAdmin = profile?.role === 'admin'
