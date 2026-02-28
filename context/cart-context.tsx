@@ -25,6 +25,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
     const [items, setItems] = useState<CartItem[]>([])
+    const [isMounted, setIsMounted] = useState(false)
 
     // Load cart from local storage on mount
     useEffect(() => {
@@ -36,12 +37,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 console.error("Failed to parse cart", e)
             }
         }
+        setIsMounted(true)
     }, [])
 
-    // Save cart to local storage whenever it changes
+    // Save cart to local storage whenever it changes (after mount)
     useEffect(() => {
-        localStorage.setItem("komet_cart", JSON.stringify(items))
-    }, [items])
+        if (isMounted) {
+            localStorage.setItem("komet_cart", JSON.stringify(items))
+        }
+    }, [items, isMounted])
 
     const addToCart = (newItem: Omit<CartItem, "quantity">) => {
         setItems((prev) => {
