@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,8 @@ import {
   MoreHorizontal,
   CheckCircle2,
   XCircle,
-  ArrowUpDown
+  ArrowUpDown,
+  Loader
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -37,13 +38,13 @@ export default function AdminBooksPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [sortOrder, setSortOrder] = useState<"title" | "price">("title")
   const [books, setBooks] = useState<any[]>([])
-  const supabase = createClient()
-
-  // Delete Modal State
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [bookToDelete, setBookToDelete] = useState<any | null>(null)
-
+  const [isPurging, setIsPurging] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+
+  // Use memoized supabase client to avoid recreation on every render
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     setIsMounted(true)
@@ -85,8 +86,9 @@ export default function AdminBooksPage() {
   }
 
   const confirmDelete = async () => {
-    if (!bookToDelete) return
+    if (!bookToDelete || isPurging) return
 
+    setIsPurging(true)
     const loadingToast = toast.loading(`Commencing cosmic purge for "${bookToDelete.title}"...`)
 
     try {
@@ -158,12 +160,13 @@ export default function AdminBooksPage() {
 
       toast.dismiss(loadingToast)
       toast.success(`${bookToDelete.title} has been purged from reality`)
-      setBooks(books.filter(b => b.id !== bookToDelete.id))
+      setBooks(currentBooks => currentBooks.filter(b => b.id !== bookToDelete.id))
     } catch (err: any) {
       toast.dismiss(loadingToast)
       console.error("Purge failure:", err)
       toast.error(`Purge protocol failed: ${err.message || "Unknown error"}`)
     } finally {
+      setIsPurging(false)
       setIsDeleteDialogOpen(false)
       setBookToDelete(null)
     }
@@ -429,8 +432,22 @@ export default function AdminBooksPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-6">
-            <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)}>Abort Mission</Button>
-            <Button variant="destructive" className="font-display tracking-widest" onClick={confirmDelete}>PURGE VOLUME</Button>
+            <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)} disabled={isPurging}>Abort Mission</Button>
+            <Button
+              variant="destructive"
+              className="font-display tracking-widest min-w-[140px]"
+              onClick={confirmDelete}
+              disabled={isPurging}
+            >
+              {isPurging ? (
+                <>
+                  <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  PURGING...
+                </>
+              ) : (
+                "PURGE VOLUME"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
