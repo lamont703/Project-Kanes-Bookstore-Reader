@@ -279,8 +279,7 @@ export async function handleUploadBook(
         await adminClient
             .from("books")
             .update({
-                status: "published",
-                page_count: processResult.pages
+                status: "published"
             })
             .eq("id", bookId);
 

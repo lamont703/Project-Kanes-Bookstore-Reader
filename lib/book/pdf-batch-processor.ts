@@ -150,7 +150,6 @@ export async function processPdfBatch(bookId: string, storagePath: string) {
     const { error: finalUpdateErr } = await supabase.from("books").update({
         status: 'published',
         book_file_url: fileUrl.publicUrl,
-        page_count: result.metadata.pageCount,
     }).eq("id", bookId);
 
     if (finalUpdateErr) {
