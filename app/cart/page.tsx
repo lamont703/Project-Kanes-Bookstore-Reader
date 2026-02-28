@@ -1,5 +1,6 @@
 "use client"
 
+import React, { useState, useEffect, useMemo } from "react"
 import { useCart } from "@/context/cart-context"
 import { SiteHeader } from "@/components/site-header"
 import { Button } from "@/components/ui/button"
@@ -14,7 +15,14 @@ import { createClient } from "@/lib/supabase/client"
 export default function CartPage() {
     const { items, removeFromCart, clearCart } = useCart()
     const router = useRouter()
-    const supabase = createClient()
+    const [isMounted, setIsMounted] = useState(false)
+    const supabase = useMemo(() => createClient(), [])
+
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
+
+    if (!isMounted) return null
 
     const hasPhysicalItems = items.some(item => item.format !== "ebook")
     const FLAT_SHIPPING_RATE = 5.99

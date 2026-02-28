@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import Image from "next/image"
 import { Check, Truck, Tag, Package, CreditCard, Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -22,11 +22,38 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 export default function CheckoutPage() {
     const { items, clearCart } = useCart()
     const router = useRouter()
-    const supabase = createClient()
+    const [isMounted, setIsMounted] = useState(false)
+    const supabase = useMemo(() => createClient(), [])
     const [isProcessing, setIsProcessing] = useState(false)
     const [orderComplete, setOrderComplete] = useState(false)
     const [orderId, setOrderId] = useState<string | null>(null)
     const [clientSecret, setClientSecret] = useState<string | null>(null)
+
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
+
+    // Redirect if not logged in (check Supabase auth)
+    useEffect(() => {
+        if (!isMounted) return
+        async function checkAuth() {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) {
+                router.push("/login?redirect=/checkout&message=purchase")
+            }
+        }
+        checkAuth()
+    }, [router, supabase, isMounted])
+
+    // Redirect if cart is empty (and not just completed)
+    useEffect(() => {
+        if (!isMounted) return
+        if (items.length === 0 && !orderComplete) {
+            router.push("/cart")
+        }
+    }, [items, router, orderComplete, isMounted])
+
+    if (!isMounted) return null
 
     // Dealer Code State
     const [dealerCode, setDealerCode] = useState("")

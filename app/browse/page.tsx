@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { BookCard } from "@/components/book-card"
@@ -20,9 +20,14 @@ export default function BrowsePage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<"title" | "price-low" | "price-high">("title")
   const [isLoading, setIsLoading] = useState(true)
-  const supabase = createClient()
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Use memoized supabase client to avoid recreation on every render
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
+    setIsMounted(true)
+
     async function fetchBooks() {
       setIsLoading(true)
       try {
@@ -65,6 +70,8 @@ export default function BrowsePage() {
 
     fetchBooks()
   }, [supabase])
+
+  if (!isMounted) return null
 
   const filteredBooks = books
     .filter((book) => {
