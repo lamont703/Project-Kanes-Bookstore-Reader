@@ -58,6 +58,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
         bookFile: null
     })
 
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [errors, setErrors] = useState<Record<string, string>>({})
 
     const validate = () => {
@@ -204,6 +205,79 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             toast.error(err.message || "Failed to upload volume")
         } finally {
             setIsUploading(false)
+        }
+    }
+
+    const handleDelete = async () => {
+        if (!initialData?.id) return
+
+        const loadingToast = toast.loading(`Commencing cosmic purge for "${formData.title}"...`)
+
+        try {
+            const bookId = initialData.id
+
+            // 1. Storage Cleanup
+            try {
+                // PDFs
+                const { data: pdfFiles } = await supabase.storage.from("book-pdfs").list(bookId)
+                if (pdfFiles?.length) {
+                    await supabase.storage.from("book-pdfs").remove(pdfFiles.map(f => `${bookId}/${f.name}`))
+                }
+
+                // Cover
+                const { data: coverFiles } = await supabase.storage.from("book-covers").list(bookId)
+                if (coverFiles?.length) {
+                    await supabase.storage.from("book-covers").remove(coverFiles.map(f => `${bookId}/${f.name}`))
+                }
+
+                // Pages
+                const { data: pageFiles } = await supabase.storage.from("book-pages").list(bookId)
+                if (pageFiles?.length) {
+                    await supabase.storage.from("book-pages").remove(pageFiles.map(f => `${bookId}/${f.name}`))
+                }
+
+                // Illustrations
+                const { data: illustrationFiles } = await supabase.storage.from("book-illustrations").list(bookId)
+                if (illustrationFiles?.length) {
+                    await supabase.storage.from("book-illustrations").remove(illustrationFiles.map(f => `${bookId}/${f.name}`))
+                }
+            } catch (storageErr) {
+                console.warn("Partial storage cleanup", storageErr)
+            }
+
+            // 2. Database Purge
+            const { error: deleteError } = await supabase
+                .from("books")
+                .delete()
+                .eq("id", bookId)
+
+            if (deleteError) {
+                if (deleteError.code === '23503' || deleteError.message.includes('Conflict')) {
+                    console.log("RESTRICT violation detected. Attempting manual dependency cleanup...")
+                    await supabase.from("book_club_selections").delete().eq("book_id", bookId)
+                    await supabase.from("user_library").delete().eq("book_id", bookId)
+                    await supabase.from("order_items").delete().eq("book_id", bookId)
+
+                    const { error: secondTryError } = await supabase
+                        .from("books")
+                        .delete()
+                        .eq("id", bookId)
+
+                    if (secondTryError) throw secondTryError
+                } else {
+                    throw deleteError
+                }
+            }
+
+            toast.dismiss(loadingToast)
+            toast.success("Volume purged from the cosmic records")
+            router.push("/admin/books")
+        } catch (err: any) {
+            toast.dismiss(loadingToast)
+            console.error("Purge failure:", err)
+            toast.error(`Purge protocol failed: ${err.message || "Unknown error"}`)
+        } finally {
+            setIsDeleteDialogOpen(false)
         }
     }
 
@@ -475,9 +549,26 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                         type="button"
                                         variant="ghost"
                                         className="w-full text-destructive hover:text-white hover:bg-destructive"
+                                        onClick={() => setIsDeleteDialogOpen(true)}
                                     >
                                         Delete Book permanently
                                     </Button>
+
+                                    {/* Delete Confirmation Modal */}
+                                    {isDeleteDialogOpen && (
+                                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                                            <Card className="max-w-md w-full border-primary/20 bg-card/95 p-6 animate-in zoom-in-95 duration-200">
+                                                <h3 className="font-display text-3xl tracking-wider text-primary mb-2">PURGE INITIATION</h3>
+                                                <p className="text-muted-foreground mb-6">
+                                                    Are you sure you want to permanently purge <span className="text-foreground font-bold italic">"{formData.title}"</span>? This will wipe all files, variants, and related history from the cosmic library.
+                                                </p>
+                                                <div className="flex gap-3 justify-end">
+                                                    <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)}>ABORT</Button>
+                                                    <Button variant="destructive" className="font-display tracking-widest" onClick={handleDelete}>CONFIRM PURGE</Button>
+                                                </div>
+                                            </Card>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

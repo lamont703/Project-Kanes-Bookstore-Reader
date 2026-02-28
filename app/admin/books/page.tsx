@@ -87,18 +87,82 @@ export default function AdminBooksPage() {
   const confirmDelete = async () => {
     if (!bookToDelete) return
 
+    const loadingToast = toast.loading(`Commencing cosmic purge for "${bookToDelete.title}"...`)
+
     try {
-      const { error } = await supabase
+      // 1. Storage Cleanup - attempt to remove files from all buckets
+      try {
+        const bookId = bookToDelete.id
+
+        // Helper to remove folder contents if bucket supports it or individual files
+        // Supabase storage .remove requires an array of paths
+
+        // PDFs
+        const { data: pdfFiles } = await supabase.storage.from("book-pdfs").list(bookId)
+        if (pdfFiles?.length) {
+          await supabase.storage.from("book-pdfs").remove(pdfFiles.map(f => `${bookId}/${f.name}`))
+        }
+
+        // Cover
+        const { data: coverFiles } = await supabase.storage.from("book-covers").list(bookId)
+        if (coverFiles?.length) {
+          await supabase.storage.from("book-covers").remove(coverFiles.map(f => `${bookId}/${f.name}`))
+        }
+
+        // Pages
+        const { data: pageFiles } = await supabase.storage.from("book-pages").list(bookId)
+        if (pageFiles?.length) {
+          await supabase.storage.from("book-pages").remove(pageFiles.map(f => `${bookId}/${f.name}`))
+        }
+
+        // Illustrations
+        const { data: illustrationFiles } = await supabase.storage.from("book-illustrations").list(bookId)
+        if (illustrationFiles?.length) {
+          await supabase.storage.from("book-illustrations").remove(illustrationFiles.map(f => `${bookId}/${f.name}`))
+        }
+      } catch (storageErr) {
+        console.warn("Partial storage cleanup", storageErr)
+        // We continue anyway to purge the database records
+      }
+
+      // 2. Database Purge
+      // Since we might have ON DELETE RESTRICT on some tables (orders, library),
+      // we attempt a multi-step cleanup if the direct delete fails.
+
+      const { error: deleteError } = await supabase
         .from("books")
         .delete()
         .eq("id", bookToDelete.id)
 
-      if (error) throw error
+      if (deleteError) {
+        // If it's a conflict error (409/23503), it means there are still restricted references
+        if (deleteError.code === '23503' || deleteError.message.includes('Conflict')) {
+          console.log("RESTRICT violation detected. Attempting manual dependency cleanup...")
 
+          // Step-by-step cleanup of restrictive dependencies
+          await supabase.from("book_club_selections").delete().eq("book_id", bookToDelete.id)
+          await supabase.from("user_library").delete().eq("book_id", bookToDelete.id)
+          await supabase.from("order_items").delete().eq("book_id", bookToDelete.id)
+
+          // Try again
+          const { error: secondTryError } = await supabase
+            .from("books")
+            .delete()
+            .eq("id", bookToDelete.id)
+
+          if (secondTryError) throw secondTryError
+        } else {
+          throw deleteError
+        }
+      }
+
+      toast.dismiss(loadingToast)
       toast.success(`${bookToDelete.title} has been purged from reality`)
       setBooks(books.filter(b => b.id !== bookToDelete.id))
     } catch (err: any) {
-      toast.error("Failed to delete volume")
+      toast.dismiss(loadingToast)
+      console.error("Purge failure:", err)
+      toast.error(`Purge protocol failed: ${err.message || "Unknown error"}`)
     } finally {
       setIsDeleteDialogOpen(false)
       setBookToDelete(null)
