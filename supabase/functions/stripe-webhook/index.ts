@@ -76,12 +76,13 @@ async function handlePaymentSuccess(supabase: any, paymentIntent: any) {
 
         if (items) {
             for (const item of items) {
-                if (item.variant.format === 'ebook') {
+                // Komet Card holders also get digital access
+                if (item.variant.format === 'ebook' || item.variant.format === 'komet_card') {
                     await supabase.from('user_library').upsert({
                         user_id: order.user_id,
                         book_id: item.variant.book_id,
                         source: 'purchase'
-                    })
+                    }, { onConflict: 'user_id,book_id' })
                 }
             }
         }

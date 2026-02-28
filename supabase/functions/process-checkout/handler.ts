@@ -150,6 +150,27 @@ export async function handleCheckout(authHeader: string, body: any) {
         throw { status: 500, code: 'DATABASE_ERROR', message: 'Failed to create order items' }
     }
 
+    // 7. Fulfill free orders immediately
+    if (totalAmount === 0) {
+        const libraryEntries = orderItems
+            .filter((item: any) => item.format === 'ebook' || item.format === 'komet_card')
+            .map((item: any) => ({
+                user_id: user.id,
+                book_id: item.book_id,
+                source: 'purchase' as const
+            }))
+
+        if (libraryEntries.length > 0) {
+            const { error: libError } = await adminSupabase
+                .from('user_library')
+                .upsert(libraryEntries, { onConflict: 'user_id,book_id' })
+
+            if (libError) {
+                console.error('Free order fulfillment error:', libError)
+            }
+        }
+    }
+
     return {
         clientSecret,
         orderId: order.id,
