@@ -8,7 +8,7 @@ import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
@@ -39,7 +39,7 @@ export function DashboardContent({
 }: DashboardContentProps) {
     const [isSaving, setIsSaving] = useState(false)
     const { user: authUser } = useAuth()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
     const [profile, setProfile] = useState(initialUser || {
         full_name: '',
         display_name: '',
@@ -53,6 +53,7 @@ export function DashboardContent({
     const [showCancelDialog, setShowCancelDialog] = useState(false)
 
     const handleCancelSubscription = async () => {
+        if (isSaving || isCancelling) return // Block if another sequence is in progress
         setIsCancelling(true)
         try {
             const { data, error } = await supabase.functions.invoke('cancel-subscription', {
@@ -82,6 +83,7 @@ export function DashboardContent({
     }
 
     const handleReactivateSubscription = async () => {
+        if (isSaving || isCancelling) return // Block if another sequence is in progress
         setIsCancelling(true) // Reuse loading state
         try {
             const { error } = await supabase.functions.invoke('reactivate-subscription', {
@@ -111,27 +113,33 @@ export function DashboardContent({
 
     const handleSaveProfile = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (isSaving || isCancelling) return // Block if another sequence is in progress
         setIsSaving(true)
 
-        const { error } = await supabase
-            .from('users')
-            .update({
-                full_name: profile.full_name,
-                display_name: profile.display_name,
-                phone: profile.phone,
-                mailing_address: profile.mailing_address,
-                date_of_birth: profile.date_of_birth,
-                tshirt_size: profile.tshirt_size,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', authUser?.id)
+        try {
+            const { error } = await supabase
+                .from('users')
+                .update({
+                    full_name: profile.full_name,
+                    display_name: profile.display_name,
+                    phone: profile.phone,
+                    mailing_address: profile.mailing_address,
+                    date_of_birth: profile.date_of_birth,
+                    tshirt_size: profile.tshirt_size,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', authUser?.id)
 
-        if (error) {
-            toast.error(error.message)
-        } else {
-            toast.success("Identity synchronized!")
+            if (error) {
+                toast.error(error.message)
+            } else {
+                toast.success("Identity synchronized!")
+            }
+        } catch (error: any) {
+            toast.error(error.message || "Failed to sync identity signals.")
+        } finally {
+            setIsSaving(false)
         }
-        setIsSaving(false)
     }
 
     const mostRecentOrder = initialOrders[0]
