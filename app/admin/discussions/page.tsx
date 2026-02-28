@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -56,7 +56,9 @@ const CATEGORY_OPTIONS = [
 ]
 
 export default function AdminDiscussionsPage() {
-    const supabase = createClient()
+    const [isMounted, setIsMounted] = useState(false)
+    const supabase = useMemo(() => createClient(), [])
+
     const [topics, setTopics] = useState<DiscussionTopic[]>([])
     const [books, setBooks] = useState<BookOption[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -80,6 +82,7 @@ export default function AdminDiscussionsPage() {
     })
 
     useEffect(() => {
+        setIsMounted(true)
         fetchTopics()
         fetchBooks()
     }, [])
@@ -229,6 +232,8 @@ export default function AdminDiscussionsPage() {
         setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, is_featured: !t.is_featured } : t))
         toast.success(topic.is_featured ? "Removed from featured" : "Topic now featured")
     }
+
+    if (!isMounted) return null
 
     return (
         <div className="p-4 md:p-8">

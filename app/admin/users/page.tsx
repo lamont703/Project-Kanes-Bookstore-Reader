@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,11 +64,11 @@ export default function AdminUsersPage() {
   const [allBooks, setAllBooks] = useState<{ id: string, title: string }[]>([])
   const [selectedBookId, setSelectedBookId] = useState<string>("")
 
-  const supabase = createClient()
+  const [isMounted, setIsMounted] = useState(false)
+  const supabase = useMemo(() => createClient(), [])
 
   const debouncedSearch = useDebounce(searchQuery, 400)
 
-  // ── Fetch users ────────────────────────────────────────────────────────────
   const fetchUsers = useCallback(async () => {
     setIsLoading(true)
     const params = new URLSearchParams()
@@ -86,7 +86,10 @@ export default function AdminUsersPage() {
     setIsLoading(false)
   }, [debouncedSearch, filterTier])
 
-  useEffect(() => { fetchUsers() }, [fetchUsers])
+  useEffect(() => {
+    setIsMounted(true)
+    fetchUsers()
+  }, [fetchUsers])
 
   useEffect(() => {
     supabase.from("books")
@@ -207,6 +210,8 @@ export default function AdminUsersPage() {
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
+
+  if (!isMounted) return null
 
   return (
     <div className="p-4 md:p-8">

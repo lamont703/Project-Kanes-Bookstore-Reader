@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -76,7 +76,9 @@ const BLANK_FORM: EventFormData = {
 }
 
 export default function AdminEventsPage() {
-    const supabase = createClient()
+    const [isMounted, setIsMounted] = useState(false)
+    const supabase = useMemo(() => createClient(), [])
+
     const [events, setEvents] = useState<BookClubEvent[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
@@ -88,6 +90,7 @@ export default function AdminEventsPage() {
     const [formData, setFormData] = useState<EventFormData>(BLANK_FORM)
 
     useEffect(() => {
+        setIsMounted(true)
         fetchEvents()
     }, [])
 
@@ -213,6 +216,8 @@ export default function AdminEventsPage() {
         }
         setIsDeleting(false)
     }
+
+    if (!isMounted) return null
 
     return (
         <div className="p-4 md:p-8">

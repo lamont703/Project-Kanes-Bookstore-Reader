@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,7 +52,9 @@ interface Selection {
 
 // ─── Component ─────────────────────────────────────────────────
 export default function AdminBookClubPage() {
-  const supabase = createClient()
+  const [isMounted, setIsMounted] = useState(false)
+  const supabase = useMemo(() => createClient(), [])
+
   const [selections, setSelections] = useState<Selection[]>([])
   const [availableBooks, setAvailableBooks] = useState<Book[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -69,6 +71,7 @@ export default function AdminBookClubPage() {
   const [isEditing, setIsEditing] = useState<string | null>(null)
 
   useEffect(() => {
+    setIsMounted(true)
     fetchData()
   }, [])
 
@@ -173,6 +176,8 @@ export default function AdminBookClubPage() {
   }
 
   const statusPreview = getCurrentStatus(selectionMonth, selectionYear)
+
+  if (!isMounted) return null
 
   return (
     <div className="p-4 md:p-8">
@@ -442,8 +447,8 @@ export default function AdminBookClubPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground">Calculated Status:</span>
                     <span className={`text-[10px] font-black tracking-widest px-2 py-0.5 rounded ${statusPreview === 'current' ? 'bg-primary text-primary-foreground' :
-                        statusPreview === 'upcoming' ? 'bg-secondary text-secondary-foreground' :
-                          'bg-muted text-muted-foreground'
+                      statusPreview === 'upcoming' ? 'bg-secondary text-secondary-foreground' :
+                        'bg-muted text-muted-foreground'
                       }`}>
                       {statusPreview.toUpperCase()}
                     </span>
