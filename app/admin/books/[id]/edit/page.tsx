@@ -24,7 +24,16 @@ export default async function EditBookPage({ params }: { params: Promise<{ id: s
     const book = {
         ...b,
         status: b.status === "published" ? "Published" : "Draft",
-        price: b.book_variants?.find((v: any) => v.format === 'ebook')?.price || b.book_variants?.[0]?.price || 0
+        price: b.book_variants?.find((v: any) => v.format === 'ebook')?.price || b.book_variants?.[0]?.price || 0,
+        book_variants: b.book_variants?.map((v: any) => ({
+            format: v.format,
+            price: v.price,
+            available: v.is_in_stock // Map database field to form property
+        })) || [
+                { format: "ebook", price: 0, available: true },
+                { format: "paper_book", price: 0, available: true },
+                { format: "komet_card", price: 0, available: true },
+            ]
     }
 
     return (

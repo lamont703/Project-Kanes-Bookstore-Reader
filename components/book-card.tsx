@@ -15,12 +15,18 @@ interface BookCardProps {
 export function BookCard({ book }: BookCardProps) {
   const { addToCart } = useCart()
   const [isAdded, setIsAdded] = useState(false)
-  const [selectedFormat, setSelectedFormat] = useState<BookFormat>("ebook")
+  // Default to ebook if available, otherwise pick the first available format, or fallback to ebook
+  const [selectedFormat, setSelectedFormat] = useState<BookFormat>(() => {
+    const ebook = book.variants.find(v => v.format === "ebook")
+    if (ebook?.available) return "ebook"
+    const firstAvailable = book.variants.find(v => v.available)
+    return firstAvailable?.format || "ebook"
+  })
 
-  const currentVariant = book.variants.find(v => v.format === selectedFormat) ?? book.variants[0] ?? null
+  const currentVariant = book.variants.find(v => v.format === selectedFormat) || book.variants[0] || null
 
   const handleAddToCart = () => {
-    if (!currentVariant) return
+    if (!currentVariant || !currentVariant.available) return
     addToCart({
       id: book.id,
       variantId: currentVariant.id || "",
@@ -97,17 +103,22 @@ export function BookCard({ book }: BookCardProps) {
           className={`w-full transition-all ${isAdded ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
           size="sm"
           onClick={handleAddToCart}
-          disabled={isAdded || !currentVariant}
+          disabled={isAdded || !currentVariant || !currentVariant.available}
         >
           {isAdded ? (
             <>
               <Check className="w-4 h-4 mr-2" />
               Added to Cart
             </>
+          ) : !currentVariant || !currentVariant.available ? (
+            <>
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Out of Stock
+            </>
           ) : (
             <>
               <ShoppingCart className="w-4 h-4 mr-2" />
-              {currentVariant ? "Add to Cart" : "Unavailable"}
+              Add to Cart
             </>
           )}
         </Button>
