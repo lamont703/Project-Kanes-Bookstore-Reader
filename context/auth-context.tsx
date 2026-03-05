@@ -1,8 +1,8 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { type User, type Session } from "@supabase/supabase-js"
+import { type User, type Session, type AuthChangeEvent } from "@supabase/supabase-js"
 
 interface AuthContextType {
     user: User | null
@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [subscription, setSubscription] = useState<any | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [supabase] = useState(() => createClient())
+    const lastUserIdRef = useRef<string | null>(null)
 
     useEffect(() => {
         const fetchUserData = async (userId: string) => {
@@ -36,33 +37,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const getInitialSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession()
-            setSession(session)
-            const currentUser = session?.user ?? null
-            setUser(currentUser)
+            console.group("🔐 Auth: Initial Session Check")
+            try {
+                const { data: { user: currentUser } } = await supabase.auth.getUser()
+                console.log("👤 Current User:", currentUser ? `${currentUser.id} (${currentUser.email})` : "None")
+                setUser(currentUser)
+                lastUserIdRef.current = currentUser?.id || null
 
-            if (currentUser) {
-                await fetchUserData(currentUser.id)
-            } else {
-                setProfile(null)
-                setSubscription(null)
+                if (currentUser) {
+                    const { data: { session } } = await supabase.auth.getSession()
+                    console.log("🎟️ Session available:", !!session)
+                    setSession(session)
+                    await fetchUserData(currentUser.id)
+                } else {
+                    console.log("🚫 No active session found")
+                    setSession(null)
+                    setProfile(null)
+                    setSubscription(null)
+                }
+            } catch (error) {
+                console.error("❌ Session check failed:", error)
+            } finally {
+                setIsLoading(false)
+                console.groupEnd()
             }
-
-            setIsLoading(false)
         }
 
         getInitialSession()
 
-        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            setSession(session)
-            const currentUser = session?.user ?? null
-            setUser(currentUser)
+        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
+            const nextUserId = session?.user?.id || null
 
-            if (currentUser) {
-                await fetchUserData(currentUser.id)
-            } else {
-                setProfile(null)
-                setSubscription(null)
+            // Log only if it's a real transition to avoid flooding
+            if (lastUserIdRef.current !== nextUserId) {
+                console.log(`🔄 Auth Event: ${event}`, nextUserId ? `(New User: ${nextUserId})` : "(Logged Out)")
+                setSession(session)
+                setUser(session?.user ?? null)
+                lastUserIdRef.current = nextUserId
+
+                if (session?.user) {
+                    await fetchUserData(session.user.id)
+                } else {
+                    setProfile(null)
+                    setSubscription(null)
+                }
+            } else if (session?.access_token !== session?.access_token) {
+                // Token refresh happened but user is the same
+                setSession(session)
             }
 
             setIsLoading(false)

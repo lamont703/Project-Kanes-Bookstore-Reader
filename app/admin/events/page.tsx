@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -88,6 +88,8 @@ export default function AdminEventsPage() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [currentEvent, setCurrentEvent] = useState<BookClubEvent | null>(null)
     const [formData, setFormData] = useState<EventFormData>(BLANK_FORM)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [isUploadingImage, setIsUploadingImage] = useState(false)
 
     useEffect(() => {
         setIsMounted(true)
@@ -215,6 +217,50 @@ export default function AdminEventsPage() {
             setIsDeleteModalOpen(false)
         }
         setIsDeleting(false)
+    }
+
+    const handleImageUploadClick = () => {
+        fileInputRef.current?.click()
+    }
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        // Basic validation
+        if (!file.type.startsWith("image/")) {
+            toast.error("Please upload an image file")
+            return
+        }
+
+        setIsUploadingImage(true)
+        const loadingToast = toast.loading("Uploading image to the cloud...")
+
+        try {
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
+            const filePath = `event-images/${fileName}`
+
+            const { data, error } = await supabase.storage
+                .from('book-covers')
+                .upload(filePath, file)
+
+            if (error) throw error
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('book-covers')
+                .getPublicUrl(filePath)
+
+            setFormData(prev => ({ ...prev, cover_image_url: publicUrl }))
+            toast.success("Image transmission complete", { id: loadingToast })
+        } catch (error: any) {
+            toast.error(`Image upload failed: ${error.message || "Unknown error"}`, { id: loadingToast })
+            console.error(error)
+        } finally {
+            setIsUploadingImage(false)
+            // Clear the input value so the same file can be selected again
+            if (fileInputRef.current) fileInputRef.current.value = ""
+        }
     }
 
     if (!isMounted) return null
@@ -396,8 +442,25 @@ export default function AdminEventsPage() {
                                     className="flex-1"
                                     onChange={e => setFormData({ ...formData, cover_image_url: e.target.value })}
                                 />
-                                <Button variant="outline" size="icon" className="shrink-0">
-                                    <ImageIcon className="w-4 h-4" />
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                />
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="shrink-0"
+                                    onClick={handleImageUploadClick}
+                                    disabled={isUploadingImage}
+                                >
+                                    {isUploadingImage ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <ImageIcon className="w-4 h-4" />
+                                    )}
                                 </Button>
                             </div>
                         </div>

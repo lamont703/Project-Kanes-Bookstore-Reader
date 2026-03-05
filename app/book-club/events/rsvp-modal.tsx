@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -28,7 +28,7 @@ interface RsvpModalProps {
 }
 
 export function RsvpModal({ eventId, eventTitle, isPublic, currentUser, alreadyRsvped: initialRsvped }: RsvpModalProps) {
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)

@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { ShoppingCart } from "lucide-react"
 
 import { toast } from "sonner"
@@ -20,7 +20,7 @@ function AuthContent() {
   const searchParams = useSearchParams()
   const redirectPath = searchParams.get("redirect") || "/"
   const message = searchParams.get("message")
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Login State
   const [loginEmail, setLoginEmail] = useState("")
@@ -63,8 +63,9 @@ function AuthContent() {
       setIsLoggingIn(false)
     } else {
       toast.success("Welcome back, Explorer!")
-      // Use window.location.href for a full refresh to ensure cookies and state are synced
-      window.location.href = redirectPath
+      // Push to redirect path and refresh to update server components
+      router.push(redirectPath)
+      router.refresh()
     }
   }
 
@@ -112,8 +113,9 @@ function AuthContent() {
     } else {
       if (data.session) {
         toast.success("Welcome to Kane's Komets!")
-        // Use window.location.href for a full refresh to ensure cookies and state are synced
-        window.location.href = redirectPath
+        // Push to redirect path and refresh to update server components
+        router.push(redirectPath)
+        router.refresh()
       } else {
         // Fallback if email confirmation is re-enabled
         toast.success("Account created! Check your email to confirm.")

@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { MessageSquare, MoreHorizontal, ArrowUp, ArrowDown, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { SiteHeader } from "@/components/site-header"
-import { useState, useTransition } from "react"
+import { useState, useTransition, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
@@ -256,7 +256,7 @@ interface Props {
 }
 
 export default function DiscussionThreadClient({ topic, initialPosts, currentUser, initialUserVotes }: Props) {
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
     const [posts, setPosts] = useState<PostNode[]>(() => nestPosts(initialPosts, initialUserVotes))
     const [userVotes, setUserVotes] = useState<Record<string, "up" | "down">>(initialUserVotes)

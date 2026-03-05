@@ -106,7 +106,23 @@ export default function CheckoutPage() {
         return true
     }
 
-    if (!isMounted) return null
+    if (!isMounted) {
+        return (
+            <div className="min-h-screen bg-background">
+                <SiteHeader />
+                <div className="container mx-auto px-4 py-8 md:py-12">
+                    <div className="h-12 w-64 bg-muted animate-pulse rounded mb-8" />
+                    <div className="grid lg:grid-cols-2 gap-8">
+                        <div className="space-y-8">
+                            <div className="h-[400px] w-full bg-muted/20 animate-pulse rounded-xl border border-border" />
+                            <div className="h-[200px] w-full bg-muted/20 animate-pulse rounded-xl border border-border" />
+                        </div>
+                        <div className="h-[500px] w-full bg-muted/20 animate-pulse rounded-xl border border-border" />
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
     const gst = total * 0.05
