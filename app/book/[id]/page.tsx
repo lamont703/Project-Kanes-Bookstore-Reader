@@ -8,7 +8,8 @@ import { Sparkles } from "lucide-react"
 import Image from "next/image"
 import { createClient, createStaticClient } from "@/lib/supabase/server"
 
-export const revalidate = 300 // Revalidate every 5 minutes
+// Book detail page is now fully dynamic to support user-specific state
+// caching is handled via Next.js fetch cache where applicable
 
 export async function generateStaticParams() {
   // Prevent build crash if env vars are missing during CI/CD or Vercel build
@@ -32,7 +33,7 @@ export async function generateStaticParams() {
 
 export default async function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = createStaticClient()
+  const supabase = await createClient()
 
   const { data: b, error } = await supabase
     .from('books')

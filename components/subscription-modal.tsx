@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Check, Loader2, Sparkles, Book as BookIcon, Shirt, Gift, Tag, CreditCar
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
 import { loadStripe } from "@stripe/stripe-js"
@@ -34,7 +35,8 @@ type Step = 1 | 2 | 3 | 4
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
+    const router = useRouter()
 
     const [step, setStep] = useState<Step>(1)
     const [loading, setLoading] = useState(false)
@@ -59,7 +61,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     // Pre-fill from Supabase auth user on open
     useEffect(() => {
         if (!isOpen) return
-        supabase.auth.getUser().then(({ data: { user } }) => {
+        supabase.auth.getUser().then(({ data: { user } }: { data: { user: any } }) => {
             if (!user) return
             setFormData(prev => ({
                 ...prev,
@@ -68,7 +70,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 phone: (user.user_metadata?.phone as string | undefined) ?? prev.phone,
             }))
         })
-    }, [isOpen])
+    }, [isOpen, supabase])
 
     // Fetch real books when Step 2 opens
     useEffect(() => {
@@ -101,7 +103,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
         query.order("title")
             .limit(5)
-            .then(({ data, error }) => {
+            .then(({ data, error }: { data: any[] | null; error: any }) => {
                 if (error) toast.error("Failed to load books")
                 setAvailableBooks(data || [])
                 setBooksLoading(false)
@@ -174,7 +176,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
     const handleFinish = () => {
         onClose()
-        window.location.reload()
+        router.refresh()
     }
 
     const toggleBookSelection = (bookId: string) => {

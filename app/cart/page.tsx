@@ -22,7 +22,26 @@ export default function CartPage() {
         setIsMounted(true)
     }, [])
 
-    if (!isMounted) return null
+    if (!isMounted) {
+        return (
+            <div className="min-h-screen bg-background">
+                <SiteHeader />
+                <div className="container mx-auto px-4 py-8 md:py-12">
+                    <div className="h-12 w-48 bg-muted animate-pulse rounded mb-8" />
+                    <div className="grid lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-4">
+                            {[1, 2].map(i => (
+                                <div key={i} className="h-32 w-full bg-muted/20 animate-pulse rounded-xl border border-border" />
+                            ))}
+                        </div>
+                        <div className="lg:col-span-1">
+                            <div className="h-64 w-full bg-muted/20 animate-pulse rounded-xl border border-border" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     const hasPhysicalItems = items.some(item => item.format !== "ebook")
     const FLAT_SHIPPING_RATE = 5.99

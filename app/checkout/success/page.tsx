@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useState, Suspense, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { SiteHeader } from "@/components/site-header"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 function CheckoutSuccessContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
     const orderId = searchParams.get('orderId')
     const paymentIntent = searchParams.get('payment_intent')

@@ -12,6 +12,7 @@ import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import {
     Dialog,
@@ -39,6 +40,7 @@ export function DashboardContent({
 }: DashboardContentProps) {
     const [isSaving, setIsSaving] = useState(false)
     const { user: authUser } = useAuth()
+    const router = useRouter()
     const supabase = useMemo(() => createClient(), [])
     const [profile, setProfile] = useState(initialUser || {
         full_name: '',
@@ -75,6 +77,7 @@ export function DashboardContent({
                 expires_at: data?.cancelAt
             }))
             setShowCancelDialog(false)
+            router.refresh()
         } catch (error: any) {
             toast.error(error.message)
         } finally {
@@ -104,6 +107,7 @@ export function DashboardContent({
                 expires_at: null,
                 cancelled_at: null
             }))
+            router.refresh()
         } catch (error: any) {
             toast.error(error.message)
         } finally {
@@ -134,6 +138,7 @@ export function DashboardContent({
                 toast.error(error.message)
             } else {
                 toast.success("Identity synchronized!")
+                router.refresh()
             }
         } catch (error: any) {
             toast.error(error.message || "Failed to sync identity signals.")

@@ -13,8 +13,10 @@ import { SiteHeader } from "@/components/site-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import * as React from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/context/auth-context"
 
 export default function BrowsePage() {
+  const { user, profile, isLoading: isAuthLoading } = useAuth()
   const [books, setBooks] = useState<Book[]>([])
   const [selectedGenre, setSelectedGenre] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
@@ -22,16 +24,25 @@ export default function BrowsePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
 
-  // Use memoized supabase client to avoid recreation on every render
   const supabase = useMemo(() => createClient(), [])
+
+  // State tracking for debugging
+  const lastFetchId = React.useRef(0)
+
+  // RENDER LOGGING
+  console.log(`🖼️ [BrowsePage Render] | isMounted: ${isMounted} | isAuthLoading: ${isAuthLoading} | isLoading: ${isLoading} | user: ${user?.id} | books: ${books.length}`)
 
   useEffect(() => {
     setIsMounted(true)
+    const fetchId = ++lastFetchId.current
+    console.log(`🧩 BrowsePage: Effect Run (Fetch #${fetchId})`)
 
     async function fetchBooks() {
       setIsLoading(true)
+      console.log(`📦 BrowsePage: Starting Fetch #${fetchId}`)
+
       try {
-        const { data, error } = await supabase
+        const { data, error, status, statusText } = await supabase
           .from('books')
           .select(`
             *,
@@ -39,9 +50,22 @@ export default function BrowsePage() {
           `)
           .eq('status', 'published')
 
-        if (error) throw error
+        // If a newer fetch has started, ignore this one
+        if (fetchId !== lastFetchId.current) {
+          console.warn(`🛑 BrowsePage: Ignoring Fetch #${fetchId} (Newer fetch in progress)`)
+          return
+        }
+
+        console.log(`📊 Supabase Status for #${fetchId}: ${status} (${statusText})`)
+
+        if (error) {
+          console.error(`❌ Supabase Error #${fetchId}:`, error)
+          throw error
+        }
 
         if (data) {
+          console.log(`✅ Received ${data.length} books for #${fetchId}`)
+
           const mappedBooks: Book[] = data.map((b: any) => ({
             id: b.id,
             title: b.title,
@@ -50,7 +74,6 @@ export default function BrowsePage() {
             coverImage: b.cover_image_url || "/placeholder.webp",
             genre: b.genre,
             description: b.description || "",
-            // Use ebook price as default, or first variant
             price: b.book_variants?.find((v: any) => v.format === 'ebook')?.price || b.book_variants?.[0]?.price || 0,
             variants: b.book_variants?.map((v: any) => ({
               id: v.id,
@@ -59,34 +82,63 @@ export default function BrowsePage() {
               available: v.is_in_stock
             })) || []
           }))
+
           setBooks(mappedBooks)
         }
       } catch (error) {
-        console.error("Error fetching books:", error)
+        console.error(`💥 BrowsePage #${fetchId} FAILED:`, error)
       } finally {
-        setIsLoading(false)
+        if (fetchId === lastFetchId.current) {
+          setIsLoading(false)
+          console.log(`🏁 BrowsePage Fetch #${fetchId} - FINISHED`)
+        }
       }
     }
 
     fetchBooks()
   }, [supabase])
 
-  if (!isMounted) return null
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen">
+        <SiteHeader />
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-8">
+            <Skeleton className="h-12 w-3/4 mb-4" />
+            <Skeleton className="h-6 w-full max-w-2xl" />
+          </div>
+          <div className="mb-8 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-8 w-64" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="space-y-4">
+                <Skeleton className="aspect-[2/3] w-full rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const filteredBooks = books
     .filter((book) => {
       const matchesGenre = selectedGenre === "All" || book.genre === selectedGenre
-      const matchesSearch =
-        searchQuery === "" ||
-        book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        book.author.toLowerCase().includes(searchQuery.toLowerCase())
+      const titleMatch = book.title?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false
+      const authorMatch = book.author?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false
+      const matchesSearch = searchQuery === "" || titleMatch || authorMatch
       return matchesGenre && matchesSearch
     })
     .sort((a, b) => {
       switch (sortBy) {
         case "title":
-          return a.title.localeCompare(b.title)
-
+          return (a.title || "").localeCompare(b.title || "")
         case "price-low":
           return a.price - b.price
         case "price-high":
@@ -96,9 +148,10 @@ export default function BrowsePage() {
       }
     })
 
+  console.log(`🖼️ [Browse Render] | Books: ${books.length} | Filtered: ${filteredBooks.length} | Genre: ${selectedGenre} | Search: "${searchQuery}"`)
+
   return (
     <div className="min-h-screen">
-      {/* Header */}
       <SiteHeader />
 
       <div className="container mx-auto px-4 py-8">
@@ -132,14 +185,12 @@ export default function BrowsePage() {
                 onChange={(e) => setSortBy(e.target.value as any)}
               >
                 <option value="title">Title: A-Z</option>
-
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
               </select>
             </div>
           </div>
 
-          {/* Genre Filters */}
           <div className="flex flex-wrap gap-2">
             {GENRES.map((genre) => (
               <Button
@@ -155,14 +206,12 @@ export default function BrowsePage() {
           </div>
         </div>
 
-        {/* Results Count */}
         <div className="mb-6">
           <p className="text-sm text-muted-foreground">
             Showing {filteredBooks.length} {filteredBooks.length === 1 ? "book" : "books"}
           </p>
         </div>
 
-        {/* Books Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
