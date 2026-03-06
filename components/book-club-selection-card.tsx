@@ -12,15 +12,13 @@ interface BookClubSelectionCardProps {
   book: Book
   isMember?: boolean
   isCompact?: boolean
-  discussionId?: string | null
 }
 
 export function BookClubSelectionCard({
   selection,
   book,
   isMember = false,
-  isCompact = false,
-  discussionId = null
+  isCompact = false
 }: BookClubSelectionCardProps) {
   const statusConfig = {
     current: {
@@ -53,7 +51,13 @@ export function BookClubSelectionCard({
           "relative aspect-[3/4] overflow-hidden rounded shadow-xl",
           isCompact ? "w-full" : "w-48 md:w-[200px] mx-auto md:mx-0"
         )}>
-          <Image src={book.coverImage || "/placeholder.svg"} alt={book.title} fill className="object-cover" />
+          <Image
+            src={book.coverImage || "/placeholder.svg"}
+            alt={book.title}
+            fill
+            className="object-cover"
+            priority={!isCompact}
+          />
         </div>
 
         {/* Selection Details */}
@@ -99,15 +103,15 @@ export function BookClubSelectionCard({
                   </Link>
                 </Button>
               )}
-              {discussionId ? (
+              {selection.discussionId ? (
                 <Button variant="outline" size={isCompact ? "xs" : "sm"} asChild className="bg-transparent border-primary/30 hover:bg-primary/10">
-                  <Link href={`/book-club/discussions/${discussionId}`}>
+                  <Link href={`/book-club/discussions/${selection.discussionId}`}>
                     <MessageCircle className="w-3 h-3 mr-2" />
                     CHAT
                   </Link>
                 </Button>
               ) : (
-                <Button variant="outline" size={isCompact ? "xs" : "sm"} disabled className="bg-transparent border-primary/30 opacity-50 cursor-not-allowed">
+                <Button variant="outline" size={isCompact ? "xs" : "sm"} disabled className="opacity-50 cursor-not-allowed">
                   <MessageCircle className="w-3 h-3 mr-2" />
                   NO CHAT
                 </Button>

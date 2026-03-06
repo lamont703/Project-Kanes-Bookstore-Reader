@@ -6,6 +6,7 @@ export interface BookClubSelection {
     theme: string
     description: string
     discussionDate: Date
+    discussionId?: string
     status: "upcoming" | "current" | "past"
 }
 

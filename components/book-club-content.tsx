@@ -138,7 +138,6 @@ export function BookClubContent({
                                 variants: []
                             }}
                             isMember={isMember}
-                            discussionId={currentSelection.discussionId}
                         />
                     </section>
                 )}
@@ -237,7 +236,6 @@ export function BookClubContent({
                                         }}
                                         isMember={isMember}
                                         isCompact={true}
-                                        discussionId={selection.discussionId}
                                     />
                                 </div>
                             ))}

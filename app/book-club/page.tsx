@@ -1,9 +1,8 @@
+export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
 import { BookClubContent } from "@/components/book-club-content"
 import { sortSelections, getCurrentStatus } from "@/lib/book-club-utils"
-
-export const dynamic = 'force-dynamic'
 
 export default async function BookClubPage() {
   const supabase = await createClient()
@@ -11,31 +10,14 @@ export default async function BookClubPage() {
   // Fetch Current Selections
   const { data: rawSelections } = await supabase
     .from('book_club_selections')
-    .select('*, books(*, discussion_topics(id, category, deleted_at))')
+    .select('*, books(*)')
 
   const processedSelections = (rawSelections || [])
     .filter((s: any) => s.books) // Ensure associated book exists
-    .map((s: any) => {
-      // Find the primary book club discussion for this book.
-      // Priority 1: Category = 'Book Club'
-      // Priority 2: Any other category (e.g. 'General') if linked to this book.
-      const topics = s.books?.discussion_topics || []
-      const discussion = topics.find((t: any) => t.category === 'Book Club' && !t.deleted_at)
-        || topics.find((t: any) => !t.deleted_at)
-
-      console.debug(`[BookClubPage] Mapping book: ${s.books?.title} (ID: ${s.books?.id}) | Discussion found: ${discussion ? `${discussion.id} (${discussion.category})` : 'none'}`)
-
-      return {
-        ...s,
-        status: getCurrentStatus(s.month, s.year),
-        discussionId: discussion?.id || null
-      }
-    })
-
-  const selections = sortSelections(processedSelections)
-  const currentSelection = selections.find((s: any) => s.status === 'current')
-  const upcomingSelections = selections.filter((s: any) => s.status === 'upcoming')
-  const pastSelections = selections.filter((s: any) => s.status === 'past')
+    .map((s: any) => ({
+      ...s,
+      status: getCurrentStatus(s.month, s.year)
+    }))
 
   // Fetch Upcoming Events
   const { data: events } = await supabase
@@ -71,6 +53,24 @@ export default async function BookClubPage() {
     .select('*')
     .eq('is_book_club_eligible', true)
     .eq('status', 'published')
+
+  // Fetch linked discussions for all books in selections
+  const bookIds = processedSelections.map((s: any) => s.book_id)
+  const { data: discussions } = await supabase
+    .from('discussion_topics')
+    .select('id, book_id')
+    .in('book_id', bookIds)
+    .is('deleted_at', null)
+
+  const selectionsWithDiscussions = processedSelections.map((s: any) => ({
+    ...s,
+    discussionId: discussions?.find((d: any) => d.book_id === s.book_id)?.id
+  }))
+
+  const finalSelections = sortSelections(selectionsWithDiscussions)
+  const currentSelection = finalSelections.find((s: any) => s.status === 'current')
+  const upcomingSelections = finalSelections.filter((s: any) => s.status === 'upcoming')
+  const pastSelections = finalSelections.filter((s: any) => s.status === 'past')
 
   return (
     <div className="min-h-screen bg-background">
