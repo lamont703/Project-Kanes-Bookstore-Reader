@@ -385,3 +385,9 @@ export default async function BookDetailPage({ params }) {
 | `app/book/[id]/page.tsx` | Use `createClient()` for page render (keep `createStaticClient()` for `generateStaticParams` only) |
 | `components/dashboard-content.tsx` | Add client-side refresh mechanism after mutations |
 | `app/book-club/discussions/discussion-thread-client.tsx` | Add Realtime subscription for live updates |
+
+
+we create a discussion in the http://localhost:3000/admin/discussions page and linked it to a volume book but it did not update the UI in the book club page with the discussion for the chat button. the chat button still shows no chat. what is the issue here
+
+
+on our http://localhost:3000/book-club page in the monthly book selection and past monthly selection there is a chat button on the component that should be able to open the discussion linked to that chat. are you able to see what i'm referring to? when users click the chat button on the monthly selections they should navigate to the chat for that book if there is a discussion created for it. let me know what you see and i'll let you know if we should execute
