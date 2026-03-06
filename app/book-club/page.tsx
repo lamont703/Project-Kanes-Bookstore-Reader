@@ -3,20 +3,34 @@ import { SiteHeader } from "@/components/site-header"
 import { BookClubContent } from "@/components/book-club-content"
 import { sortSelections, getCurrentStatus } from "@/lib/book-club-utils"
 
+export const dynamic = 'force-dynamic'
+
 export default async function BookClubPage() {
   const supabase = await createClient()
 
   // Fetch Current Selections
   const { data: rawSelections } = await supabase
     .from('book_club_selections')
-    .select('*, books(*)')
+    .select('*, books(*, discussion_topics(id, category, deleted_at))')
 
   const processedSelections = (rawSelections || [])
     .filter((s: any) => s.books) // Ensure associated book exists
-    .map((s: any) => ({
-      ...s,
-      status: getCurrentStatus(s.month, s.year)
-    }))
+    .map((s: any) => {
+      // Find the primary book club discussion for this book.
+      // Priority 1: Category = 'Book Club'
+      // Priority 2: Any other category (e.g. 'General') if linked to this book.
+      const topics = s.books?.discussion_topics || []
+      const discussion = topics.find((t: any) => t.category === 'Book Club' && !t.deleted_at)
+        || topics.find((t: any) => !t.deleted_at)
+
+      console.debug(`[BookClubPage] Mapping book: ${s.books?.title} (ID: ${s.books?.id}) | Discussion found: ${discussion ? `${discussion.id} (${discussion.category})` : 'none'}`)
+
+      return {
+        ...s,
+        status: getCurrentStatus(s.month, s.year),
+        discussionId: discussion?.id || null
+      }
+    })
 
   const selections = sortSelections(processedSelections)
   const currentSelection = selections.find((s: any) => s.status === 'current')

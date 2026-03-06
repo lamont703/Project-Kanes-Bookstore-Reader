@@ -12,13 +12,15 @@ interface BookClubSelectionCardProps {
   book: Book
   isMember?: boolean
   isCompact?: boolean
+  discussionId?: string | null
 }
 
 export function BookClubSelectionCard({
   selection,
   book,
   isMember = false,
-  isCompact = false
+  isCompact = false,
+  discussionId = null
 }: BookClubSelectionCardProps) {
   const statusConfig = {
     current: {
@@ -97,10 +99,19 @@ export function BookClubSelectionCard({
                   </Link>
                 </Button>
               )}
-              <Button variant="outline" size={isCompact ? "xs" : "sm"} className="bg-transparent border-primary/30 hover:bg-primary/10">
-                <MessageCircle className="w-3 h-3 mr-2" />
-                CHAT
-              </Button>
+              {discussionId ? (
+                <Button variant="outline" size={isCompact ? "xs" : "sm"} asChild className="bg-transparent border-primary/30 hover:bg-primary/10">
+                  <Link href={`/book-club/discussions/${discussionId}`}>
+                    <MessageCircle className="w-3 h-3 mr-2" />
+                    CHAT
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" size={isCompact ? "xs" : "sm"} disabled className="bg-transparent border-primary/30 opacity-50 cursor-not-allowed">
+                  <MessageCircle className="w-3 h-3 mr-2" />
+                  NO CHAT
+                </Button>
+              )}
             </div>
           )}
 
