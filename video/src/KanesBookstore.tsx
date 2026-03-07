@@ -1153,13 +1153,15 @@ export const SceneCTA: React.FC = () => {
 };
 
 // ─── Master Composition ────────────────────────────────────────────────────────
-// Scene durations: 240 · 330 · 390 · 420 · 390 · 390 · 360 = 2520
+// VO durations (ffprobe):  7.99s · 13.70s · 14.74s · 16.70s · 13.15s · 18.77s · 8.57s
+// Frames (×30 + 45 buffer): 284  ·  456   ·  487   ·  546   ·  439   ·  608   · 302
+// Sum: 284+456+487+546+439+608+302 = 3122
 // Transitions: 6 × 20f = 120
-// Total: 2520 - 120 = 2400 frames @ 30fps = 80 seconds
+// Total: 3122 - 120 = 3002 frames @ 30fps ≈ 100 seconds
 export const KanesBookstoreVideo: React.FC = () => {
   return (
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={240}>
+      <TransitionSeries.Sequence durationInFrames={284}>
         <SceneHero />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -1167,7 +1169,7 @@ export const KanesBookstoreVideo: React.FC = () => {
         timing={linearTiming({durationInFrames: 20})}
       />
 
-      <TransitionSeries.Sequence durationInFrames={330}>
+      <TransitionSeries.Sequence durationInFrames={456}>
         <SceneOverview />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -1175,7 +1177,7 @@ export const KanesBookstoreVideo: React.FC = () => {
         timing={linearTiming({durationInFrames: 20})}
       />
 
-      <TransitionSeries.Sequence durationInFrames={390}>
+      <TransitionSeries.Sequence durationInFrames={487}>
         <SceneReader />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -1183,7 +1185,7 @@ export const KanesBookstoreVideo: React.FC = () => {
         timing={linearTiming({durationInFrames: 20})}
       />
 
-      <TransitionSeries.Sequence durationInFrames={420}>
+      <TransitionSeries.Sequence durationInFrames={546}>
         <SceneBookClubs />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -1191,7 +1193,7 @@ export const KanesBookstoreVideo: React.FC = () => {
         timing={linearTiming({durationInFrames: 20})}
       />
 
-      <TransitionSeries.Sequence durationInFrames={390}>
+      <TransitionSeries.Sequence durationInFrames={439}>
         <SceneDashboard />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -1199,7 +1201,7 @@ export const KanesBookstoreVideo: React.FC = () => {
         timing={linearTiming({durationInFrames: 20})}
       />
 
-      <TransitionSeries.Sequence durationInFrames={390}>
+      <TransitionSeries.Sequence durationInFrames={608}>
         <SceneTech />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
@@ -1207,7 +1209,7 @@ export const KanesBookstoreVideo: React.FC = () => {
         timing={linearTiming({durationInFrames: 20})}
       />
 
-      <TransitionSeries.Sequence durationInFrames={360}>
+      <TransitionSeries.Sequence durationInFrames={302}>
         <SceneCTA />
       </TransitionSeries.Sequence>
     </TransitionSeries>

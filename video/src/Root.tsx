@@ -9,10 +9,10 @@ import {KanesBookstoreVideo} from './KanesBookstore';
 const ONLYCRYPTO_DURATION = 2769;
 
 // ── Kane's Bookstore Reader ──────────────────────────────────────────────────
-// Scene durations: 240+330+390+420+390+390+360 = 2520
+// Scene durations: 284+456+487+546+439+608+302 = 3122
 // Transitions: 6 × 20f = 120
-// Total: 2520 - 120 = 2400 frames @ 30fps = 80 seconds
-const KANES_DURATION = 2400;
+// Total: 3122 - 120 = 3002 frames @ 30fps ≈ 100 seconds
+const KANES_DURATION = 3002;
 
 export const RemotionRoot: React.FC = () => {
   return (
