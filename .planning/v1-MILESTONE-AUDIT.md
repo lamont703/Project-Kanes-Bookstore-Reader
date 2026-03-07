@@ -1,0 +1,5 @@
+- UI: Update navigation bar to include search
+- API: Add endpoint /books/search
+- Docs: Clarify installation steps
+- Performance: Optimize image loading
+- UI: Add dark mode toggle
