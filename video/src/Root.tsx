@@ -1,6 +1,7 @@
 import {Composition} from 'remotion';
 import {OnlyCryptoVideo} from './OnlyCrypto';
 import {KanesBookstoreVideo} from './KanesBookstore';
+import {KanesBookstoreV2} from './KanesV2';
 
 // ── OnlyCrypto ───────────────────────────────────────────────────────────────
 // Scene durations: 276+345+372+510+546+492+348 = 2889
@@ -17,6 +18,14 @@ const KANES_DURATION = 3002;
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      <Composition
+        id="KanesBookstoreV2"
+        component={KanesBookstoreV2}
+        durationInFrames={2414}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
       <Composition
         id="KanesBookstore"
         component={KanesBookstoreVideo}
