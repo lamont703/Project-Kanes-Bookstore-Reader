@@ -317,7 +317,7 @@ export const SceneOverview: React.FC = () => {
         })}
       </div>
 
-      <Audio src={staticFile('vo/kb-scene-02-overview.mp3')} volume={1} />
+      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-02-overview.mp3')} volume={1} /></Sequence>
     </AbsoluteFill>
   );
 };
@@ -480,7 +480,7 @@ export const SceneReader: React.FC = () => {
         );
       })}
 
-      <Audio src={staticFile('vo/kb-scene-03-reader.mp3')} volume={1} />
+      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-03-reader.mp3')} volume={1} /></Sequence>
     </AbsoluteFill>
   );
 };
@@ -684,7 +684,7 @@ export const SceneBookClubs: React.FC = () => {
         </div>
       </div>
 
-      <Audio src={staticFile('vo/kb-scene-04-bookclubs.mp3')} volume={1} />
+      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-04-bookclubs.mp3')} volume={1} /></Sequence>
     </AbsoluteFill>
   );
 };
@@ -829,7 +829,7 @@ export const SceneDashboard: React.FC = () => {
         </div>
       </div>
 
-      <Audio src={staticFile('vo/kb-scene-05-dashboard.mp3')} volume={1} />
+      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-05-dashboard.mp3')} volume={1} /></Sequence>
     </AbsoluteFill>
   );
 };
@@ -984,7 +984,7 @@ export const SceneTech: React.FC = () => {
         </div>
       </div>
 
-      <Audio src={staticFile('vo/kb-scene-06-tech.mp3')} volume={1} />
+      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-06-tech.mp3')} volume={1} /></Sequence>
     </AbsoluteFill>
   );
 };
@@ -1147,7 +1147,7 @@ export const SceneCTA: React.FC = () => {
         </div>
       </div>
 
-      <Audio src={staticFile('vo/kb-scene-07-cta.mp3')} volume={1} />
+      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-07-cta.mp3')} volume={1} /></Sequence>
     </AbsoluteFill>
   );
 };
