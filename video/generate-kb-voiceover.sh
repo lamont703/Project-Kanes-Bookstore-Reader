@@ -29,16 +29,20 @@ generate() {
   fi
 
   printf "  Generating %s.mp3 ... " "$id"
+  local tmp="$OUT/${id}.tmp.mp3"
   edge-tts \
     --voice "$VOICE" \
     --text "$text" \
-    --write-media "$out" \
+    --write-media "$tmp" \
     2>/dev/null
 
-  if [[ -f "$out" ]]; then
+  if [[ -f "$tmp" ]]; then
+    # Resample to 44100 Hz — Remotion requires 44100 or 48000 Hz (edge-tts outputs 24000 Hz)
+    ffmpeg -y -i "$tmp" -ar 44100 -ab 128k "$out" 2>/dev/null
+    rm -f "$tmp"
     local dur
     dur=$(ffprobe -v quiet -show_entries format=duration -of csv=p=0 "$out" 2>/dev/null || echo "?")
-    echo "done (${dur}s)"
+    echo "done (${dur}s @ 44100Hz)"
   else
     echo "FAILED — is edge-tts installed? pip install edge-tts"
   fi
