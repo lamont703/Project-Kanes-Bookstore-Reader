@@ -627,7 +627,7 @@ export const SceneSplitFeatures: React.FC = () => {
         </div>
       </div>
 
-      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-02-overview.mp3')} volume={1} /></Sequence>
+      <Audio src={staticFile('vo/kb-scene-02-overview.mp3')} volume={1} />
     </AbsoluteFill>
   );
 };
@@ -889,7 +889,7 @@ export const SceneReaderDeepDive: React.FC = () => {
         </div>
       )}
 
-      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-03-reader.mp3')} volume={1} /></Sequence>
+      <Audio src={staticFile('vo/kb-scene-03-reader.mp3')} volume={1} />
     </AbsoluteFill>
   );
 };
@@ -1078,7 +1078,7 @@ export const SceneCommunity: React.FC = () => {
         ))}
       </div>
 
-      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-04-bookclubs.mp3')} volume={1} /></Sequence>
+      <Audio src={staticFile('vo/kb-scene-04-bookclubs.mp3')} volume={1} />
     </AbsoluteFill>
   );
 };
@@ -1411,7 +1411,7 @@ export const SceneDashboardSpread: React.FC = () => {
         </div>
       </div>
 
-      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-05-dashboard.mp3')} volume={1} /></Sequence>
+      <Audio src={staticFile('vo/kb-scene-05-dashboard.mp3')} volume={1} />
     </AbsoluteFill>
   );
 };
@@ -1625,7 +1625,7 @@ export const SceneFinalCTA: React.FC = () => {
         </div>
       </div>
 
-      <Sequence from={20} layout="none"><Audio src={staticFile('vo/kb-scene-07-cta.mp3')} volume={1} /></Sequence>
+      <Audio src={staticFile('vo/kb-scene-07-cta.mp3')} volume={1} />
     </AbsoluteFill>
   );
 };
