@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { isEventPast, getEventStatus } from "@/lib/book-club-utils"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,6 +17,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import {
     Calendar,
     Plus,
@@ -90,8 +98,8 @@ export function AdminEventsContent({ initialEvents }: AdminEventsContentProps) {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [isUploadingImage, setIsUploadingImage] = useState(false)
 
-    const upcomingEvents = events.filter(e => e.status === "upcoming")
-    const pastEvents = events.filter(e => e.status === "past")
+    const upcomingEvents = events.filter(e => !isEventPast(e.date))
+    const pastEvents = events.filter(e => isEventPast(e.date))
 
     const handleOpenCreate = () => {
         setCurrentEvent(null)
@@ -122,6 +130,8 @@ export function AdminEventsContent({ initialEvents }: AdminEventsContentProps) {
         }
 
         setIsSaving(true)
+        const newStatus = isEventPast(formData.date) ? "past" : "upcoming"
+        
         const payload = {
             title: formData.title.trim(),
             description: formData.description.trim() || null,
@@ -131,7 +141,7 @@ export function AdminEventsContent({ initialEvents }: AdminEventsContentProps) {
             type: formData.type,
             cover_image_url: formData.cover_image_url.trim() || null,
             is_public: formData.is_public,
-            status: formData.status,
+            status: newStatus,
         }
 
         if (currentEvent) {
@@ -235,12 +245,128 @@ export function AdminEventsContent({ initialEvents }: AdminEventsContentProps) {
                         <DialogTitle className="font-display text-3xl tracking-wider text-primary uppercase leading-none">
                             {currentEvent ? "Modify Mission Details" : "Schedule New Transmission"}
                         </DialogTitle>
+                        <DialogDescription className="text-muted-foreground mt-2">
+                            {currentEvent ? "Update the coordinates and details of this event transmission." : "Broadcast a new event mission to the explorer community."}
+                        </DialogDescription>
                     </DialogHeader>
-                    {/* Form content (same as original) */}
-                    <div className="flex justify-end gap-2 mt-4">
-                        <Button variant="ghost" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Abort Mission</Button>
-                        <Button onClick={handleSave} disabled={isSaving}>SAVE CHANGES</Button>
+
+                    <div className="space-y-6 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="title">Mission Title</Label>
+                                <Input 
+                                    id="title" 
+                                    value={formData.title} 
+                                    onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))} 
+                                    placeholder="e.g. Galactic Author Meetup"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="type">Environment Type</Label>
+                                <Select value={formData.type} onValueChange={(v: any) => setFormData(prev => ({ ...prev, type: v }))}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="virtual">Virtual Simulation</SelectItem>
+                                        <SelectItem value="in_person">Physical Outpost</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="description">Mission Briefing</Label>
+                            <Textarea 
+                                id="description" 
+                                value={formData.description} 
+                                onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} 
+                                placeholder="Describe the mission objectives..."
+                                rows={4}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="date">Landing Date</Label>
+                                <Input 
+                                    id="date" 
+                                    type="date"
+                                    value={formData.date} 
+                                    onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))} 
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="time">Transmission Time</Label>
+                                <Input 
+                                    id="time" 
+                                    value={formData.time} 
+                                    onChange={e => setFormData(prev => ({ ...prev, time: e.target.value }))} 
+                                    placeholder="e.g. 7:00 PM EST"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="location">Coordinate Location</Label>
+                            <Input 
+                                id="location" 
+                                value={formData.location} 
+                                onChange={e => setFormData(prev => ({ ...prev, location: e.target.value }))} 
+                                placeholder="e.g. Charlotte, NC or Zoom Link"
+                            />
+                        </div>
+
+                        <div className="space-y-4 pt-4 border-t border-border/50">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label>Public Broadcast</Label>
+                                    <p className="text-xs text-muted-foreground">Make this signal visible to everyone, including unverified explorers.</p>
+                                </div>
+                                <Switch 
+                                    checked={formData.is_public} 
+                                    onCheckedChange={v => setFormData(prev => ({ ...prev, is_public: v }))} 
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 pt-4 border-t border-border/50">
+                            <Label>Cover Visual</Label>
+                            <div 
+                                onClick={handleImageUploadClick}
+                                className="relative w-full h-48 border-2 border-dashed border-border/50 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors bg-muted/20 overflow-hidden"
+                            >
+                                {formData.cover_image_url ? (
+                                    <>
+                                        <Image src={formData.cover_image_url} alt="Preview" fill className="object-cover" />
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                            <Plus className="w-8 h-8 text-white" />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        {isUploadingImage ? <Loader2 className="w-8 h-8 animate-spin text-primary" /> : <ImageIcon className="w-8 h-8 text-muted-foreground mb-2" />}
+                                        <p className="text-sm text-muted-foreground">Upload cover image</p>
+                                    </>
+                                )}
+                            </div>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept="image/*" 
+                                onChange={handleFileChange} 
+                            />
+                        </div>
                     </div>
+
+                    <DialogFooter className="mt-8 gap-2 border-t border-border/50 pt-6">
+                        <Button variant="ghost" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Abort Mission</Button>
+                        <Button onClick={handleSave} disabled={isSaving || isUploadingImage}>
+                            {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            {currentEvent ? "UPGRADE SIGNAL" : "INITIATE BROADCAST"}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
@@ -248,10 +374,16 @@ export function AdminEventsContent({ initialEvents }: AdminEventsContentProps) {
                 <DialogContent className="max-w-md bg-card border-destructive/20">
                     <DialogHeader>
                         <DialogTitle className="font-display text-3xl tracking-wider text-destructive uppercase">Delete Transmission?</DialogTitle>
+                        <DialogDescription>
+                            This action will permanently purge this event signal from the galactic database. This cannot be undone.
+                        </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter className="mt-4 gap-2 sm:gap-0">
+                    <DialogFooter className="mt-6 gap-2 sm:gap-0">
                         <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>Keep Archive</Button>
-                        <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>PURGE DATA</Button>
+                        <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                            {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            PURGE DATA
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -260,7 +392,7 @@ export function AdminEventsContent({ initialEvents }: AdminEventsContentProps) {
 }
 
 function EventListItem({ event, onEdit, onDelete }: { event: BookClubEvent, onEdit: (e: BookClubEvent) => void, onDelete: (e: BookClubEvent) => void }) {
-    const isPast = event.status === "past"
+    const isPast = isEventPast(event.date)
     return (
         <Card className={`flex flex-col md:flex-row gap-6 p-5 border-border/50 hover:border-primary/30 transition-all ${isPast ? "opacity-70" : ""}`}>
             <div className="relative w-full md:w-48 h-32 shrink-0 bg-muted rounded-lg overflow-hidden">

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { BookClubSelectionCard } from "@/components/book-club-selection-card"
-import { Star, Check, Crown, Clock, Video, MapPin, Users, Globe } from "lucide-react"
+import { Star, Check, Crown, Clock, Video, MapPin, Users, Globe, Calendar } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { SubscriptionModal } from "@/components/subscription-modal"
@@ -252,53 +252,85 @@ export function BookClubContent({
                         </h2>
                     </div>
                     <div className="grid md:grid-cols-2 gap-6">
-                        {events.map((event) => (
-                            <Card key={event.id} className="p-6 bg-card/50 backdrop-blur border-border flex flex-col">
-                                <div className="mb-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <p className="text-sm font-medium text-primary">
-                                            {new Date(event.date).toLocaleDateString()}
-                                        </p>
-                                        {event.is_public ? (
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-green-400 bg-green-400/10 px-2 py-0.5 rounded border border-green-400/20 flex items-center gap-1">
-                                                <Globe className="w-2.5 h-2.5" /> Public
-                                            </span>
-                                        ) : (
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 flex items-center gap-1">
-                                                <Crown className="w-2.5 h-2.5" /> Members
-                                            </span>
-                                        )}
+                        {events.length > 0 ? (
+                            events.map((event) => (
+                                <Card key={event.id} className="p-0 bg-card/50 backdrop-blur border-border flex flex-col overflow-hidden group hover:border-primary/50 transition-all duration-300">
+                                    {event.cover_image_url && (
+                                        <div className="relative w-full h-56 overflow-hidden">
+                                            <Image 
+                                                src={event.cover_image_url} 
+                                                alt={event.title} 
+                                                fill 
+                                                className="object-cover transition-transform duration-700 group-hover:scale-110"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                                        </div>
+                                    )}
+                                    <div className="p-8 flex flex-col flex-1">
+                                        <div className="mb-6">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold tracking-widest flex items-center gap-2">
+                                                    <Calendar className="w-3.5 h-3.5" />
+                                                    {new Date(event.date.replace(/-/g, '/')).toLocaleDateString("en-US", { month: 'long', day: 'numeric', year: 'numeric' })}
+                                                </div>
+                                                {event.is_public ? (
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-green-400 bg-green-400/10 px-2 py-1 rounded border border-green-400/20 flex items-center gap-1">
+                                                        <Globe className="w-3 h-3" /> Public
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20 flex items-center gap-1">
+                                                        <Crown className="w-3 h-3" /> Members
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <h3 className="font-display text-3xl tracking-wide mb-3 group-hover:text-primary transition-colors">{event.title}</h3>
+                                            <p className="text-muted-foreground text-sm leading-relaxed line-clamp-3">
+                                                {event.description}
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="mt-auto space-y-3 text-sm border-t border-border/50 pt-6">
+                                            <div className="flex items-center gap-4 text-muted-foreground">
+                                                <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center">
+                                                    <Clock className="w-4 h-4 text-secondary" />
+                                                </div>
+                                                <span className="font-medium">{event.time}</span>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-muted-foreground">
+                                                <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center">
+                                                    <MapPin className="w-4 h-4 text-secondary" />
+                                                </div>
+                                                <span className="font-medium">{event.location}</span>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-muted-foreground">
+                                                <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center">
+                                                    <Users className="w-4 h-4 text-secondary" />
+                                                </div>
+                                                <span className="font-medium">{event.attendee_count || 0} explorers scheduled</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="mt-8 pt-6 border-t border-border/30">
+                                            <RsvpModal
+                                                eventId={event.id}
+                                                eventTitle={event.title}
+                                                isPublic={event.is_public}
+                                                currentUser={user}
+                                                alreadyRsvped={userRsvps.includes(event.id)}
+                                            />
+                                        </div>
                                     </div>
-                                    <h3 className="font-display text-2xl tracking-wide mt-1">{event.title}</h3>
+                                </Card>
+                            ))
+                        ) : (
+                            <Card className="col-span-full p-20 border-dashed border-2 border-border/30 bg-card/20 text-center flex flex-col items-center justify-center">
+                                <div className="w-20 h-20 rounded-full bg-muted/30 flex items-center justify-center mb-6">
+                                    <Calendar className="w-10 h-10 text-muted-foreground/30" />
                                 </div>
-                                <p className="text-muted-foreground mb-4 text-sm leading-relaxed">
-                                    {event.description}
-                                </p>
-                                <div className="mt-auto space-y-2 text-sm border-t border-border pt-4">
-                                    <div className="flex items-center gap-3">
-                                        <Clock className="w-4 h-4 text-secondary" />
-                                        <span>{event.time}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <MapPin className="w-4 h-4 text-secondary" />
-                                        <span>{event.location}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <Users className="w-4 h-4 text-secondary" />
-                                        <span>{event.attendee_count || 0} going</span>
-                                    </div>
-                                </div>
-                                <div className="mt-6">
-                                    <RsvpModal
-                                        eventId={event.id}
-                                        eventTitle={event.title}
-                                        isPublic={event.is_public}
-                                        currentUser={user}
-                                        alreadyRsvped={userRsvps.includes(event.id)}
-                                    />
-                                </div>
+                                <h3 className="font-display text-4xl tracking-widest uppercase mb-4 opacity-50">Clear Galactic Skies</h3>
+                                <p className="text-muted-foreground max-w-md mx-auto">No upcoming event signals detected in this sector of the galaxy. Check back soon for future transmissions.</p>
                             </Card>
-                        ))}
+                        )}
                     </div>
                 </section>
             </div>

@@ -29,3 +29,27 @@ export function sortSelections(selections: any[]) {
         return getMonthNumber(b.month) - getMonthNumber(a.month);
     });
 }
+
+export function isEventPast(dateStr: string): boolean {
+    if (!dateStr) return false;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (!year || !month || !day) return false;
+    
+    // month is 0-indexed in JS Date constructor
+    const eventDate = new Date(year, month - 1, day);
+    if (isNaN(eventDate.getTime())) return false;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return eventDate < today;
+}
+
+export function getEventStatus(event: any): 'upcoming' | 'past' {
+    return isEventPast(event.date) ? 'past' : 'upcoming';
+}
+
+export function sortEvents(events: any[]) {
+    return [...events].sort((a, b) => {
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+}

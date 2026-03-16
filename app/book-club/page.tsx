@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
 import { BookClubContent } from "@/components/book-club-content"
-import { sortSelections, getCurrentStatus } from "@/lib/book-club-utils"
+import { sortSelections, getCurrentStatus, isEventPast } from "@/lib/book-club-utils"
 
 export default async function BookClubPage() {
   const supabase = await createClient()
@@ -19,12 +19,18 @@ export default async function BookClubPage() {
       status: getCurrentStatus(s.month, s.year)
     }))
 
-  // Fetch Upcoming Events
-  const { data: events } = await supabase
+  // Fetch Events
+  const { data: allEvents, error: eventsError } = await supabase
     .from('book_club_events')
     .select('*')
-    .eq('status', 'upcoming')
-    .order('date', { ascending: true })
+  
+  if (eventsError) {
+    console.error("Supabase Events Error:", eventsError)
+  }
+
+  const events = (allEvents || [])
+    .filter(e => !isEventPast(e.date))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   // Fetch User Subscription if logged in
   const { data: { user } } = await supabase.auth.getUser()
