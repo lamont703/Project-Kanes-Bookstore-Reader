@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
 import { loadStripe } from "@stripe/stripe-js"
+import { useAuth } from "@/context/auth-context"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -43,6 +44,8 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     const [selectedBooks, setSelectedBooks] = useState<string[]>([])
     const [errors, setErrors] = useState<Record<string, boolean>>({})
     const [clientSecret, setClientSecret] = useState<string | null>(null)
+    const [showAuthPrompt, setShowAuthPrompt] = useState(false)
+    const { user } = useAuth()
 
     // Books fetched from Supabase
     const [availableBooks, setAvailableBooks] = useState<DbBook[]>([])
@@ -138,6 +141,11 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     }
 
     const handleNext = async () => {
+        if (!user) {
+            setShowAuthPrompt(true)
+            return
+        }
+
         if (step === 1) {
             if (!validateStep1()) return
             setStep(2)
@@ -195,19 +203,46 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-display tracking-wide text-center">
-                        {step === 1 && "Start Your Journey"}
-                        {step === 2 && "Choose Your First Reads"}
-                        {step === 3 && "Confirm Membership"}
-                        {step === 4 && "Welcome to the Community!"}
+                        {showAuthPrompt ? "Authentication Required" : (
+                            <>
+                                {step === 1 && "Start Your Journey"}
+                                {step === 2 && "Choose Your First Reads"}
+                                {step === 3 && "Confirm Membership"}
+                                {step === 4 && "Welcome to the Community!"}
+                            </>
+                        )}
                     </DialogTitle>
                     <DialogDescription className="text-center">
-                        {step < 4 ? `Step ${step} of 3` : "Membership Activated"}
+                        {showAuthPrompt ? "Please sign in to continue" : (
+                            step < 4 ? `Step ${step} of 3` : "Membership Activated"
+                        )}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="py-6">
+                    {/* Auth Prompt */}
+                    {showAuthPrompt && (
+                        <div className="text-center space-y-6 py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Users className="w-10 h-10" />
+                            </div>
+                            <h3 className="font-display text-2xl tracking-wide">Join the Inner Circle</h3>
+                            <p className="text-muted-foreground max-w-sm mx-auto">
+                                You need to be logged in to subscribe to the Book Club and access exclusive member benefits.
+                            </p>
+                            <div className="flex flex-col gap-3 max-w-[240px] mx-auto">
+                                <Button onClick={() => router.push('/login')} className="w-full">
+                                    Sign In / Register
+                                </Button>
+                                <Button variant="outline" onClick={() => setShowAuthPrompt(false)} className="w-full">
+                                    Go Back
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Step 1: User Details */}
-                    {step === 1 && (
+                    {!showAuthPrompt && step === 1 && (
                         <div className="grid gap-6 md:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="sub-name">Full Name</Label>
@@ -281,7 +316,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     )}
 
                     {/* Step 2: Book Selection */}
-                    {step === 2 && (
+                    {!showAuthPrompt && step === 2 && (
                         <div className="space-y-4">
                             <div className="text-center mb-6">
                                 <p className="text-muted-foreground text-sm">
@@ -334,7 +369,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     )}
 
                     {/* Step 3: Payment */}
-                    {step === 3 && clientSecret && (
+                    {!showAuthPrompt && step === 3 && clientSecret && (
                         <div className="grid md:grid-cols-2 gap-8">
                             <div className="space-y-6">
                                 <div className="rounded-lg border border-border bg-card p-6">
@@ -374,7 +409,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     )}
 
                     {/* Step 4: Success */}
-                    {step === 4 && (
+                    {!showAuthPrompt && step === 4 && (
                         <div className="text-center space-y-6 py-8">
                             <div className="w-24 h-24 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
                                 <Check className="w-12 h-12" />
@@ -387,24 +422,26 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     )}
                 </div>
 
-                <DialogFooter>
-                    {step > 1 && step < 3 ? (
-                        <Button variant="ghost" onClick={() => setStep((s) => Math.max(1, s - 1) as Step)} disabled={loading}>
-                            Back
-                        </Button>
-                    ) : null}
+                {!showAuthPrompt && (
+                    <DialogFooter>
+                        {step > 1 && step < 3 ? (
+                            <Button variant="ghost" onClick={() => setStep((s) => Math.max(1, s - 1) as Step)} disabled={loading}>
+                                Back
+                            </Button>
+                        ) : null}
 
-                    {step < 3 ? (
-                        <Button onClick={handleNext} disabled={loading}>
-                            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            Continue
-                        </Button>
-                    ) : step === 4 ? (
-                        <Button onClick={handleFinish} className="bg-green-600 hover:bg-green-700">
-                            Return to Club
-                        </Button>
-                    ) : null}
-                </DialogFooter>
+                        {step < 3 ? (
+                            <Button onClick={handleNext} disabled={loading}>
+                                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                Continue
+                            </Button>
+                        ) : step === 4 ? (
+                            <Button onClick={handleFinish} className="bg-green-600 hover:bg-green-700">
+                                Return to Club
+                            </Button>
+                        ) : null}
+                    </DialogFooter>
+                )}
             </DialogContent>
         </Dialog>
     )
