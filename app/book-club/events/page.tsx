@@ -3,6 +3,8 @@ import { Calendar, Clock, MapPin, Users, Video, Globe, Crown } from "lucide-reac
 import { SiteHeader } from "@/components/site-header"
 import { RsvpModal } from "./rsvp-modal"
 import { createClient } from "@/lib/supabase/server"
+import Image from "next/image"
+import { isEventPast } from "@/lib/book-club-utils"
 
 export default async function EventsPage() {
   const supabase = await createClient()
@@ -16,8 +18,8 @@ export default async function EventsPage() {
   if (error) console.error("Error fetching events:", error)
 
   const eventList = events ?? []
-  const upcomingEvents = eventList.filter(e => e.status === "upcoming")
-  const pastEvents = eventList.filter(e => e.status === "past")
+  const upcomingEvents = eventList.filter(e => !isEventPast(e.date))
+  const pastEvents = eventList.filter(e => isEventPast(e.date))
 
   // Fetch the current user and their RSVPs (if logged in)
   const { data: { user } } = await supabase.auth.getUser()
@@ -56,8 +58,20 @@ export default async function EventsPage() {
               {upcomingEvents.map((event) => (
                 <Card
                   key={event.id}
-                  className="p-6 bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-colors h-full flex flex-col"
+                  className="p-0 bg-card/50 backdrop-blur border-border hover:border-primary/50 transition-colors h-full flex flex-col overflow-hidden group"
                 >
+                  {event.cover_image_url && (
+                    <div className="relative w-full h-48 overflow-hidden">
+                      <Image 
+                        src={event.cover_image_url} 
+                        alt={event.title} 
+                        fill 
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    </div>
+                  )}
+                  <div className="p-6 flex flex-col flex-1">
                   <div className="mb-4">
                     <div className="flex items-center gap-2 mb-2">
                       <p className="text-sm font-medium text-primary">
@@ -103,6 +117,7 @@ export default async function EventsPage() {
                       alreadyRsvped={userRsvpEventIds.has(event.id)}
                     />
                   </div>
+                  </div>
                 </Card>
               ))}
             </div>
@@ -117,8 +132,20 @@ export default async function EventsPage() {
               {pastEvents.map((event) => (
                 <Card
                   key={event.id}
-                  className="p-6 bg-card/30 border-border/50 h-full flex flex-col"
+                  className="p-0 bg-card/30 border-border/50 h-full flex flex-col overflow-hidden"
                 >
+                  {event.cover_image_url && (
+                    <div className="relative w-full h-40 overflow-hidden grayscale opacity-60">
+                      <Image 
+                        src={event.cover_image_url} 
+                        alt={event.title} 
+                        fill 
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    </div>
+                  )}
+                  <div className="p-6 flex flex-col flex-1">
                   <div className="mb-4">
                     <p className="text-sm font-medium text-muted-foreground">
                       {new Date(event.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
@@ -139,6 +166,7 @@ export default async function EventsPage() {
                       <Users className="w-4 h-4" />
                       <span>{event.attendee_count} attended</span>
                     </div>
+                  </div>
                   </div>
                 </Card>
               ))}
