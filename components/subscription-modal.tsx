@@ -220,7 +220,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 </DialogHeader>
 
                 <div className="py-6">
-                    {/* Auth Prompt */}
+                    {/* Auth Prompt For User */}
                     {showAuthPrompt && (
                         <div className="text-center space-y-6 py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
