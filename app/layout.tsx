@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono, Bebas_Neue, Montserrat } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import Script from "next/script"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -41,6 +42,12 @@ export default function RootLayout({
           {children}
         </Providers>
         <Analytics />
+        {/* Inner G Complete Agency Pixel */}
+        <Script
+          src="https://senkwhdxgtypcrtoggyf.supabase.co/storage/v1/object/public/pixel/inner-g-pixel.js"
+          data-client-id="34ead9f2-28c7-45ad-86dd-5af77e0ea5d0"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   )
