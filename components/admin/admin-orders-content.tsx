@@ -208,35 +208,41 @@ function OrderCard({
     return (
         <Card className="bg-card/50 backdrop-blur border-border/50 hover:border-primary/20 transition-all overflow-hidden">
             {/* ── Card Header ── */}
-            <div className="p-5 flex flex-col md:flex-row md:items-center gap-4">
+            <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center gap-4">
                 {/* Order ID + Status */}
-                <div className="flex items-start gap-4 flex-1 min-w-0">
+                <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <ShoppingBag className="w-5 h-5 text-primary" />
                     </div>
-                    <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <span className="font-mono text-xs text-muted-foreground">
+                    <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                            <span className="font-mono text-[10px] sm:text-xs text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded">
                                 #{order.id.slice(0, 8).toUpperCase()}
                             </span>
                             <StatusBadge status={order.status} />
                             {needsShipping && (
-                                <span className="inline-flex items-center gap-1 text-xs text-secondary border border-secondary/20 bg-secondary/10 px-2 py-0.5 rounded-full">
-                                    <Truck className="w-3 h-3" />
-                                    Ships Physical
+                                <span className="inline-flex items-center gap-1 text-[10px] text-secondary border border-secondary/20 bg-secondary/10 px-2 py-0.5 rounded-full">
+                                    <Truck className="w-2.5 h-2.5" />
+                                    <span className="hidden xs:inline">Physical</span>
                                 </span>
                             )}
                         </div>
-                        <p className="font-medium text-sm truncate">{customerName}</p>
-                        <p className="text-xs text-muted-foreground">{order.users?.email || order.shipping_email}</p>
+                        <p className="font-medium text-sm sm:text-base truncate">{customerName}</p>
+                        <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-none">
+                            {order.users?.email || order.shipping_email}
+                        </p>
                     </div>
                 </div>
 
                 {/* Meta + Actions */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-6 shrink-0">
-                    <div className="text-right">
-                        <p className="font-display text-xl tracking-wide text-primary">{formatCurrency(order.total)}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(order.placed_at)}</p>
+                <div className="flex items-center md:items-center justify-between md:justify-end gap-3 md:gap-6 border-t md:border-t-0 border-border/20 pt-3 md:pt-0">
+                    <div className="text-left md:text-right">
+                        <p className="font-display text-lg sm:text-xl tracking-wide text-primary leading-none mb-1">
+                            {formatCurrency(order.total)}
+                        </p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
+                            {formatDate(order.placed_at).split(',')[0]}
+                        </p>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -244,7 +250,7 @@ function OrderCard({
                             value={order.status}
                             onValueChange={(v: "pending" | "confirmed" | "fulfilled") => onStatusUpdate(order.id, { status: v })}
                         >
-                            <SelectTrigger className="h-9 w-40 bg-muted/40 border-border/50">
+                            <SelectTrigger className="h-9 w-28 sm:w-40 text-xs bg-muted/40 border-border/50">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
                             <SelectContent>
@@ -258,7 +264,7 @@ function OrderCard({
                             variant="ghost"
                             size="sm"
                             onClick={() => setExpanded((v) => !v)}
-                            className="text-muted-foreground hover:text-primary"
+                            className="h-9 w-9 p-0 text-muted-foreground hover:text-primary border border-border/30 md:border-0"
                         >
                             {expanded ? (
                                 <ChevronUp className="w-4 h-4" />
@@ -446,18 +452,18 @@ export function AdminOrdersContent({ initialOrders }: AdminOrdersContentProps) {
     return (
         <div className="p-4 md:p-8">
             {/* ── Header ── */}
-            <div className="mb-8">
-                <h1 className="font-display text-4xl md:text-5xl tracking-wider mb-2 leading-tight">
+            <div className="mb-6 md:mb-8">
+                <h1 className="font-display text-3xl sm:text-4xl md:text-5xl tracking-tight sm:tracking-wider mb-2 leading-tight">
                     <span className="text-primary">ORDER</span>{" "}
                     <span className="text-secondary">CONTROL</span>
                 </h1>
-                <p className="text-base md:text-lg text-muted-foreground">
-                    Track and manage all customer orders and shipments
+                <p className="text-sm md:text-lg text-muted-foreground">
+                    Manage transmissions and physical deployments
                 </p>
             </div>
 
             {/* ── Stats Cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
                 {[
                     {
                         label: "Total Orders",
@@ -493,62 +499,69 @@ export function AdminOrdersContent({ initialOrders }: AdminOrdersContentProps) {
                     return (
                         <Card
                             key={stat.label}
-                            className="p-5 bg-card/50 backdrop-blur border-border/50"
+                            className="p-4 sm:p-5 bg-card/50 backdrop-blur border-border/50 hover:border-primary/20 transition-colors"
                         >
-                            <div className={`w-9 h-9 ${stat.bg} rounded-lg flex items-center justify-center mb-3`}>
-                                <Icon className={`w-4 h-4 ${stat.color}`} />
+                            <div className="flex items-center sm:block gap-4">
+                                <div className={`w-9 h-9 ${stat.bg} rounded-lg flex items-center justify-center sm:mb-3 shrink-0`}>
+                                    <Icon className={`w-4 h-4 ${stat.color}`} />
+                                </div>
+                                <div>
+                                    <p className={`font-display text-2xl sm:text-3xl ${stat.color} leading-none mb-1`}>
+                                        {stat.value}
+                                    </p>
+                                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-medium tracking-wider">
+                                        {stat.label}
+                                    </p>
+                                </div>
                             </div>
-                            <p className={`font-display text-2xl ${stat.color} leading-none mb-1`}>
-                                {stat.value}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{stat.label}</p>
                         </Card>
                     )
                 })}
             </div>
 
             {/* ── Filters ── */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="flex flex-col md:flex-row gap-3 mb-6">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                        placeholder="Search by order ID, customer, or book title…"
-                        className="pl-9 bg-card/50"
+                        placeholder="Search IDs, emails, titles..."
+                        className="pl-9 bg-card/50 h-10"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <Select
-                    value={statusFilter}
-                    onValueChange={(v: any) => setStatusFilter(v)}
-                >
-                    <SelectTrigger className="w-full sm:w-48 bg-card/50">
-                        <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-                        <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Orders</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="fulfilled">Fulfilled</SelectItem>
-                    </SelectContent>
-                </Select>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <Select
+                        value={statusFilter}
+                        onValueChange={(v: any) => setStatusFilter(v)}
+                    >
+                        <SelectTrigger className="flex-1 md:w-48 bg-card/50 h-10">
+                            <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="confirmed">Confirmed</SelectItem>
+                            <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                        </SelectContent>
+                    </Select>
 
-                <Select
-                    value={itemsPerPage.toString()}
-                    onValueChange={(v) => setItemsPerPage(parseInt(v))}
-                >
-                    <SelectTrigger className="w-full sm:w-32 bg-card/50">
-                        <span className="text-xs mr-2 text-muted-foreground">Show:</span>
-                        <SelectValue placeholder="Display Limit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="10">10 per page</SelectItem>
-                        <SelectItem value="25">25 per page</SelectItem>
-                        <SelectItem value="50">50 per page</SelectItem>
-                        <SelectItem value="100">100 per page</SelectItem>
-                    </SelectContent>
-                </Select>
+                    <Select
+                        value={itemsPerPage.toString()}
+                        onValueChange={(v) => setItemsPerPage(parseInt(v))}
+                    >
+                        <SelectTrigger className="w-24 sm:w-32 bg-card/50 h-10">
+                            <SelectValue placeholder="Limit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="10">10 / Page</SelectItem>
+                            <SelectItem value="25">25 / Page</SelectItem>
+                            <SelectItem value="50">50 / Page</SelectItem>
+                            <SelectItem value="100">100 / Page</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
             {/* ── Orders List ── */}
@@ -583,19 +596,28 @@ export function AdminOrdersContent({ initialOrders }: AdminOrdersContentProps) {
 
                     {/* ── Pagination Controls ── */}
                     {totalPages > 1 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-12 bg-card/30 p-4 rounded-xl border border-border/50">
-                            <div className="text-sm text-muted-foreground">
-                                Showing <span className="font-medium text-primary">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-primary">{Math.min(currentPage * itemsPerPage, filteredOrders.length)}</span> of <span className="font-medium">{filteredOrders.length}</span> missions
+                        <div className="flex flex-col lg:flex-row items-center justify-between gap-6 mt-8 md:mt-12 bg-card/30 p-4 md:p-5 rounded-2xl border border-border/50">
+                            <div className="text-sm text-muted-foreground order-2 lg:order-1 text-center lg:text-left">
+                                Showing <span className="font-medium text-primary">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-primary">{Math.min(currentPage * itemsPerPage, filteredOrders.length)}</span> of <span className="font-medium">{filteredOrders.length}</span> results
                             </div>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 order-1 lg:order-2 w-full lg:w-auto justify-center">
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                     disabled={currentPage === 1}
-                                    className="bg-transparent border-border/50 hover:bg-muted/50"
+                                    className="h-9 px-3 bg-transparent border-border/50 hover:bg-muted/50 hidden sm:flex"
                                 >
-                                    <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                                    <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-9 w-9 bg-transparent border-border/50 hover:bg-muted/50 sm:hidden"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
                                 </Button>
 
                                 <div className="flex items-center gap-1 mx-2">
