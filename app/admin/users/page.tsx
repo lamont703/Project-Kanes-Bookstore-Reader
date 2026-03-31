@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Filter, MoreVertical, Loader2, ShieldAlert, ShieldCheck, Crown, UserX, Gift } from "lucide-react"
+import { Search, Filter, MoreVertical, Loader2, ShieldAlert, ShieldCheck, Crown, UserX, Gift, Copy, Check } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import {
   DropdownMenu,
@@ -51,6 +51,35 @@ interface AdminUser {
     isActive: boolean
     totalUses: number
   } | null
+}
+
+// ─── Sub-components ─────────────────────────────────────────────────────────────
+
+function DealerCodeCopy({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code)
+    setCopied(true)
+    toast.success(`Code ${code} copied to clipboard`)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-2 group/copy hover:bg-secondary/20 transition-colors px-2 py-1 rounded border border-secondary/20"
+    >
+      <code className="text-secondary font-mono font-bold">
+        {code}
+      </code>
+      {copied ? (
+        <Check className="w-3 h-3 text-green-500" />
+      ) : (
+        <Copy className="w-3 h-3 text-secondary opacity-50 group-hover/copy:opacity-100 transition-opacity" />
+      )}
+    </button>
+  )
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -355,9 +384,7 @@ export default function AdminUsersPage() {
                   {filterType === "dealers" ? (
                     <>
                       <td className="p-4">
-                        <code className="text-secondary font-mono font-bold bg-secondary/10 px-2 py-1 rounded border border-secondary/20">
-                          {user.dealerInfo?.code}
-                        </code>
+                        <DealerCodeCopy code={user.dealerInfo?.code || ""} />
                       </td>
                       <td className="p-4 text-center">
                         <span className="font-display text-lg text-primary">{user.dealerInfo?.discount}%</span>
