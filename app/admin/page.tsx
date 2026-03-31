@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { TrendingUp, BookOpen, Calendar, MessageSquare, ArrowRight, Star, Users, Crown } from "lucide-react"
+import { TrendingUp, BookOpen, Calendar, MessageSquare, ArrowRight, Star, Users, Crown, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 
@@ -13,6 +13,7 @@ export default async function AdminDashboard() {
   const { count: selectionCount } = await supabase.from('book_club_selections').select('*', { count: 'exact', head: true })
   const { count: eventCount } = await supabase.from('book_club_events').select('*', { count: 'exact', head: true })
   const { count: topicCount } = await supabase.from('discussion_topics').select('*', { count: 'exact', head: true })
+  const { count: ordersCount } = await supabase.from('orders').select('*', { count: 'exact', head: true })
 
   // 2. Fetch Recent Users snapshot
   const { data: recentUsersRaw } = await supabase
@@ -87,6 +88,16 @@ export default async function AdminDashboard() {
       bgColor: "bg-primary/10",
       borderColor: "border-primary/30",
       count: usersCount || 0
+    },
+    {
+      title: "Orders",
+      description: "Track, review, and fulfill all customer orders and shipments",
+      href: "/admin/orders",
+      icon: ShoppingBag,
+      color: "text-secondary",
+      bgColor: "bg-secondary/10",
+      borderColor: "border-secondary/30",
+      count: ordersCount || 0
     },
   ]
 

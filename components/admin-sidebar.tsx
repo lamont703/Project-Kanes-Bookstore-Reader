@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Home, BookOpen, Users, Calendar, MessageSquare, X, Star } from "lucide-react"
+import { Home, BookOpen, Users, Calendar, MessageSquare, X, Star, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -16,6 +16,7 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
   const navItems = [
     { href: "/admin", icon: Home, label: "Dashboard" },
     { href: "/admin/books", icon: BookOpen, label: "Catalog" },
+    { href: "/admin/orders", icon: ShoppingBag, label: "Orders" },
     { href: "/admin/book-club", icon: Star, label: "Monthly Selection" },
     { href: "/admin/discussions", icon: MessageSquare, label: "Discussions" },
     { href: "/admin/events", icon: Calendar, label: "Events" },
