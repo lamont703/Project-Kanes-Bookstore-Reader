@@ -45,6 +45,12 @@ interface AdminUser {
   booksOwned: number
   plan: "free" | "premium"
   subscriptionStatus: string | null
+  dealerInfo: {
+    code: string
+    discount: number
+    isActive: boolean
+    totalUses: number
+  } | null
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -53,6 +59,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [filterType, setFilterType] = useState<"users" | "dealers">("users")
   const [filterTier, setFilterTier] = useState<"all" | "premium">("all")
 
   // Subscription management dialog
@@ -73,7 +80,11 @@ export default function AdminUsersPage() {
     setIsLoading(true)
     const params = new URLSearchParams()
     if (debouncedSearch) params.set("q", debouncedSearch)
-    if (filterTier !== "all") params.set("tier", filterTier)
+    if (filterType === "dealers") {
+      params.set("type", "dealers")
+    } else if (filterTier !== "all") {
+      params.set("tier", filterTier)
+    }
 
     const res = await fetch(`/api/admin/users?${params}`)
     if (!res.ok) {
@@ -81,10 +92,10 @@ export default function AdminUsersPage() {
       setIsLoading(false)
       return
     }
-    const { users: data } = await res.json()
+    const { users: data } = (await res.json()) as { users: AdminUser[] }
     setUsers(data ?? [])
     setIsLoading(false)
-  }, [debouncedSearch, filterTier])
+  }, [debouncedSearch, filterTier, filterType])
 
   useEffect(() => {
     setIsMounted(true)
@@ -96,7 +107,7 @@ export default function AdminUsersPage() {
       .select("id, title")
       .eq("status", "published")
       .order("title")
-      .then(({ data }) => setAllBooks(data || []))
+      .then(({ data }: { data: any }) => setAllBooks(data || []))
   }, [supabase])
 
   // ── Manage subscription dialog ─────────────────────────────────────────────
@@ -243,18 +254,32 @@ export default function AdminUsersPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground mr-1" />
           <Button
-            variant={filterTier === "all" ? "default" : "outline"}
+            variant={filterType === "users" && filterTier === "all" ? "default" : "outline"}
             size="sm"
-            onClick={() => setFilterTier("all")}
-            className={`text-xs h-8 ${filterTier === "all" ? "" : "bg-transparent"}`}
+            onClick={() => {
+              setFilterType("users")
+              setFilterTier("all")
+            }}
+            className={`text-xs h-8 ${filterType === "users" && filterTier === "all" ? "" : "bg-transparent"}`}
           >
             All Users
           </Button>
           <Button
-            variant={filterTier === "premium" ? "default" : "outline"}
+            variant={filterType === "dealers" ? "default" : "outline"}
             size="sm"
-            onClick={() => setFilterTier("premium")}
-            className={`text-xs h-8 ${filterTier === "premium" ? "" : "bg-transparent"}`}
+            onClick={() => setFilterType("dealers")}
+            className={`text-xs h-8 ${filterType === "dealers" ? "" : "bg-transparent"}`}
+          >
+            Kane Dealers
+          </Button>
+          <Button
+            variant={filterType === "users" && filterTier === "premium" ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setFilterType("users")
+              setFilterTier("premium")
+            }}
+            className={`text-xs h-8 ${filterType === "users" && filterTier === "premium" ? "" : "bg-transparent"}`}
           >
             Book Club Users
           </Button>
@@ -268,10 +293,21 @@ export default function AdminUsersPage() {
             <thead>
               <tr className="border-b border-border bg-muted/30 text-left">
                 <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">User</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground hidden lg:table-cell">Join Date</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Tier</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground hidden sm:table-cell">Library</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground hidden md:table-cell">Last Active</th>
+                {filterType === "dealers" ? (
+                  <>
+                    <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Dealer Code</th>
+                    <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground text-center">Discount</th>
+                    <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground text-center">Status</th>
+                    <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground text-center">Uses</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground hidden lg:table-cell">Join Date</th>
+                    <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Tier</th>
+                    <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground hidden sm:table-cell">Library</th>
+                    <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground hidden md:table-cell">Last Active</th>
+                  </>
+                )}
                 <th className="p-4 text-xs font-bold uppercase tracking-widest text-muted-foreground text-right">Actions</th>
               </tr>
             </thead>
@@ -315,29 +351,55 @@ export default function AdminUsersPage() {
                       <span className="text-xs text-muted-foreground truncate max-w-[150px] md:max-w-none">{user.email}</span>
                     </div>
                   </td>
-                  <td className="p-4 text-xs text-muted-foreground hidden lg:table-cell">
-                    {new Date(user.joinDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </td>
-                  <td className="p-4">
-                    <span
-                      className={`text-[10px] uppercase tracking-tighter px-2 py-0.5 rounded font-bold border flex items-center gap-1 w-fit ${user.plan === "premium"
-                        ? "bg-primary/20 text-primary border-primary/20"
-                        : "bg-muted text-muted-foreground border-border"
-                        }`}
-                    >
-                      {user.plan === "premium" && <Crown className="w-2.5 h-2.5" />}
-                      {user.plan}
-                    </span>
-                  </td>
-                  <td className="p-4 text-sm hidden sm:table-cell">
-                    <span className="font-medium">{user.booksOwned}</span>
-                    <span className="text-xs text-muted-foreground ml-1">Volumes</span>
-                  </td>
-                  <td className="p-4 text-xs text-muted-foreground hidden md:table-cell">
-                    {user.lastActive
-                      ? new Date(user.lastActive).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                      : "Never"}
-                  </td>
+
+                  {filterType === "dealers" ? (
+                    <>
+                      <td className="p-4">
+                        <code className="text-secondary font-mono font-bold bg-secondary/10 px-2 py-1 rounded border border-secondary/20">
+                          {user.dealerInfo?.code}
+                        </code>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="font-display text-lg text-primary">{user.dealerInfo?.discount}%</span>
+                      </td>
+                      <td className="p-4 text-center">
+                        {user.dealerInfo?.isActive ? (
+                          <span className="text-[10px] text-green-500 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20 font-bold uppercase">Active</span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground bg-muted/10 px-2 py-0.5 rounded border border-border font-bold uppercase">Inactive</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-center font-mono font-bold text-sm">
+                        {user.dealerInfo?.totalUses}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="p-4 text-xs text-muted-foreground hidden lg:table-cell">
+                        {new Date(user.joinDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </td>
+                      <td className="p-4">
+                        <span
+                          className={`text-[10px] uppercase tracking-tighter px-2 py-0.5 rounded font-bold border flex items-center gap-1 w-fit ${user.plan === "premium"
+                            ? "bg-primary/20 text-primary border-primary/20"
+                            : "bg-muted text-muted-foreground border-border"
+                            }`}
+                        >
+                          {user.plan === "premium" && <Crown className="w-2.5 h-2.5" />}
+                          {user.plan}
+                        </span>
+                      </td>
+                      <td className="p-4 text-sm hidden sm:table-cell">
+                        <span className="font-medium">{user.booksOwned}</span>
+                        <span className="text-xs text-muted-foreground ml-1">Volumes</span>
+                      </td>
+                      <td className="p-4 text-xs text-muted-foreground hidden md:table-cell">
+                        {user.lastActive
+                          ? new Date(user.lastActive).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                          : "Never"}
+                      </td>
+                    </>
+                  )}
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <DropdownMenu>
