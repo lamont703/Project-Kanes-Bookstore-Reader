@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Adding custom Komet/funky theme colors */
+/* Adding custom Komet/funky theme color */
 :root {
   --background: oklch(0.05 0 0);
   /* Pure black background */
