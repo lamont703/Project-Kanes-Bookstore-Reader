@@ -1,80 +1,29 @@
-"use client"
-
 import type React from "react"
-import { useState, useEffect } from "react"
-import { AdminSidebar } from "@/components/admin-sidebar"
-import { Toaster } from "sonner"
-import { Menu, Sparkles } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import Image from "next/image"
-import { useAuth } from "@/context/auth-context"
-import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { AdminLayoutShell } from "@/components/admin/admin-layout-shell"
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { isAdmin, isLoading } = useAuth()
-  const router = useRouter()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
-  useEffect(() => {
-    if (!isLoading && !isAdmin) {
-      router.push("/")
-    }
-  }, [isAdmin, isLoading, router])
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Sparkles className="w-8 h-8 text-primary animate-pulse" />
-      </div>
-    )
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient()
+  
+  // 1. Check for basic user session
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  
+  if (authError || !user) {
+    redirect("/login?redirect=/admin")
   }
 
-  if (!isAdmin) return null
+  // 2. Verify admin role in database
+  const { data: profile, error: profileError } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single()
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Mobile Sidebar Overlay */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden transition-opacity"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+  if (profileError || profile?.role !== "admin") {
+    redirect("/")
+  }
 
-      {/* Sidebar - Desktop: fixed left, Mobile: drawer */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out
-        ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
-      `}>
-        <AdminSidebar onClose={() => setIsSidebarOpen(false)} />
-      </aside>
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile Header */}
-        <header className="lg:hidden h-16 border-b border-border bg-card/30 backdrop-blur flex items-center justify-between px-4 flex-shrink-0">
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
-              alt="Kane's Komets Logo"
-              width={32}
-              height={32}
-              className="h-8 w-8 rounded-lg object-contain"
-            />
-            <span className="font-display text-xl tracking-wider text-primary">KANE'S KOMETS</span>
-          </Link>
-          <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
-            <Menu className="w-6 h-6" />
-          </Button>
-        </header>
-
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-0">
-          {children}
-        </main>
-      </div>
-
-      <Toaster position="top-right" theme="dark" />
-    </div>
-  )
+  // 3. Render the shell if authorized
+  return <AdminLayoutShell>{children}</AdminLayoutShell>
 }

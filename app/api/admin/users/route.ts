@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const q = searchParams.get("q") ?? ""
+    const type = searchParams.get("type") ?? "users" // "users" | "dealers"
     const tier = searchParams.get("tier") ?? "all" // "all" | "premium"
 
     // Fetch users (admin client bypasses RLS)
@@ -66,6 +67,12 @@ export async function GET(request: NextRequest) {
             ),
             user_library (
                 id
+            ),
+            promo_codes!promo_codes_owner_id_fkey (
+                code,
+                discount_percent,
+                is_active,
+                total_uses
             )
         `)
         .is("deleted_at", null)
@@ -89,14 +96,28 @@ export async function GET(request: NextRequest) {
             ? u.user_subscriptions[0]
             : u.user_subscriptions
 
+        const promo = Array.isArray(u.promo_codes)
+            ? u.promo_codes[0]
+            : u.promo_codes
+
         // Ensure libraryCount is the actual length of the returned array
         const libraryCount = Array.isArray(u.user_library)
             ? u.user_library.length
             : 0
 
+        // Robust name resolution: full_name -> display_name -> email
+        const getValidName = () => {
+            const fn = u.full_name
+            const dn = u.display_name
+            const isValid = (val: any) => val && typeof val === 'string' && val.toLowerCase() !== 'undefined' && val.trim() !== '' && val !== 'undefined undefined'
+            if (isValid(fn)) return fn
+            if (isValid(dn)) return dn
+            return u.email || "—"
+        }
+
         return {
             id: u.id,
-            name: u.full_name ?? u.display_name ?? "—",
+            name: getValidName(),
             email: u.email,
             role: u.role,
             isBanned: u.is_banned,
@@ -105,13 +126,22 @@ export async function GET(request: NextRequest) {
             booksOwned: libraryCount,
             plan: (sub?.plan ?? "free") as "free" | "premium",
             subscriptionStatus: sub?.status ?? null,
+            dealerInfo: promo ? {
+                code: promo.code,
+                discount: promo.discount_percent,
+                isActive: promo.is_active,
+                totalUses: promo.total_uses
+            } : null
         }
     })
 
-    // Filter by tier client-side after normalisation
-    const filtered = tier === "premium"
-        ? normalised.filter(u => u.plan === "premium")
-        : normalised
+    // Filter by tier or type
+    let filtered = normalised
+    if (type === "dealers") {
+        filtered = filtered.filter(u => u.dealerInfo !== null)
+    } else if (tier === "premium") {
+        filtered = filtered.filter(u => u.plan === "premium")
+    }
 
     return NextResponse.json({ users: filtered })
 }
