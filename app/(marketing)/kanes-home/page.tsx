@@ -28,7 +28,9 @@ export const metadata: Metadata = {
 }
 
 const HERO_VIDEO = "/marketing/video/kanes-hero.mp4"
-const HERO_POSTER = "/marketing/b9ed83bb-661ea792d03e91ccb4968534.webp"
+// A real frame from the clip. The video's own GHL "thumbnail" was the site
+// logo on a white background — wrong subject, and jarring on a dark page.
+const HERO_POSTER = "/marketing/video/kanes-hero-poster.jpg"
 
 /** Unique image sources between two block indices, in document order. */
 function imagesBetween(blocks: MarketingBlock[], from: number, to: number) {
@@ -85,23 +87,24 @@ export default async function KanesHomePage() {
         <>
             {/* Hero */}
             <section className="relative overflow-hidden border-b border-border">
-                <div className="absolute inset-0 bg-gradient-to-b from-orange-600/10 via-background to-background" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,140,0,0.18),transparent_60%)]" />
+                <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-background to-background" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,color-mix(in_oklch,var(--primary)_28%,transparent),transparent_60%)]" />
 
                 <div className="container relative mx-auto px-4 py-16 md:py-24">
                     <div className="grid items-center gap-12 lg:grid-cols-2">
                         <div className="text-center lg:text-left">
-                            <p className="text-sm font-bold uppercase tracking-[0.3em] text-orange-500">
+                            <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                                 Welcome 2 the
                             </p>
-                            <h1 className="mt-4 text-4xl font-bold tracking-tight text-balance md:text-6xl">
-                                Funkiest Bookstore in the Universe!
+                            <h1 className="font-display mt-3 text-5xl uppercase tracking-wider text-balance md:text-7xl">
+                                <span className="text-primary">FUNKIEST BOOKSTORE</span>{" "}
+                                <span className="text-secondary">IN THE UNIVERSE!</span>
                             </h1>
                             <p className="mt-6 text-lg text-muted-foreground">
                                 Creative literature and art through Komet books and merch.
                             </p>
                             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
-                                <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700">
+                                <Button asChild size="lg">
                                     <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
                                 </Button>
                                 <Button asChild size="lg" variant="outline">
@@ -122,11 +125,11 @@ export default async function KanesHomePage() {
             {/* More about us */}
             <section className="border-b border-border">
                 <div className="container mx-auto max-w-3xl px-4 py-16 text-center md:py-20">
-                    <p className="text-sm font-bold uppercase tracking-[0.3em] text-orange-500">
+                    <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                         More About Us
                     </p>
                     {aboutBlurb && (
-                        <h2 className="mt-4 text-2xl font-bold tracking-tight text-balance md:text-3xl">
+                        <h2 className="mt-4 text-xl font-semibold tracking-tight text-balance md:text-2xl">
                             {aboutBlurb.text}
                         </h2>
                     )}
@@ -140,15 +143,15 @@ export default async function KanesHomePage() {
             {books.length > 0 && (
                 <section className="border-b border-border">
                     <div className="container mx-auto max-w-6xl px-4 py-16 md:py-20">
-                        <p className="text-sm font-bold uppercase tracking-[0.3em] text-orange-500">
+                        <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                             Our Books
                         </p>
-                        <h2 className="mt-3 text-2xl font-bold tracking-tight md:text-3xl">
+                        <h2 className="font-display mt-2 text-3xl uppercase tracking-wider md:text-4xl">
                             Learn About Our Kometz
                         </h2>
                         <Gallery images={books} />
                         <div className="mt-10 text-center">
-                            <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700">
+                            <Button asChild size="lg">
                                 <Link href="/kometbooks">View All Of Our Kometz</Link>
                             </Button>
                         </div>
@@ -159,15 +162,15 @@ export default async function KanesHomePage() {
             {/* More funk */}
             <section className="border-b border-border">
                 <div className="container mx-auto max-w-6xl px-4 py-16 md:py-20">
-                    <p className="text-sm font-bold uppercase tracking-[0.3em] text-orange-500">
+                    <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                         More Funk
                     </p>
-                    <h2 className="mt-3 text-2xl font-bold tracking-tight md:text-3xl">
+                    <h2 className="font-display mt-2 text-3xl uppercase tracking-wider md:text-4xl">
                         Buy More Products
                     </h2>
                     {funk.length > 0 && <Gallery images={funk} square />}
                     <div className="mt-10 text-center">
-                        <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700">
+                        <Button asChild size="lg">
                             <Link href="/morefunk">More Funk for Purchase</Link>
                         </Button>
                     </div>
@@ -178,10 +181,10 @@ export default async function KanesHomePage() {
             {characters.length > 0 && (
                 <section className="border-b border-border">
                     <div className="container mx-auto max-w-6xl px-4 py-16 md:py-20">
-                        <p className="text-sm font-bold uppercase tracking-[0.3em] text-orange-500">
+                        <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                             Our Characters
                         </p>
-                        <h2 className="mt-3 text-2xl font-bold tracking-tight md:text-3xl">
+                        <h2 className="font-display mt-2 text-3xl uppercase tracking-wider md:text-4xl">
                             Learn About Our Characters
                         </h2>
                         <Gallery images={characters} square />
@@ -197,14 +200,15 @@ export default async function KanesHomePage() {
             {/* Closing CTA */}
             <section>
                 <div className="container mx-auto max-w-3xl px-4 py-20 text-center">
-                    <h2 className="text-2xl font-bold tracking-tight md:text-4xl">
-                        Have A Kane Day
+                    <h2 className="font-display text-4xl uppercase tracking-wider md:text-5xl">
+                        <span className="text-primary">HAVE A</span>{" "}
+                        <span className="text-secondary">KANE DAY</span>
                     </h2>
                     <p className="mt-4 text-muted-foreground">
                         Members get a membership tee, a book bundle, a surprise gift, and an
                         automatic Kane Dealer code for 35% off at checkout.
                     </p>
-                    <Button asChild size="lg" className="mt-8 bg-orange-600 hover:bg-orange-700">
+                    <Button asChild size="lg" className="mt-8 ">
                         <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
                     </Button>
                 </div>

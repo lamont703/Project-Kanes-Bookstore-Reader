@@ -67,7 +67,10 @@ export default async function KometBooksPage() {
 
     return (
         <div className="container mx-auto max-w-6xl px-4 py-12 md:py-20">
-            <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Komet Books</h1>
+            <h1 className="font-display text-5xl uppercase tracking-wider md:text-6xl">
+                <span className="text-primary">THE KOMET</span>{" "}
+                <span className="text-secondary">BOOK COLLECTION</span>
+            </h1>
             <p className="mt-4 max-w-2xl text-muted-foreground">
                 The Komet collection, exclusively published by Emanuel and Bass Publishing, alongside
                 Kane&apos;s handpicked must-reads. Tap any title to read more and purchase.
@@ -76,7 +79,7 @@ export default async function KometBooksPage() {
             {error && (
                 <p className="mt-10 rounded-lg border border-border p-6 text-muted-foreground">
                     The catalog is unavailable right now. Please try again shortly, or{" "}
-                    <a href={kometzUrl("/browse")} className="text-orange-500 underline">
+                    <a href={kometzUrl("/browse")} className="text-primary underline">
                         browse the full store
                     </a>
                     .
@@ -96,7 +99,7 @@ export default async function KometBooksPage() {
                         <a
                             key={book.id}
                             href={bookDetailUrl(book.id)}
-                            className="group rounded-xl border border-border bg-card p-3 transition-colors hover:border-orange-500/50"
+                            className="group rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/50"
                         >
                             <div className="aspect-[2/3] overflow-hidden rounded-lg bg-muted">
                                 {book.cover_image_url ? (
@@ -113,12 +116,12 @@ export default async function KometBooksPage() {
                                     </div>
                                 )}
                             </div>
-                            <h2 className="mt-3 line-clamp-2 text-sm font-semibold">{book.title}</h2>
+                            <h2 className="font-display mt-3 line-clamp-2 text-lg tracking-wide transition-colors group-hover:text-primary">{book.title}</h2>
                             {book.author && (
                                 <p className="line-clamp-1 text-xs text-muted-foreground">{book.author}</p>
                             )}
                             {price !== null ? (
-                                <p className="mt-1 text-sm font-bold text-orange-500">
+                                <p className="mt-1 text-sm font-bold text-primary">
                                     ${price.toFixed(2)}
                                 </p>
                             ) : (
@@ -132,7 +135,7 @@ export default async function KometBooksPage() {
             </div>
 
             <div className="mt-14 text-center">
-                <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700">
+                <Button asChild size="lg">
                     <a href={kometzUrl("/browse")}>Browse the Full Store</a>
                 </Button>
             </div>

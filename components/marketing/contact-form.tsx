@@ -59,8 +59,8 @@ export function ContactForm() {
 
     if (state === "sent") {
         return (
-            <div className="rounded-xl border border-orange-500/30 bg-orange-600/10 p-8 text-center">
-                <h2 className="text-xl font-bold">Thanks — we got your message.</h2>
+            <div className="rounded-xl border border-primary/30 bg-primary/10 p-8 text-center">
+                <h2 className="font-display text-2xl uppercase tracking-wider text-primary">Thanks — We Got Your Message</h2>
                 <p className="mt-2 text-muted-foreground">
                     Someone from Kane&apos;s Komet Bookstore will get back to you soon.
                 </p>
@@ -108,9 +108,7 @@ export function ContactForm() {
             <Button
                 type="submit"
                 size="lg"
-                disabled={state === "sending"}
-                className="bg-orange-600 hover:bg-orange-700"
-            >
+                disabled={state === "sending"}>
                 {state === "sending" ? "Sending…" : "Send Message"}
             </Button>
         </form>

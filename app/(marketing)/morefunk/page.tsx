@@ -69,7 +69,10 @@ export default async function MoreFunkPage() {
 
     return (
         <div className="container mx-auto max-w-6xl px-4 py-12 md:py-20">
-            <h1 className="text-3xl font-bold tracking-tight md:text-5xl">More Funk Collection</h1>
+            <h1 className="font-display text-5xl uppercase tracking-wider md:text-6xl">
+                <span className="text-primary">MORE FUNK</span>{" "}
+                <span className="text-secondary">COLLECTION</span>
+            </h1>
             <p className="mt-4 max-w-2xl text-muted-foreground">
                 Character-inspired candles, foam soaps, apparel and accessories. Tap any item to see
                 details and buy.
@@ -89,7 +92,7 @@ export default async function MoreFunkPage() {
 
             {categories.map((category) => (
                 <section key={category} className="mt-14">
-                    <h2 className="text-2xl font-bold tracking-tight">
+                    <h2 className="font-display text-3xl uppercase tracking-wider text-secondary">
                         {CATEGORY_LABEL[category] ?? category}
                     </h2>
                     <div className="mt-6 grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
@@ -99,7 +102,7 @@ export default async function MoreFunkPage() {
                                 <a
                                     key={product.id}
                                     href={kometzUrl(`/product/${product.id}`)}
-                                    className="group rounded-xl border border-border bg-card p-3 transition-colors hover:border-orange-500/50"
+                                    className="group rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/50"
                                 >
                                     <div className="aspect-square overflow-hidden rounded-lg bg-muted">
                                         {product.cover_image_url ? (
@@ -116,11 +119,11 @@ export default async function MoreFunkPage() {
                                             </div>
                                         )}
                                     </div>
-                                    <h3 className="mt-3 line-clamp-2 text-sm font-semibold">
+                                    <h3 className="font-display mt-3 line-clamp-2 text-lg tracking-wide transition-colors group-hover:text-primary">
                                         {product.title}
                                     </h3>
                                     {range ? (
-                                        <p className="mt-1 text-sm font-bold text-orange-500">
+                                        <p className="mt-1 text-sm font-bold text-primary">
                                             {range.low === range.high
                                                 ? `$${range.low.toFixed(2)}`
                                                 : `$${range.low.toFixed(2)} – $${range.high.toFixed(2)}`}
@@ -138,7 +141,7 @@ export default async function MoreFunkPage() {
             ))}
 
             <div className="mt-16 text-center">
-                <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700">
+                <Button asChild size="lg">
                     <a href={kometzUrl("/browse")}>Browse the Full Store</a>
                 </Button>
             </div>

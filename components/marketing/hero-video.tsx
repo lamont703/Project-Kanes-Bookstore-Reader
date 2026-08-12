@@ -59,7 +59,7 @@ export function HeroVideo({
                             className="object-cover"
                         />
                         <span className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/45">
-                            <span className="flex size-20 items-center justify-center rounded-full bg-orange-600 shadow-lg transition-transform group-hover:scale-110">
+                            <span className="flex size-20 items-center justify-center rounded-full bg-primary shadow-lg transition-transform group-hover:scale-110">
                                 <Play className="ml-1 size-9 fill-white text-white" />
                             </span>
                         </span>

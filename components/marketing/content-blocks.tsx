@@ -4,6 +4,8 @@ import type { MarketingBlock } from "@/lib/marketing-content"
 /**
  * Renders imported marketing content in document order.
  *
+ * Typography follows the app's design system (app/globals.css): headings use
+ * font-display in tracking-wider uppercase, body copy is text-muted-foreground.
  * Runs of consecutive images collapse into a responsive gallery grid — the
  * source pages (notably /characters) are long image sequences, and stacking
  * them one per row would be unreadable.
@@ -12,10 +14,10 @@ import type { MarketingBlock } from "@/lib/marketing-content"
 function Heading({ level, text }: { level: number; text: string }) {
     const cls =
         level <= 1
-            ? "text-3xl md:text-5xl font-bold tracking-tight text-balance"
+            ? "font-display text-4xl md:text-5xl tracking-wider uppercase text-primary"
             : level === 2
-              ? "text-2xl md:text-3xl font-bold tracking-tight text-balance"
-              : "text-lg md:text-xl font-semibold tracking-tight"
+              ? "font-display text-2xl md:text-3xl tracking-wider uppercase text-secondary"
+              : "font-display text-xl tracking-wide uppercase text-foreground"
     const Tag = (`h${Math.min(Math.max(level, 1), 6)}` as unknown) as "h1"
     return <Tag className={`${cls} mt-10 first:mt-0`}>{text}</Tag>
 }
@@ -24,7 +26,7 @@ function Gallery({ images }: { images: Extract<MarketingBlock, { type: "image" }
     if (images.length === 1) {
         const img = images[0]
         return (
-            <div className="my-8 overflow-hidden rounded-xl border border-border">
+            <div className="my-8 overflow-hidden rounded-xl border border-border bg-card">
                 <Image
                     src={img.src}
                     alt={img.alt}
@@ -40,7 +42,7 @@ function Gallery({ images }: { images: Extract<MarketingBlock, { type: "image" }
             {images.map((img) => (
                 <div
                     key={img.src}
-                    className="overflow-hidden rounded-xl border border-border bg-card"
+                    className="overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
                 >
                     <Image
                         src={img.src}

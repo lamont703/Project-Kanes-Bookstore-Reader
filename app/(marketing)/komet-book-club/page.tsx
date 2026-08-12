@@ -18,12 +18,12 @@ export default async function KometBookClubPage() {
             <ContentBlocks blocks={page.blocks} />
 
             {/* Joining, paying, and membership all live on the app host. */}
-            <div className="mt-12 rounded-xl border border-orange-500/30 bg-orange-600/10 p-8 text-center">
-                <h2 className="text-2xl font-bold tracking-tight">Ready to join?</h2>
+            <div className="mt-12 rounded-xl border border-primary/30 bg-primary/10 p-8 text-center">
+                <h2 className="font-display text-3xl uppercase tracking-wider">Ready To Join?</h2>
                 <p className="mt-2 text-muted-foreground">
                     Membership, bundles, and checkout all happen in the Komet Book Club.
                 </p>
-                <Button asChild size="lg" className="mt-6 bg-orange-600 hover:bg-orange-700">
+                <Button asChild size="lg" className="mt-6 ">
                     <a href={kometzUrl("/book-club")}>Enter the Book Club</a>
                 </Button>
             </div>
