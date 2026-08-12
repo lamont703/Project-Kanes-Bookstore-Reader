@@ -1,5 +1,6 @@
 import Image from "next/image"
 import type { MarketingBlock } from "@/lib/marketing-content"
+import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
 
 /**
  * Renders imported marketing content in document order.
@@ -37,23 +38,26 @@ function Gallery({ images }: { images: Extract<MarketingBlock, { type: "image" }
             </div>
         )
     }
+    // Square boxes, not natural height: these pages mix aspect ratios
+    // (/characters ranges 0.67 to 1.0), so without a fixed box the rows come
+    // out ragged and nothing lines up.
     return (
-        <div className="my-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <TileGrid className="my-8">
             {images.map((img) => (
                 <div
                     key={img.src}
-                    className="overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
+                    className={`${TILE_BASIS} overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50`}
                 >
                     <Image
                         src={img.src}
                         alt={img.alt}
                         width={512}
                         height={512}
-                        className="h-auto w-full object-cover transition-transform duration-300 hover:scale-105"
+                        className="aspect-square w-full object-cover transition-transform duration-300 hover:scale-105"
                     />
                 </div>
             ))}
-        </div>
+        </TileGrid>
     )
 }
 

@@ -3,6 +3,7 @@ import Image from "next/image"
 import { createStaticClient } from "@/lib/supabase/server"
 import { apexUrl, bookDetailUrl, kometzUrl } from "@/lib/hosts"
 import { Button } from "@/components/ui/button"
+import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
 
 export const metadata: Metadata = {
     title: "Komet Books | Kane's Komet Bookstore",
@@ -92,14 +93,14 @@ export default async function KometBooksPage() {
                 </p>
             )}
 
-            <div className="mt-10 grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
+            <TileGrid className="mt-10">
                 {books.map((book) => {
                     const price = displayPrice(book.book_variants)
                     return (
                         <a
                             key={book.id}
                             href={bookDetailUrl(book.id)}
-                            className="group rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/50"
+                            className={`${TILE_BASIS} group rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/50`}
                         >
                             <div className="aspect-[2/3] overflow-hidden rounded-lg bg-muted">
                                 {book.cover_image_url ? (
@@ -132,7 +133,7 @@ export default async function KometBooksPage() {
                         </a>
                     )
                 })}
-            </div>
+            </TileGrid>
 
             <div className="mt-14 text-center">
                 <Button asChild size="lg">

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { HeroVideo } from "@/components/marketing/hero-video"
 import { getMarketingPage, type MarketingBlock } from "@/lib/marketing-content"
 import { kometzUrl } from "@/lib/hosts"
+import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
 
 /**
  * The homepage body, shared by both hosts.
@@ -59,17 +60,12 @@ function Gallery({
     images: { src: string; alt: string }[]
     aspect: "square" | "cover"
 }) {
-    // Widths subtract their share of the 1rem gap so full rows still fill edge
-    // to edge: 2-up loses 1 gap, 3-up loses 2, 4-up loses 3.
-    const basis =
-        "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)]"
-
     return (
-        <div className="mt-8 flex flex-wrap justify-center gap-4">
+        <TileGrid className="mt-8">
             {images.map((img) => (
                 <div
                     key={img.src}
-                    className={`${basis} overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50`}
+                    className={`${TILE_BASIS} overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50`}
                 >
                     <Image
                         src={img.src}
@@ -82,7 +78,7 @@ function Gallery({
                     />
                 </div>
             ))}
-        </div>
+        </TileGrid>
     )
 }
 

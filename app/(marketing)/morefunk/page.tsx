@@ -3,6 +3,7 @@ import Image from "next/image"
 import { createStaticClient } from "@/lib/supabase/server"
 import { apexUrl, kometzUrl } from "@/lib/hosts"
 import { Button } from "@/components/ui/button"
+import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
 
 export const metadata: Metadata = {
     title: "More Funk | Kane's Komet Bookstore",
@@ -95,14 +96,14 @@ export default async function MoreFunkPage() {
                     <h2 className="font-display text-3xl uppercase tracking-wider text-secondary">
                         {CATEGORY_LABEL[category] ?? category}
                     </h2>
-                    <div className="mt-6 grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
+                    <TileGrid className="mt-6">
                         {grouped[category].map((product) => {
                             const range = priceRange(product.book_variants)
                             return (
                                 <a
                                     key={product.id}
                                     href={kometzUrl(`/product/${product.id}`)}
-                                    className="group rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/50"
+                                    className={`${TILE_BASIS} group rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/50`}
                                 >
                                     <div className="aspect-square overflow-hidden rounded-lg bg-muted">
                                         {product.cover_image_url ? (
@@ -136,7 +137,7 @@ export default async function MoreFunkPage() {
                                 </a>
                             )
                         })}
-                    </div>
+                    </TileGrid>
                 </section>
             ))}
 
