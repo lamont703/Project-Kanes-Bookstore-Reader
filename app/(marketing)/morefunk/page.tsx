@@ -1,0 +1,147 @@
+import type { Metadata } from "next"
+import Image from "next/image"
+import { createStaticClient } from "@/lib/supabase/server"
+import { apexUrl, kometzUrl } from "@/lib/hosts"
+import { Button } from "@/components/ui/button"
+
+export const metadata: Metadata = {
+    title: "More Funk | Kane's Komet Bookstore",
+    description:
+        "The More Funk collection — character-inspired candles, foam soaps, apparel and accessories from Kane's Komet Bookstore.",
+    alternates: { canonical: apexUrl("/morefunk") },
+}
+
+// Merchandise changes when admin publishes; don't serve a stale build forever.
+export const revalidate = 300
+
+interface VariantRow {
+    id: string
+    price: number | string | null
+    is_in_stock: boolean | null
+    size: string | null
+}
+
+interface ProductRow {
+    id: string
+    title: string
+    cover_image_url: string | null
+    merch_category: string | null
+    book_variants: VariantRow[] | null
+}
+
+/** Price range across in-stock variants — apparel is priced per size. */
+function priceRange(variants: VariantRow[] | null): { low: number; high: number } | null {
+    const prices = (variants ?? [])
+        .filter((v) => v.is_in_stock)
+        .map((v) => Number(v.price))
+        .filter((n) => Number.isFinite(n) && n > 0)
+    if (!prices.length) return null
+    return { low: Math.min(...prices), high: Math.max(...prices) }
+}
+
+const CATEGORY_LABEL: Record<string, string> = {
+    candle: "Candles",
+    soap: "Foam Soap",
+    apparel: "Apparel",
+    accessory: "Accessories",
+}
+
+export default async function MoreFunkPage() {
+    // Public catalog, cookie-free — the marketing host never creates a session.
+    const supabase = createStaticClient()
+
+    const { data, error } = await supabase
+        .from("books")
+        .select("id, title, cover_image_url, merch_category, book_variants (id, price, is_in_stock, size)")
+        .eq("product_type", "merch")
+        .eq("status", "published")
+        .order("title", { ascending: true })
+
+    const products = (data ?? []) as ProductRow[]
+
+    // Group by category so candles don't interleave with T-shirts.
+    const grouped = products.reduce<Record<string, ProductRow[]>>((acc, product) => {
+        const key = product.merch_category ?? "other"
+        ;(acc[key] ??= []).push(product)
+        return acc
+    }, {})
+    const categories = Object.keys(grouped).sort()
+
+    return (
+        <div className="container mx-auto max-w-6xl px-4 py-12 md:py-20">
+            <h1 className="text-3xl font-bold tracking-tight md:text-5xl">More Funk Collection</h1>
+            <p className="mt-4 max-w-2xl text-muted-foreground">
+                Character-inspired candles, foam soaps, apparel and accessories. Tap any item to see
+                details and buy.
+            </p>
+
+            {error && (
+                <p className="mt-10 rounded-lg border border-border p-6 text-muted-foreground">
+                    The collection is unavailable right now. Please try again shortly.
+                </p>
+            )}
+
+            {!error && products.length === 0 && (
+                <p className="mt-10 rounded-lg border border-border p-6 text-muted-foreground">
+                    Nothing in the collection yet. Check back soon.
+                </p>
+            )}
+
+            {categories.map((category) => (
+                <section key={category} className="mt-14">
+                    <h2 className="text-2xl font-bold tracking-tight">
+                        {CATEGORY_LABEL[category] ?? category}
+                    </h2>
+                    <div className="mt-6 grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
+                        {grouped[category].map((product) => {
+                            const range = priceRange(product.book_variants)
+                            return (
+                                <a
+                                    key={product.id}
+                                    href={kometzUrl(`/product/${product.id}`)}
+                                    className="group rounded-xl border border-border bg-card p-3 transition-colors hover:border-orange-500/50"
+                                >
+                                    <div className="aspect-square overflow-hidden rounded-lg bg-muted">
+                                        {product.cover_image_url ? (
+                                            <Image
+                                                src={product.cover_image_url}
+                                                alt={product.title}
+                                                width={512}
+                                                height={512}
+                                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                            />
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                                                No image
+                                            </div>
+                                        )}
+                                    </div>
+                                    <h3 className="mt-3 line-clamp-2 text-sm font-semibold">
+                                        {product.title}
+                                    </h3>
+                                    {range ? (
+                                        <p className="mt-1 text-sm font-bold text-orange-500">
+                                            {range.low === range.high
+                                                ? `$${range.low.toFixed(2)}`
+                                                : `$${range.low.toFixed(2)} – $${range.high.toFixed(2)}`}
+                                        </p>
+                                    ) : (
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            Currently unavailable
+                                        </p>
+                                    )}
+                                </a>
+                            )
+                        })}
+                    </div>
+                </section>
+            ))}
+
+            <div className="mt-16 text-center">
+                <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700">
+                    <a href={kometzUrl("/browse")}>Browse the Full Store</a>
+                </Button>
+            </div>
+        </div>
+    )
+}

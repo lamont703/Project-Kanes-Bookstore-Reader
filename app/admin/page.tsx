@@ -14,6 +14,7 @@ export default async function AdminDashboard() {
   const { count: eventCount } = await supabase.from('book_club_events').select('*', { count: 'exact', head: true })
   const { count: topicCount } = await supabase.from('discussion_topics').select('*', { count: 'exact', head: true })
   const { count: ordersCount } = await supabase.from('orders').select('*', { count: 'exact', head: true })
+  const { count: merchCount } = await supabase.from('books').select('*', { count: 'exact', head: true }).eq('product_type', 'merch')
 
   // 2. Fetch Recent Users snapshot
   const { data: recentUsersRaw } = await supabase
@@ -48,6 +49,16 @@ export default async function AdminDashboard() {
       bgColor: "bg-primary/10",
       borderColor: "border-primary/30",
       count: booksCount || 0
+    },
+    {
+      title: "Merchandise",
+      description: "Manage candles, soap, apparel and accessories",
+      href: "/admin/products",
+      icon: ShoppingBag,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+      borderColor: "border-primary/30",
+      count: merchCount || 0
     },
     {
       title: "Monthly Selection",

@@ -446,7 +446,7 @@ export default function CheckoutPage() {
 
                             <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-2">
                                 {items.map((item) => (
-                                    <div key={`${item.id}-${item.format}`} className="flex gap-4 items-start">
+                                    <div key={item.variantId} className="flex gap-4 items-start">
                                         <div className="relative w-12 aspect-[2/3] bg-muted rounded overflow-hidden flex-shrink-0">
                                             <Image
                                                 src={item.coverImage}
@@ -461,6 +461,11 @@ export default function CheckoutPage() {
                                                 <span className="text-[10px] font-bold uppercase py-0.5 px-1.5 bg-secondary/20 text-secondary rounded border border-secondary/30">
                                                     {item.format.replace('_', ' ')}
                                                 </span>
+                                                {item.size && (
+                                                    <span className="text-[10px] font-bold uppercase py-0.5 px-1.5 bg-muted text-muted-foreground rounded border border-border">
+                                                        {item.size}
+                                                    </span>
+                                                )}
                                                 <span className="text-muted-foreground">x{item.quantity}</span>
                                             </div>
                                         </div>
