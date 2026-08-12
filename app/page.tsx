@@ -1,164 +1,37 @@
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { BookOpen, Star, Rocket, Zap } from "lucide-react"
-import Link from "next/link"
+import type { Metadata } from "next"
+
 import { SiteHeader } from "@/components/site-header"
-import Image from "next/image"
+import { SiteFooter } from "@/components/nav/site-footer"
+import { HomeSections } from "@/components/marketing/home-sections"
 
-export default function LandingPage() {
-  return (
-    <div className="min-h-screen">
-      <SiteHeader />
-      {/* Hero Section */}
-      <section className="relative overflow-hidden border-b border-border">
-        {/* Cosmic background effect */}
-        <div className="absolute inset-0 bg-gradient-to-b from-orange-600/10 via-background to-background" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,140,0,0.2),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(255,140,0,0.1),transparent_60%)]" />
+/**
+ * The application entry point.
+ *
+ * Renders the same homepage the marketing host serves — HomeSections is shared
+ * — but wrapped in the app chrome, so a signed-in member keeps their session,
+ * cart and account menu instead of being shown a signed-out header.
+ *
+ * The apex reaches the identical body through a rewrite of "/" to /kanes-home
+ * (see proxy.ts), which uses the session-free marketing layout. One homepage,
+ * two sets of chrome, no host branching inside any component.
+ *
+ * The previous landing page lives on in git history; it was replaced when the
+ * imported kanesbookstore.com homepage became the entry point.
+ */
+export const metadata: Metadata = {
+    title: "Kane's Komet Bookstore — The Funkiest Bookstore in the Universe",
+    description:
+        "Kane's Komet Bookstore sells creative literature and art through Komet books and merch. Join the Komet Book Club for bundles, a membership tee, and 35% off as a Kane Dealer.",
+}
 
-        <div className="container relative mx-auto px-4 py-16 md:py-24">
-          {/* Header removed */}
-
-          {/* Hero Content */}
-          <div className="max-w-4xl mx-auto text-center space-y-8">
-            <div className="inline-block">
-              <div className="bg-orange-600/10 text-orange-500 border border-orange-500/30 px-4 py-2 rounded-full text-xs font-bold tracking-widest uppercase">
-                THE FUNKIEST BOOKSTORE IN THE UNIVERSE
-              </div>
-            </div>
-
-            <div className="inline-block w-full max-w-[95vw] sm:max-w-none sm:w-auto px-6 py-10 md:px-16 md:py-16 neon-sign-board mx-auto overflow-hidden">
-              <h1 className="flex flex-col items-center gap-1 md:gap-2">
-                <span className="komet-neon-text komet-neon-text-flicker text-3xl sm:text-4xl md:text-6xl lg:text-7xl break-words text-center">
-                  READ THE
-                </span>
-                <span className="komet-neon-text text-4xl sm:text-5xl md:text-7xl lg:text-8xl break-words text-center">
-                  KOMET BOOK
-                </span>
-                <span className="komet-neon-text text-5xl sm:text-6xl md:text-8xl lg:text-9xl break-words text-center">
-                  COLLECTION
-                </span>
-              </h1>
-            </div>
-
-            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed">
-              Dive into originial short stories from the World of Kane. Explore powerful characters, wild stories, and exclusive komet books you won't find anywhere else.
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="text-lg px-8 animate-pulse-glow" asChild>
-                <Link href="/browse">
-                  <Rocket className="w-5 h-5 mr-2" />
-                  Start Your Journey
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          {/* Feature Cards */}
-          <div className="grid md:grid-cols-3 gap-6 mt-20">
-            <Card className="p-6 bg-card/50 backdrop-blur border-primary/20 hover:border-primary/50 transition-colors">
-              <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
-                <BookOpen className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="font-display text-2xl tracking-wide mb-2">KOMET LIBRARY</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Access the growing Komet Book Library of original short stories. Read individual titles or unlock the full experience with Kane&apos;s Komet Book Club.
-              </p>
-            </Card>
-
-            <Card className="p-6 bg-card/50 backdrop-blur border-secondary/20 hover:border-secondary/50 transition-colors">
-              <div className="w-12 h-12 bg-secondary/20 rounded-lg flex items-center justify-center mb-4">
-                <Zap className="w-6 h-6 text-secondary" />
-              </div>
-              <h3 className="font-display text-2xl tracking-wide mb-2">POWER READING</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Highlight, bookmark, take notes, and customize your reading experience like never before.
-              </p>
-            </Card>
-
-            <Card className="p-6 bg-card/50 backdrop-blur border-primary/20 hover:border-primary/50 transition-colors">
-              <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
-                <Star className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="font-display text-2xl tracking-wide mb-2">BOOK CLUB</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Unlock a featured Komet Book each month, join member-only discussions, and connect with readers inside the World of Kane.
-              </p>
-            </Card>
-          </div>
+export default function HomePage() {
+    return (
+        <div className="flex min-h-screen flex-col bg-background">
+            <SiteHeader />
+            <main className="flex-1">
+                <HomeSections />
+            </main>
+            <SiteFooter mode="app" />
         </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section className="py-20 border-b border-border">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="font-display text-5xl md:text-6xl tracking-wider mb-4">
-              <span className="text-secondary">HOW IT</span> <span className="text-primary">WORKS</span>
-            </h2>
-            <p className="text-xl text-muted-foreground">Three simple steps to Komet enlightenment</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto text-primary-foreground font-display text-3xl">
-                1
-              </div>
-              <h3 className="font-display text-2xl tracking-wide">CHOOSE YOUR PATH</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Browse our library and purchase books individually, or subscribe to our monthly book club for curated
-                selections.
-              </p>
-            </div>
-
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto text-secondary-foreground font-display text-3xl">
-                2
-              </div>
-              <h3 className="font-display text-2xl tracking-wide">READ & EXPLORE</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Use our powerful reader with highlights, bookmarks, notes, and customizable text settings for the
-                perfect experience.
-              </p>
-            </div>
-
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto text-primary-foreground font-display text-3xl">
-                3
-              </div>
-              <h3 className="font-display text-2xl tracking-wide">CONNECT</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Join discussions, share your thoughts, and connect with other readers in our vibrant Komet community.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-
-      {/* Footer */}
-      <footer className="border-t border-border py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <Image
-                src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
-                alt="Kane's Komets Logo"
-                width={32}
-                height={32}
-                className="h-8 w-8 rounded-lg object-contain"
-              />
-              <span className="font-display text-2xl tracking-wider text-primary">KANE'S KOMETS</span>
-            </div>
-
-
-
-            <p className="text-sm text-muted-foreground">© 2025 Kane's Komets Book Club. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
-    </div>
-  )
+    )
 }
