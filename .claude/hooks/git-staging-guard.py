@@ -45,7 +45,12 @@ BROAD_FLAGS = {"--all", "--mirror", "--tags", "--follow-tags", "--delete", "-d"}
 HEREDOC_START = re.compile(r"<<-?\s*(?:'([^']*)'|\"([^\"]*)\"|([A-Za-z_][A-Za-z0-9_]*))")
 
 # Shell operators that separate one command from the next.
-OPERATORS = {"&&", "||", ";", "|", "&", "(", ")", "\n"}
+SEPARATORS = {"&&", "||", ";", "|", "&", "(", ")", "\n"}
+
+# Redirection operators. These do NOT end the command — they and their target
+# are plumbing that must be skipped, along with any leading fd number, so that
+# `git push origin staging 2>&1` does not read `2` as a positional argument.
+REDIRECTS = {">", ">>", "<", "<<", "<<<", ">&", "<&", "&>", "&>>", ">|"}
 
 
 def deny(reason):
@@ -123,16 +128,36 @@ def git_invocations(command):
         # safe direction for a guard.
         tokens = command.split()
 
+    def flush(segment):
+        for i, candidate in enumerate(segment):
+            if os.path.basename(candidate) == "git":
+                return segment[i + 1 :]
+        return None
+
     segment = []
-    for token in tokens + [";"]:
-        if token in OPERATORS or all(c in "&|;()<>" for c in token):
-            for i, candidate in enumerate(segment):
-                if os.path.basename(candidate) == "git":
-                    yield segment[i + 1 :]
-                    break
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        if token in REDIRECTS:
+            # Drop the fd number that belongs to this redirection (the `2` of
+            # `2>&1`), then skip the operator and its target.
+            if segment and segment[-1].isdigit():
+                segment.pop()
+            i += 2
+            continue
+        if token in SEPARATORS or (token and all(c in "&|;()<>" for c in token)):
+            argv = flush(segment)
+            if argv is not None:
+                yield argv
             segment = []
-        else:
-            segment.append(token)
+            i += 1
+            continue
+        segment.append(token)
+        i += 1
+
+    argv = flush(segment)
+    if argv is not None:
+        yield argv
 
 
 def subcommand_and_args(argv):
