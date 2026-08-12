@@ -1,0 +1,13 @@
+{
+  "slug": "contact",
+  "source": "https://kanesbookstore.com/contact",
+  "captured": "2026-08-11",
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Contact Us"
+    }
+  ],
+  "broken_on_source": []
+}
