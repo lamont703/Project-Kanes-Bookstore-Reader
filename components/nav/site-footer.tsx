@@ -16,7 +16,12 @@ export function SiteFooter({ mode }: { mode: NavMode }) {
 
     return (
         <footer className="border-t border-border">
-            <div className="container mx-auto grid gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-3">
+            {/* max-w-6xl matches the content sections above; without it the footer
+                spans the full container and its columns sit outside the page's
+                content edge with dead space to the right. Straight from one
+                column to three — an intermediate two-column step always orphans
+                the third block. */}
+            <div className="container mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-3">
                 <div>
                     <h2 className="font-display text-xl tracking-wider text-primary">GET IN TOUCH</h2>
                     <p className="mt-3 text-sm text-muted-foreground">Mon – Sat 9:00am – 8:00pm</p>
@@ -53,13 +58,15 @@ export function SiteFooter({ mode }: { mode: NavMode }) {
                 ))}
             </div>
 
-            <div className="border-t border-border py-6 text-center">
-                <p className="font-display text-lg tracking-wider text-secondary">
-                    &ldquo;HAVE A KANE DAY&rdquo;
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                    © {new Date().getFullYear()} Kane&apos;s Komet Bookstore
-                </p>
+            <div className="border-t border-border">
+                <div className="container mx-auto max-w-6xl px-4 py-6 text-center">
+                    <p className="font-display text-lg tracking-wider text-secondary">
+                        &ldquo;HAVE A KANE DAY&rdquo;
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        © {new Date().getFullYear()} Kane&apos;s Komet Bookstore
+                    </p>
+                </div>
             </div>
         </footer>
     )
