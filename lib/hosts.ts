@@ -18,9 +18,23 @@ export const KOMETZ_ORIGIN =
 export const APEX_ORIGIN =
     process.env.NEXT_PUBLIC_APEX_ORIGIN ?? "https://kanesbookstore.com"
 
-/** Hostnames that serve the marketing site. Everything else gets the full app,
- *  so staging.kanesbookstore.com and *.vercel.app previews stay testable. */
-export const APEX_HOSTNAMES = new Set(["kanesbookstore.com", "www.kanesbookstore.com"])
+/**
+ * Hostnames that serve the marketing site. Everything else gets the full app,
+ * so staging.kanesbookstore.com and *.vercel.app previews stay testable.
+ *
+ * Overridable so a preview deployment can be made to behave like the apex
+ * before DNS moves — set NEXT_PUBLIC_APEX_HOSTNAMES to a comma-separated list
+ * (e.g. "staging.kanesbookstore.com") on that environment.
+ */
+export const APEX_HOSTNAMES = new Set(
+    (process.env.NEXT_PUBLIC_APEX_HOSTNAMES ?? "kanesbookstore.com,www.kanesbookstore.com")
+        .split(",")
+        .map((h) => h.trim().toLowerCase())
+        .filter(Boolean),
+)
+
+/** Internal route the apex "/" rewrites to. The app host keeps app/page.tsx. */
+export const APEX_HOME_ROUTE = "/kanes-home"
 
 export function isApexHost(hostname: string | null | undefined): boolean {
     if (!hostname) return false
