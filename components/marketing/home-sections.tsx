@@ -40,25 +40,69 @@ function imagesBetween(blocks: MarketingBlock[], from: number, to: number) {
     return out
 }
 
-function Gallery({ images, square }: { images: { src: string; alt: string }[]; square?: boolean }) {
+/**
+ * Gallery grid.
+ *
+ * Flex-wrap with justify-center rather than CSS grid: the sections divide
+ * unevenly into four columns (9 books, 17 characters), and a grid leaves the
+ * remainder hard-left against empty space. Centering the wrap balances the
+ * final row instead.
+ *
+ * `aspect` is required, not optional — the source images have mixed ratios
+ * (characters range 0.67 to 1.0), so without a fixed box the rows come out
+ * ragged and nothing lines up.
+ */
+function Gallery({
+    images,
+    aspect,
+}: {
+    images: { src: string; alt: string }[]
+    aspect: "square" | "cover"
+}) {
+    // Widths subtract their share of the 1rem gap so full rows still fill edge
+    // to edge: 2-up loses 1 gap, 3-up loses 2, 4-up loses 3.
+    const basis =
+        "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)]"
+
     return (
-        <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div className="mt-8 flex flex-wrap justify-center gap-4">
             {images.map((img) => (
                 <div
                     key={img.src}
-                    className="overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
+                    className={`${basis} overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50`}
                 >
                     <Image
                         src={img.src}
                         alt={img.alt}
                         width={512}
-                        height={512}
+                        height={768}
                         className={`w-full object-cover transition-transform duration-300 hover:scale-105 ${
-                            square ? "aspect-square" : "h-auto"
+                            aspect === "square" ? "aspect-square" : "aspect-[2/3]"
                         }`}
                     />
                 </div>
             ))}
+        </div>
+    )
+}
+
+/**
+ * A single wide image presented as a feature rather than a grid tile.
+ *
+ * The More Funk section has exactly one 3:2 banner. In a four-column grid it
+ * rendered as a lone quarter-width tile pinned to the left, which is what made
+ * that section look misaligned against its centred heading and button.
+ */
+function FeatureImage({ image }: { image: { src: string; alt: string } }) {
+    return (
+        <div className="mx-auto mt-8 max-w-3xl overflow-hidden rounded-xl border border-border bg-card">
+            <Image
+                src={image.src}
+                alt={image.alt}
+                width={1200}
+                height={800}
+                className="h-auto w-full object-cover"
+            />
         </div>
     )
 }
@@ -137,14 +181,14 @@ export async function HomeSections() {
             {/* Our books */}
             {books.length > 0 && (
                 <section className="border-b border-border">
-                    <div className="container mx-auto max-w-6xl px-4 py-16 md:py-20">
+                    <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                         <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                             Our Books
                         </p>
                         <h2 className="font-display mt-2 text-3xl uppercase tracking-wider md:text-4xl">
                             Learn About Our Kometz
                         </h2>
-                        <Gallery images={books} />
+                        <Gallery images={books} aspect="cover" />
                         <div className="mt-10 text-center">
                             <Button asChild size="lg">
                                 <Link href="/kometbooks">View All Of Our Kometz</Link>
@@ -156,14 +200,14 @@ export async function HomeSections() {
 
             {/* More funk */}
             <section className="border-b border-border">
-                <div className="container mx-auto max-w-6xl px-4 py-16 md:py-20">
+                <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                     <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                         More Funk
                     </p>
                     <h2 className="font-display mt-2 text-3xl uppercase tracking-wider md:text-4xl">
                         Buy More Products
                     </h2>
-                    {funk.length > 0 && <Gallery images={funk} square />}
+                    {funk.length > 0 && <FeatureImage image={funk[0]} />}
                     <div className="mt-10 text-center">
                         <Button asChild size="lg">
                             <Link href="/morefunk">More Funk for Purchase</Link>
@@ -175,14 +219,14 @@ export async function HomeSections() {
             {/* Characters */}
             {characters.length > 0 && (
                 <section className="border-b border-border">
-                    <div className="container mx-auto max-w-6xl px-4 py-16 md:py-20">
+                    <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                         <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                             Our Characters
                         </p>
                         <h2 className="font-display mt-2 text-3xl uppercase tracking-wider md:text-4xl">
                             Learn About Our Characters
                         </h2>
-                        <Gallery images={characters} square />
+                        <Gallery images={characters} aspect="square" />
                         <div className="mt-10 text-center">
                             <Button asChild size="lg" variant="outline">
                                 <Link href="/characters">Meet All Of Our Komet Characters!</Link>
