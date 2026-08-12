@@ -23,6 +23,9 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "slugs.txt"))
 # content — they become the Next layout instead.
 CHROME_THRESHOLD = max(3, len(SLUGS) - 2)
 
+# The root page is stored as home.html but lives at "/" on the source site.
+SOURCE_BASE = "https://kanesbookstore.com/"
+
 manifest = json.load(open(os.path.join(BASE, "assets-webp-manifest.json")))
 local_for = {m["origin"]: m["file"] for m in manifest}
 
@@ -140,7 +143,7 @@ for slug in SLUGS:
 
     doc = {
         "slug": slug,
-        "source": f"https://kanesbookstore.com/{slug}",
+        "source": SOURCE_BASE + ("" if slug == "home" else slug),
         "captured": "2026-08-11",
         "blocks": kept,
         "broken_on_source": missing,
