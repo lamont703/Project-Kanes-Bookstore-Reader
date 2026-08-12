@@ -16,7 +16,12 @@ from html.parser import HTMLParser
 
 BASE = sys.argv[1]
 REPO = sys.argv[2]
-SLUGS = ["privacy-policy", "about", "contact", "characters", "komet-book-club", "kometbooks"]
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "slugs.txt")) as _f:
+    SLUGS = [ln.strip() for ln in _f if ln.strip()]
+
+# Text/images appearing on at least this many pages are site chrome, not page
+# content — they become the Next layout instead.
+CHROME_THRESHOLD = max(3, len(SLUGS) - 2)
 
 manifest = json.load(open(os.path.join(BASE, "assets-webp-manifest.json")))
 local_for = {m["origin"]: m["file"] for m in manifest}
@@ -99,13 +104,13 @@ counts = Counter()
 for slug, blocks in parsed.items():
     for t in {b["text"] for b in blocks if b["type"] in ("text", "heading")}:
         counts[t] += 1
-chrome_text = {t for t, c in counts.items() if c >= 5}
+chrome_text = {t for t, c in counts.items() if c >= CHROME_THRESHOLD}
 
 img_counts = Counter()
 for slug, blocks in parsed.items():
     for o in {b["origin"] for b in blocks if b["type"] == "image"}:
         img_counts[o] += 1
-chrome_imgs = {o for o, c in img_counts.items() if c >= 5}
+chrome_imgs = {o for o, c in img_counts.items() if c >= CHROME_THRESHOLD}
 
 # --- pass 2: emit cleaned, ordered content -----------------------------------
 os.makedirs(os.path.join(REPO, "public", "marketing"), exist_ok=True)

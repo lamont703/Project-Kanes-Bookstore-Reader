@@ -95,12 +95,33 @@ def run(path, slug):
     }
 
 
+def slugs():
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "slugs.txt")) as f:
+        return [ln.strip() for ln in f if ln.strip()]
+
+
 if __name__ == "__main__":
     base = sys.argv[1]
     out = {}
-    for slug in ["privacy-policy", "about", "contact", "characters", "komet-book-club", "kometbooks"]:
+    for slug in slugs():
         out[slug] = run(os.path.join(base, slug + ".html"), slug)
     json.dump(out, open(os.path.join(base, "inventory.json"), "w"), indent=2)
+
+    # origins.json: every distinct source asset, mapped to the pages using it.
+    # download.py consumes this. Builder-UI assets (stcdn) are not content.
+    origins = {}
+    for slug, d in out.items():
+        for i in d["images"]:
+            src = i["src"]
+            if "stcdn.leadconnectorhq.com" in src:
+                continue
+            m = re.search(r"/u_(https?://.+)$", src)
+            origins.setdefault(m.group(1) if m else src, set()).add(slug)
+    json.dump({u: sorted(p) for u, p in origins.items()},
+              open(os.path.join(base, "origins.json"), "w"), indent=2)
+
     for slug, d in out.items():
         print(f"=== /{slug} — {d['title']!r}")
         print(f"    text: {len(d['text'])} chars | images: {len(d['images'])} | kometz deeplinks: {len(d['deeplinks_to_kometz'])}")
+    print(f"\ndistinct origin assets: {len(origins)}")
