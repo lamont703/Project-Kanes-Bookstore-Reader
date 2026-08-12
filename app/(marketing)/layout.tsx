@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { MarketingHeader } from "@/components/marketing/marketing-header"
-import { kometzUrl } from "@/lib/hosts"
+import { FOOTER_NAV, resolveNavItem } from "@/lib/navigation"
 
 /**
  * Layout for the marketing routes served from kanesbookstore.com.
@@ -27,21 +27,37 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                     <div>
                         <h2 className="font-display text-xl tracking-wider text-secondary">EXPLORE</h2>
                         <ul className="mt-3 space-y-2 text-sm">
-                            <li><Link href="/" className="text-muted-foreground transition-colors hover:text-primary">Home</Link></li>
-                            <li><Link href="/about" className="text-muted-foreground transition-colors hover:text-primary">About</Link></li>
-                            <li><Link href="/characters" className="text-muted-foreground transition-colors hover:text-primary">Characters</Link></li>
-                            <li><Link href="/contact" className="text-muted-foreground transition-colors hover:text-primary">Contact</Link></li>
-                            <li><Link href="/privacy-policy" className="text-muted-foreground transition-colors hover:text-primary">Privacy Policy</Link></li>
+                            {FOOTER_NAV.explore.map((item) => {
+                                const link = resolveNavItem(item, "marketing")
+                                return (
+                                    <li key={link.label}>
+                                        <Link href={link.href} className="text-muted-foreground transition-colors hover:text-primary">
+                                            {link.label}
+                                        </Link>
+                                    </li>
+                                )
+                            })}
                         </ul>
                     </div>
                     <div>
                         <h2 className="font-display text-xl tracking-wider text-secondary">READ &amp; SHOP</h2>
                         <ul className="mt-3 space-y-2 text-sm">
-                            <li><Link href="/kometbooks" className="text-muted-foreground transition-colors hover:text-primary">Komet Books</Link></li>
-                            <li><Link href="/morefunk" className="text-muted-foreground transition-colors hover:text-primary">More Funk</Link></li>
-                            <li><a href={kometzUrl("/browse")} className="text-muted-foreground transition-colors hover:text-primary">Browse the Store</a></li>
-                            <li><a href={kometzUrl("/book-club")} className="text-muted-foreground transition-colors hover:text-primary">Komet Book Club</a></li>
-                            <li><a href={kometzUrl("/dashboard")} className="text-muted-foreground transition-colors hover:text-primary">Komet Book Library</a></li>
+                            {FOOTER_NAV.shop.map((item) => {
+                                const link = resolveNavItem(item, "marketing")
+                                return (
+                                    <li key={link.label}>
+                                        {link.external ? (
+                                            <a href={link.href} className="text-muted-foreground transition-colors hover:text-primary">
+                                                {link.label}
+                                            </a>
+                                        ) : (
+                                            <Link href={link.href} className="text-muted-foreground transition-colors hover:text-primary">
+                                                {link.label}
+                                            </Link>
+                                        )}
+                                    </li>
+                                )
+                            })}
                         </ul>
                     </div>
                 </div>
