@@ -59,6 +59,7 @@ export default async function BookClubPage() {
     .select('*')
     .eq('is_book_club_eligible', true)
     .eq('status', 'published')
+    .eq('product_type', 'book')
 
   // Fetch linked discussions for all books in selections
   const bookIds = processedSelections.map((s: any) => s.book_id)

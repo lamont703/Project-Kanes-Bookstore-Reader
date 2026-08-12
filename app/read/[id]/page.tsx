@@ -104,6 +104,7 @@ export default function ReadPage() {
           .from("books")
           .select("id, title, author, book_file_url")
           .eq("id", bookId)
+          .eq("product_type", "book")
           .single()
 
         if (bookErr) throw new Error("Book not found")

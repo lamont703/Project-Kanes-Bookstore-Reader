@@ -60,6 +60,7 @@ export default async function KometBooksPage() {
         .from("books")
         .select("id, title, author, cover_image_url, genre, book_variants (id, format, price, is_in_stock)")
         .eq("status", "published")
+        .eq("product_type", "book")
         .order("title", { ascending: true })
 
     const books = (data ?? []) as BookRow[]

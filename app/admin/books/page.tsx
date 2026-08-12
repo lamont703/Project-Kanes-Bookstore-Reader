@@ -15,6 +15,7 @@ export default async function AdminBooksPage() {
   const { data, error } = await supabase
     .from("books")
     .select("*, book_variants(*)")
+    .eq("product_type", "book")
     .order("title")
 
   if (error) {

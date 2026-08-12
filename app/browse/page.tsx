@@ -24,6 +24,10 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
       book_variants (*)
     `)
     .eq('status', 'published')
+    // `books` is now a general catalog and also holds merchandise; this page
+    // renders book-shaped cards, so keep it to books. See migration
+    // 20260811000001_extend_books_to_catalog.sql.
+    .eq('product_type', 'book')
 
   // Apply server-side filters
   if (genre !== "All") {

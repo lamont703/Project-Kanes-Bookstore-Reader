@@ -20,7 +20,9 @@ export async function generateStaticParams() {
 
   try {
     const supabase = createStaticClient()
-    const { data: books } = await supabase.from('books').select('id')
+    // Books only — `books` also holds merchandise since the catalog migration,
+    // and merch has no book detail page.
+    const { data: books } = await supabase.from('books').select('id').eq('product_type', 'book')
 
     return books?.map((book) => ({
       id: book.id,
@@ -42,6 +44,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
       book_variants (*)
     `)
     .eq('id', id)
+    .eq('product_type', 'book')
     .single()
 
   if (error || !b) {

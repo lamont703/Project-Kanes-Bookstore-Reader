@@ -109,6 +109,7 @@ export default function AdminDiscussionsPage() {
         const { data } = await supabase
             .from("books")
             .select("id, title")
+            .eq("product_type", "book")
             .order("title")
         setBooks(data ?? [])
     }

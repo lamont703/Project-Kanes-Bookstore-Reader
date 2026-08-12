@@ -135,6 +135,7 @@ export default function AdminUsersPage() {
     supabase.from("books")
       .select("id, title")
       .eq("status", "published")
+      .eq("product_type", "book")
       .order("title")
       .then(({ data }: { data: any }) => setAllBooks(data || []))
   }, [supabase])

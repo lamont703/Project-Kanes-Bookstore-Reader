@@ -98,6 +98,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             .select("id, title, cover_image_url, is_age_restricted")
             .eq("status", "published")
             .eq("is_book_club_eligible", true)
+            .eq("product_type", "book")
 
         // Apply age restriction if user is not an adult
         if (!isAdult) {

@@ -14,6 +14,9 @@ export default async function EditBookPage({ params }: { params: Promise<{ id: s
             book_variants (*)
         `)
         .eq("id", id)
+        // This form is book-shaped (author, genre, PDF). Merch needs its own
+        // editor; see migration 20260811000001_extend_books_to_catalog.sql.
+        .eq("product_type", "book")
         .single()
 
     if (error || !b) {

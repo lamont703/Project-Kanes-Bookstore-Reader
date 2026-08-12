@@ -9,7 +9,7 @@ export default async function AdminDashboard() {
 
   // 1. Fetch Counts
   const { count: usersCount } = await supabase.from('users').select('*', { count: 'exact', head: true })
-  const { count: booksCount } = await supabase.from('books').select('*', { count: 'exact', head: true })
+  const { count: booksCount } = await supabase.from('books').select('*', { count: 'exact', head: true }).eq('product_type', 'book')
   const { count: selectionCount } = await supabase.from('book_club_selections').select('*', { count: 'exact', head: true })
   const { count: eventCount } = await supabase.from('book_club_events').select('*', { count: 'exact', head: true })
   const { count: topicCount } = await supabase.from('discussion_topics').select('*', { count: 'exact', head: true })
