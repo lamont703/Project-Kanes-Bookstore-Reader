@@ -15,8 +15,10 @@ import { createClient } from "@/lib/supabase/client"
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
 import { loadStripe } from "@stripe/stripe-js"
 import { useAuth } from "@/context/auth-context"
+import { STRIPE_PUBLISHABLE_KEY, assertStripeMode } from "@/lib/stripe-config"
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+assertStripeMode()
+const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

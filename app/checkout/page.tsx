@@ -16,8 +16,10 @@ import { createClient } from "@/lib/supabase/client"
 import { loadStripe } from "@stripe/stripe-js"
 import { Elements } from "@stripe/react-stripe-js"
 import { StripeCheckoutForm } from "@/components/checkout/stripe-checkout-form"
+import { STRIPE_PUBLISHABLE_KEY, assertStripeMode } from "@/lib/stripe-config"
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+assertStripeMode()
+const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY)
 
 export default function CheckoutPage() {
     const { items, clearCart } = useCart()
