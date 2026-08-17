@@ -251,7 +251,13 @@ export async function handleUploadBook(
 
         // Use environment variables for Vercel URL and Internal Secret
         const vercelUrl = Deno.env.get("VERCEL_PROJECT_URL") || "https://project-kanes-book-reader.vercel.app";
-        const internalSecret = Deno.env.get("INTERNAL_API_SECRET");
+        // Staging-prefixed name wins when present, mirroring the Next side in
+        // app/api/admin/process-book. Supabase projects are separate per branch,
+        // so the plain name is unambiguous here — unlike Vercel, where Preview
+        // and Production share one settings page and need distinct names.
+        // Tolerating both means either convention works.
+        const internalSecret =
+            Deno.env.get("INTERNAL_STAGING_API_SECRET") ?? Deno.env.get("INTERNAL_API_SECRET");
 
         const vercelResponse = await fetch(`${vercelUrl}/api/admin/process-book`, {
             method: "POST",
