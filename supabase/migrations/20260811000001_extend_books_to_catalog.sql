@@ -69,8 +69,15 @@ BEGIN
   END IF;
 END $$;
 
+-- NULLS NOT DISTINCT (PostgreSQL 15+) makes a NULL size collide with another
+-- NULL size, so an unsized product still cannot get duplicate variants.
+--
+-- The obvious alternative, a functional index over COALESCE(size::TEXT, ''),
+-- is rejected outright: casting an enum to text is STABLE rather than
+-- IMMUTABLE — enum labels can be renamed — and Postgres refuses to index a
+-- non-immutable expression (42P17).
 CREATE UNIQUE INDEX IF NOT EXISTS book_variants_unique_sku
-  ON public.book_variants (book_id, format, COALESCE(size::TEXT, ''));
+  ON public.book_variants (book_id, format, size) NULLS NOT DISTINCT;
 
 -- ------------------------------------------------------------------- notes
 -- Library access is already format-gated in supabase/functions/stripe-webhook
