@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL } from '@/lib/supabase/config'
 
 // ─── Guard: verify the caller is an admin ──────────────────────────────────
 async function verifyAdmin(): Promise<{ user: any; error?: string }> {
     const cookieStore = await cookies()
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
         {
             cookies: {
                 getAll() { return cookieStore.getAll() },
@@ -245,11 +246,11 @@ export async function PATCH(request: NextRequest) {
 
         // Trigger USER_BANNED event via email-ops Edge Function
         try {
-            await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/email-ops`, {
+            await fetch(`${SUPABASE_URL}/functions/v1/email-ops`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+                    "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
                 },
                 body: JSON.stringify({
                     event: "USER_BANNED",

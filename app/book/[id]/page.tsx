@@ -7,13 +7,14 @@ import { Card } from "@/components/ui/card"
 import { Sparkles } from "lucide-react"
 import Image from "next/image"
 import { createClient, createStaticClient } from "@/lib/supabase/server"
+import { SUPABASE_URL } from '@/lib/supabase/config'
 
 // Book detail page is now fully dynamic to support user-specific state
 // caching is handled via Next.js fetch cache where applicable
 
 export async function generateStaticParams() {
   // Prevent build crash if env vars are missing during CI/CD or Vercel build
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (!SUPABASE_URL) {
     console.warn("⚠️ NEXT_PUBLIC_SUPABASE_URL is missing. Skipping generateStaticParams.")
     return []
   }

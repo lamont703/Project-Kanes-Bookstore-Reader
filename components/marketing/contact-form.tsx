@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/supabase/config'
 
 /**
  * Contact form for the marketing host.
@@ -26,14 +27,14 @@ export function ContactForm() {
         setError(null)
 
         const form = new FormData(event.currentTarget)
-        const endpoint = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/contact-submit`
+        const endpoint = `${SUPABASE_URL}/functions/v1/contact-submit`
 
         try {
             const response = await fetch(endpoint, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+                    apikey: SUPABASE_ANON_KEY ?? "",
                 },
                 body: JSON.stringify({
                     name: form.get("name"),

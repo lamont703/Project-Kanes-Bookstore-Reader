@@ -14,6 +14,7 @@ import { UploadCloud, FileText, ImageIcon, Loader, CheckCircle2, AlertCircle } f
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/supabase/config'
 
 interface BookFormProps {
     initialData?: any
@@ -153,7 +154,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             // 2. Invoke the 'upload-book' Edge Function
             console.log("[BookForm] Preparing to invoke Edge Function...")
 
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+            const supabaseUrl = SUPABASE_URL
             if (!supabaseUrl) {
                 console.error("[BookForm] CRITICAL: NEXT_PUBLIC_SUPABASE_URL is missing!")
             }
@@ -183,12 +184,12 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             console.log("[BookForm] Session found! Token length:", session.access_token.length)
             console.log("[BookForm] Invoking Edge Function at:", `${supabaseUrl}/functions/v1/upload-book`)
 
-            const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/upload-book`
+            const functionUrl = `${SUPABASE_URL}/functions/v1/upload-book`
             const response = await fetch(functionUrl, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${session.access_token}`,
-                    apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                    apikey: SUPABASE_ANON_KEY,
                 },
                 body: uploadData,
             })
