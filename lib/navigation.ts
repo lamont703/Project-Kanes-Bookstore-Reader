@@ -34,10 +34,10 @@ export const PRIMARY_NAV: NavItem[] = [
     // books, but only /browse can add to a cart, so the header should land
     // people where they can act. /kometbooks stays reachable from the footer.
     { label: "Books", app: "/browse" },
-    // Book Club points at the app host's ROOT, not /book-club. Resolution is
-    // environment-aware via kometzUrl, so it stays on localhost in dev and on
-    // staging when browsing staging, rather than jumping to production.
-    { label: "Book Club", app: "/" },
+    // Book Club goes to the app's membership page — join flow, bundles, member
+    // benefits — not the app root, which now serves the marketing homepage on
+    // every host and would have made this a no-op link.
+    { label: "Book Club", app: "/book-club" },
     { label: "Characters", marketing: "/characters", app: "/characters" },
     { label: "More Funk", marketing: "/morefunk", app: "/morefunk" },
 ]
