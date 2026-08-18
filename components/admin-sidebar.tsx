@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Home, BookOpen, Users, Calendar, MessageSquare, X, Star, ShoppingBag } from "lucide-react"
+import { Home, BookOpen, Users, Calendar, MessageSquare, X, Star, ShoppingBag, Shirt } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -16,6 +16,11 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
   const navItems = [
     { href: "/admin", icon: Home, label: "Dashboard" },
     { href: "/admin/books", icon: BookOpen, label: "Catalog" },
+    // Merchandise has its own list and form: books and merch share the `books`
+    // table but not their shape, so /admin/books filters to product_type='book'
+    // and never surfaces merch. Without this entry the products admin existed
+    // but was unreachable by clicking.
+    { href: "/admin/products", icon: Shirt, label: "Merchandise" },
     { href: "/admin/orders", icon: ShoppingBag, label: "Orders" },
     { href: "/admin/book-club", icon: Star, label: "Monthly Selection" },
     { href: "/admin/discussions", icon: MessageSquare, label: "Discussions" },
