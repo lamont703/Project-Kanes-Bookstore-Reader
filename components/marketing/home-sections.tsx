@@ -144,12 +144,9 @@ export async function HomeSections() {
                 <p className="mt-6 text-lg text-muted-foreground">
                     Creative literature and art through Komet books and merch.
                 </p>
-                <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                <div className="mt-8 flex justify-center">
                     <Button asChild size="lg">
                         <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
-                    </Button>
-                    <Button asChild size="lg" variant="outline">
-                        <Link href="/komet-book-club">Learn About the Club</Link>
                     </Button>
                 </div>
             </PageHero>
