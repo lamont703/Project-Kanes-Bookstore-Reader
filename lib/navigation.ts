@@ -99,14 +99,17 @@ export interface Viewer {
 /**
  * Which account entries to show.
  *
- * On the marketing host there is no session to read, so gated entries are
- * hidden rather than guessed at — except My Library, which is a destination
- * worth advertising to signed-out visitors. Admin is never surfaced there.
+ * Gated purely on the viewer, with no per-host special case. A signed-out
+ * visitor sees none of My Library, Discussions, Events or Admin; a signed-in
+ * one sees what their role allows.
+ *
+ * This works on the apex too, because there is no session there — the viewer
+ * always resolves to signed out, so the same rule hides the same entries. The
+ * previous version special-cased marketing mode and let My Library through to
+ * signed-out visitors, which is what surfaced a members-only link on the public
+ * site.
  */
-export function visibleAccountNav(mode: NavMode, viewer: Viewer): NavItem[] {
-    if (mode === "marketing") {
-        return ACCOUNT_NAV.filter((item) => !item.requiresAdmin && !item.requiresPremium)
-    }
+export function visibleAccountNav(_mode: NavMode, viewer: Viewer): NavItem[] {
     return ACCOUNT_NAV.filter((item) => {
         if (item.requiresAdmin) return viewer.isAdmin
         if (item.requiresPremium) return viewer.isPremium || viewer.isAdmin

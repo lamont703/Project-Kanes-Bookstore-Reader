@@ -1,21 +1,45 @@
 "use client"
 
+import * as React from "react"
+
 import { SiteNav } from "@/components/nav/site-nav"
+import { useAuth } from "@/context/auth-context"
+import { useCart } from "@/context/cart-context"
 
 /**
- * Header for the marketing host (apex).
+ * Header for the marketing routes.
  *
- * Renders the same SiteNav as the app host so the two read as one site, but
- * mounts neither useAuth nor useCart. The apex must never create a Supabase
- * session, and it cannot read the app host's cart, so it passes a signed-out
- * viewer and no cart count — the cart and sign-in affordances become links into
- * the app host rather than interactive widgets.
+ * Reads the real session so the menu is state-aware: My Library, Discussions,
+ * Events and Admin appear only when the viewer is entitled to them.
+ *
+ * Reading auth does NOT create a session, so the apex stays session-free — it
+ * has no cookies, so this resolves to signed out and the gated entries are
+ * hidden. On the app host, where the marketing routes also render, the same
+ * header now matches the one on /browse instead of showing a signed-out menu to
+ * a signed-in member.
+ *
+ * The providers are mounted in the root layout, so both contexts are available
+ * throughout this tree.
  */
 export function MarketingHeader() {
+    const { cartCount } = useCart()
+    const { user, signOut, isAdmin, isPremium } = useAuth()
+
+    const handleSignOut = async () => {
+        try {
+            await signOut()
+            window.location.href = "/"
+        } catch (error) {
+            console.error("Logout failed:", error)
+        }
+    }
+
     return (
         <SiteNav
             mode="marketing"
-            viewer={{ isLoggedIn: false, isPremium: false, isAdmin: false }}
+            viewer={{ isLoggedIn: !!user, isPremium: !!isPremium, isAdmin: !!isAdmin }}
+            cartCount={cartCount}
+            onSignOut={user ? handleSignOut : undefined}
         />
     )
 }
