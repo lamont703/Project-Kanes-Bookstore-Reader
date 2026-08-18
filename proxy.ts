@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
-import { APEX_HOME_ROUTE, KOMETZ_ORIGIN, isApexHost, isApexPath } from '@/lib/hosts'
+import { APEX_HOME_ROUTE, APP_HOST_ORIGIN, isApexHost, isApexPath } from '@/lib/hosts'
 
 /**
  * Host-aware routing.
@@ -32,7 +32,7 @@ export async function proxy(request: NextRequest) {
 
         // Account and commerce routes live on the app host. 308 keeps the
         // method and tells crawlers the move is permanent.
-        return NextResponse.redirect(new URL(`${pathname}${search}`, KOMETZ_ORIGIN), 308)
+        return NextResponse.redirect(new URL(`${pathname}${search}`, APP_HOST_ORIGIN), 308)
     }
 
     return await updateSession(request)

@@ -7,13 +7,30 @@
  *                              book club. Single auth origin, single commerce
  *                              origin.
  *
- * Every apex CTA that leads into the app must be an absolute kometz URL, not a
- * relative path — a relative link would keep the user on the apex, where the
- * route does not belong and no session can exist.
+ * On the apex, a CTA into the app must be an absolute URL: those routes do not
+ * exist there, so a relative link would go nowhere useful. EVERY OTHER host —
+ * localhost, staging, previews, kometz itself — serves the whole application,
+ * so links there must stay relative or the visitor is thrown out of the
+ * environment they are in.
+ *
+ * That is why in-page links default to RELATIVE and absolute is opt-in. The
+ * previous default was the production origin, which meant a CTA in local dev
+ * jumped to production, and the same click on staging left staging entirely.
  */
 
-export const KOMETZ_ORIGIN =
+/**
+ * Absolute origin of the app host. Used by proxy.ts, which redirects apex
+ * traffic across hosts and therefore always needs a real origin.
+ */
+export const APP_HOST_ORIGIN =
     process.env.NEXT_PUBLIC_KOMETZ_ORIGIN ?? "https://kometz.kanesbookstore.com"
+
+/**
+ * Prefix for in-page links to app routes. Empty means "same origin", which is
+ * correct everywhere except the apex. Set NEXT_PUBLIC_APP_LINK_ORIGIN to the
+ * app host ONLY on the environment that serves kanesbookstore.com.
+ */
+export const APP_LINK_ORIGIN = process.env.NEXT_PUBLIC_APP_LINK_ORIGIN ?? ""
 
 export const APEX_ORIGIN =
     process.env.NEXT_PUBLIC_APEX_ORIGIN ?? "https://kanesbookstore.com"
@@ -41,9 +58,14 @@ export function isApexHost(hostname: string | null | undefined): boolean {
     return APEX_HOSTNAMES.has(hostname.split(":")[0].toLowerCase())
 }
 
-/** Absolute URL into the app host. */
+/**
+ * Link to a route on the app host.
+ *
+ * Relative by default, so the visitor stays in whatever environment they are
+ * browsing. Only the apex sets APP_LINK_ORIGIN and gets absolute URLs.
+ */
 export function kometzUrl(path = "/"): string {
-    return `${KOMETZ_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`
+    return `${APP_LINK_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`
 }
 
 /** Absolute URL on the marketing host. */
