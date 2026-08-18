@@ -87,7 +87,13 @@ export function resolveNavItem(item: NavItem, mode: NavMode): ResolvedLink {
 
     const other = mode === "marketing" ? item.app : item.marketing
     const href = mode === "marketing" ? kometzUrl(other ?? "/") : apexUrl(other ?? "/")
-    return { label: item.label, href, external: true }
+
+    // "external" means a genuinely different origin, not merely "owned by the
+    // other host". kometzUrl returns a RELATIVE path everywhere except the apex,
+    // so on dev, staging and the app host these destinations are same-origin and
+    // must use <Link> — marking them external rendered a plain <a> and forced a
+    // full document reload on every click.
+    return { label: item.label, href, external: /^https?:\/\//.test(href) }
 }
 
 export interface Viewer {

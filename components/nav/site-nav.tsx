@@ -43,6 +43,34 @@ export interface SiteNavProps {
     cartBounce?: boolean
 }
 
+/**
+ * Same-origin hrefs use <Link> so navigation stays client-side; only genuinely
+ * cross-origin ones use <a>. kometzUrl returns a relative path everywhere except
+ * the apex, so most of these are same-origin and a plain <a> would force a full
+ * document reload.
+ */
+const isCrossOrigin = (href: string) => /^https?:\/\//.test(href)
+
+function SmartLink({
+    href,
+    className,
+    children,
+    ...rest
+}: React.ComponentProps<"a"> & { href: string }) {
+    if (isCrossOrigin(href)) {
+        return (
+            <a href={href} className={className} {...rest}>
+                {children}
+            </a>
+        )
+    }
+    return (
+        <Link href={href} className={className} {...rest}>
+            {children}
+        </Link>
+    )
+}
+
 function NavAnchor({
     link,
     className,
@@ -146,14 +174,13 @@ export function SiteNav({ mode, viewer, cartCount, onSignOut, cartBounce }: Site
                                 {/* The apex cannot sign anyone in itself, but it must
                                     still offer the affordance — otherwise a returning
                                     member landing here has no way back in. */}
-                                <a
-                                    href={signInHref}
+                                <SmartLink href={signInHref}
                                     className="hidden whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:inline"
                                 >
                                     Sign In
-                                </a>
+                                </SmartLink>
                                 <Button asChild size="sm" className="hidden sm:inline-flex">
-                                    <a href={kometzUrl("/book-club")}>Join The Club</a>
+                                    <SmartLink href={kometzUrl("/book-club")}>Join The Club</SmartLink>
                                 </Button>
                             </>
                         ) : (
@@ -196,16 +223,16 @@ export function SiteNav({ mode, viewer, cartCount, onSignOut, cartBounce }: Site
                                 />
                             ))}
                             {mode === "marketing" && (
-                                <a
+                                <SmartLink
                                     href={kometzUrl("/login")}
                                     className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
                                 >
                                     Sign In
-                                </a>
+                                </SmartLink>
                             )}
                             {mode === "marketing" ? (
                                 <Button asChild>
-                                    <a href={kometzUrl("/book-club")}>Join The Club</a>
+                                    <SmartLink href={kometzUrl("/book-club")}>Join The Club</SmartLink>
                                 </Button>
                             ) : viewer.isLoggedIn && onSignOut ? (
                                 <Button variant="outline" onClick={onSignOut}>
