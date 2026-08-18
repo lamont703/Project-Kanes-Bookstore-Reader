@@ -16,12 +16,13 @@ export function SiteFooter({ mode }: { mode: NavMode }) {
 
     return (
         <footer className="border-t border-border">
-            {/* max-w-6xl matches the content sections above; without it the footer
-                spans the full container and its columns sit outside the page's
-                content edge with dead space to the right. Straight from one
-                column to three — an intermediate two-column step always orphans
-                the third block. */}
-            <div className="container mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-3">
+            {/* Columns are sized to their content and the group is centred, rather
+                than three equal thirds of a fixed width. Equal thirds left the
+                short third column ending well before the grid did, so the visible
+                block sat left of centre even though the grid itself was centred.
+                Straight from stacked to three across — an intermediate two-column
+                step always orphans the third block. */}
+            <div className="mx-auto flex w-fit max-w-6xl flex-col gap-10 px-4 py-12 text-center md:flex-row md:justify-center md:gap-x-24 md:text-left">
                 <div>
                     <h2 className="font-display text-xl tracking-wider text-primary">GET IN TOUCH</h2>
                     <p className="mt-3 text-sm text-muted-foreground">Mon – Sat 9:00am – 8:00pm</p>

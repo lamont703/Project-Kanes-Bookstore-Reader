@@ -34,6 +34,9 @@ const HERO_POSTER = "/marketing/video/kanes-hero-poster.jpg"
 const HERO_BG = "/marketing/kanes-hero-bg.webp"
 const HERO_BG_PORTRAIT = "/marketing/kanes-hero-bg-portrait.webp"
 
+// Closing-section photo, block 54 of the imported homepage.
+const CLOSING_IMAGE = "/marketing/ec93931a-6621b6c18381f2b6f9098b2d.webp"
+
 /** Unique image sources between two block indices, in document order. */
 function imagesBetween(blocks: MarketingBlock[], from: number, to: number) {
     const seen = new Set<string>()
@@ -263,7 +266,10 @@ export async function HomeSections() {
                 </section>
             )}
 
-            {/* Closing CTA */}
+            {/* Closing CTA. The image sits above the join button, which is where
+                the source page places it — block 54, immediately before the final
+                CTA. Already part of the content import, so it is served locally
+                rather than hotlinked from the LeadConnector CDN. */}
             <section>
                 <div className="container mx-auto max-w-3xl px-4 py-20 text-center">
                     <h2 className="font-display text-4xl uppercase tracking-wider md:text-5xl">
@@ -274,7 +280,18 @@ export async function HomeSections() {
                         Members get a membership tee, a book bundle, a surprise gift, and an
                         automatic Kane Dealer code for 35% off at checkout.
                     </p>
-                    <Button asChild size="lg" className="mt-8">
+
+                    <div className="mx-auto mt-10 overflow-hidden rounded-xl border border-border bg-card">
+                        <Image
+                            src={CLOSING_IMAGE}
+                            alt="A reader with a Komet book"
+                            width={800}
+                            height={533}
+                            className="h-auto w-full object-cover"
+                        />
+                    </div>
+
+                    <Button asChild size="lg" className="mt-10">
                         <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
                     </Button>
                 </div>
