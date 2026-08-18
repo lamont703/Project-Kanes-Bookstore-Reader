@@ -10,7 +10,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
 
     const { data, error } = await supabase
         .from("books")
-        .select("id, title, description, merch_category, status, cover_image_url, book_variants (id, price, is_in_stock, size)")
+        .select("id, title, description, merch_category, status, cover_image_url, book_variants (id, price, is_in_stock, size, stock_quantity)")
         .eq("id", id)
         .eq("product_type", "merch")
         .single()
@@ -24,11 +24,18 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         merch_category: data.merch_category,
         status: data.status,
         cover_image_url: data.cover_image_url,
-        variants: (data.book_variants ?? []).map((v: { id: string; price: number | string; is_in_stock: boolean; size: string | null }) => ({
+        variants: (data.book_variants ?? []).map((v: {
+            id: string
+            price: number | string
+            is_in_stock: boolean
+            size: string | null
+            stock_quantity: number | null
+        }) => ({
             id: v.id,
             price: Number(v.price),
             is_in_stock: v.is_in_stock,
             size: v.size,
+            stock_quantity: v.stock_quantity,
         })),
     }
 

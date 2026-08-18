@@ -34,6 +34,8 @@ export interface ExistingVariant {
     price: number
     is_in_stock: boolean
     size: string | null
+    /** Units on hand. null means this variant is not inventory-tracked. */
+    stock_quantity: number | null
 }
 
 export interface ExistingProduct {
@@ -50,6 +52,8 @@ interface SizeRow {
     enabled: boolean
     price: string
     inStock: boolean
+    /** Empty string means "don't track" — stored as NULL. */
+    stock: string
 }
 
 function emptySizeRows(existing?: ExistingVariant[]): Record<string, SizeRow> {
@@ -60,6 +64,7 @@ function emptySizeRows(existing?: ExistingVariant[]): Record<string, SizeRow> {
             enabled: !!match,
             price: match ? String(match.price) : "",
             inStock: match ? match.is_in_stock : true,
+            stock: match?.stock_quantity != null ? String(match.stock_quantity) : "",
         }
     }
     return rows
@@ -80,6 +85,9 @@ export function ProductForm({ product }: { product?: ExistingProduct }) {
     const [status, setStatus] = React.useState<"draft" | "published">(product?.status ?? "draft")
     const [price, setPrice] = React.useState(unsized ? String(unsized.price) : "")
     const [inStock, setInStock] = React.useState(unsized ? unsized.is_in_stock : true)
+    const [stock, setStock] = React.useState(
+        unsized?.stock_quantity != null ? String(unsized.stock_quantity) : "",
+    )
     const [sizeRows, setSizeRows] = React.useState(() => emptySizeRows(product?.variants))
     const [imageFile, setImageFile] = React.useState<File | null>(null)
     const [preview, setPreview] = React.useState<string | null>(product?.cover_image_url ?? null)
@@ -99,15 +107,32 @@ export function ProductForm({ product }: { product?: ExistingProduct }) {
     }
 
     /** Variant rows to write, derived from whichever pricing UI is active. */
-    function buildVariants(): { price: number; is_in_stock: boolean; size: string | null }[] {
+    /** Blank stock box means untracked; the column is nullable for exactly that. */
+    const parseStock = (raw: string): number | null => {
+        const trimmed = raw.trim()
+        return trimmed === "" ? null : Number(trimmed)
+    }
+
+    function buildVariants(): {
+        price: number
+        is_in_stock: boolean
+        size: string | null
+        stock_quantity: number | null
+    }[] {
         if (sized) {
             return SIZES.filter((s) => sizeRows[s].enabled).map((s) => ({
                 price: Number(sizeRows[s].price),
                 is_in_stock: sizeRows[s].inStock,
+                stock_quantity: parseStock(sizeRows[s].stock),
                 size: s,
             }))
         }
-        return [{ price: Number(price), is_in_stock: inStock, size: null }]
+        return [{
+            price: Number(price),
+            is_in_stock: inStock,
+            stock_quantity: parseStock(stock),
+            size: null,
+        }]
     }
 
     function validate(variants: ReturnType<typeof buildVariants>): string | null {
@@ -120,6 +145,13 @@ export function ProductForm({ product }: { product?: ExistingProduct }) {
                 return v.size
                     ? `Enter a price greater than 0 for size ${v.size.toUpperCase()}`
                     : "Enter a price greater than 0"
+            }
+            // The DB CHECK rejects negatives; catch it here for a usable message.
+            if (v.stock_quantity !== null &&
+                (!Number.isInteger(v.stock_quantity) || v.stock_quantity < 0)) {
+                return v.size
+                    ? `Stock for size ${v.size.toUpperCase()} must be a whole number of units (or blank to not track)`
+                    : "Stock must be a whole number of units, or blank to not track it"
             }
         }
         return null
@@ -297,7 +329,7 @@ export function ProductForm({ product }: { product?: ExistingProduct }) {
                 <h2 className="font-semibold">Pricing &amp; stock</h2>
 
                 {!sized ? (
-                    <div className="grid gap-5 sm:grid-cols-2">
+                    <div className="grid gap-5 sm:grid-cols-3">
                         <div className="space-y-2">
                             <Label htmlFor="price">Price (USD)</Label>
                             <Input
@@ -308,6 +340,18 @@ export function ProductForm({ product }: { product?: ExistingProduct }) {
                                 value={price}
                                 onChange={(e) => setPrice(e.target.value)}
                                 required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="stock">Units in stock</Label>
+                            <Input
+                                id="stock"
+                                type="number"
+                                min="0"
+                                step="1"
+                                placeholder="Leave blank to not track"
+                                value={stock}
+                                onChange={(e) => setStock(e.target.value)}
                             />
                         </div>
                         <label className="flex items-end gap-2 pb-2 text-sm">
@@ -353,6 +397,21 @@ export function ProductForm({ product }: { product?: ExistingProduct }) {
                                             setSizeRows((prev) => ({
                                                 ...prev,
                                                 [size]: { ...prev[size], price: e.target.value },
+                                            }))
+                                        }
+                                    />
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        placeholder="Units"
+                                        className="max-w-28"
+                                        disabled={!row.enabled}
+                                        value={row.stock}
+                                        onChange={(e) =>
+                                            setSizeRows((prev) => ({
+                                                ...prev,
+                                                [size]: { ...prev[size], stock: e.target.value },
                                             }))
                                         }
                                     />

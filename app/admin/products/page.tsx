@@ -12,6 +12,7 @@ interface VariantRow {
     price: number | string
     is_in_stock: boolean
     size: string | null
+    stock_quantity: number | null
 }
 
 export default async function AdminProductsPage() {
@@ -19,7 +20,7 @@ export default async function AdminProductsPage() {
 
     const { data, error } = await supabase
         .from("books")
-        .select("id, title, status, merch_category, cover_image_url, book_variants (id, price, is_in_stock, size)")
+        .select("id, title, status, merch_category, cover_image_url, book_variants (id, price, is_in_stock, size, stock_quantity)")
         .eq("product_type", "merch")
         .order("title")
 
@@ -62,6 +63,11 @@ export default async function AdminProductsPage() {
                     const high = prices.length ? Math.max(...prices) : null
                     const anyInStock = variants.some((v) => v.is_in_stock)
 
+                    // Only tracked variants contribute a number. A product with
+                    // no tracked variants shows nothing rather than "0 units".
+                    const tracked = variants.filter((v) => v.stock_quantity !== null)
+                    const units = tracked.reduce((sum, v) => sum + (v.stock_quantity ?? 0), 0)
+
                     return (
                         <Card key={product.id} className="flex items-center gap-4 p-4">
                             <div className="size-16 shrink-0 overflow-hidden rounded bg-muted">
@@ -94,6 +100,19 @@ export default async function AdminProductsPage() {
                                     <span className="text-muted-foreground">
                                         {variants.length} variant{variants.length === 1 ? "" : "s"}
                                     </span>
+                                    {tracked.length > 0 && (
+                                        <span
+                                            className={
+                                                units === 0
+                                                    ? "text-orange-500"
+                                                    : units <= 5
+                                                      ? "text-yellow-500"
+                                                      : "text-muted-foreground"
+                                            }
+                                        >
+                                            {units} unit{units === 1 ? "" : "s"} on hand
+                                        </span>
+                                    )}
                                     {!anyInStock && variants.length > 0 && (
                                         <span className="text-orange-500">out of stock</span>
                                     )}
