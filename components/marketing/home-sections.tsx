@@ -3,6 +3,7 @@ import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { HeroVideo } from "@/components/marketing/hero-video"
+import { PageHero } from "@/components/marketing/page-hero"
 import { getMarketingPage, type MarketingBlock } from "@/lib/marketing-content"
 import { kometzUrl } from "@/lib/hosts"
 import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
@@ -131,54 +132,27 @@ export async function HomeSections() {
         <>
             {/* Hero — full-bleed background, matching kanesbookstore.com. The
                 source art is landscape (1536x1024) for desktop and portrait
-                (1024x1536) for narrow screens; <picture> picks per viewport so
-                phones do not get a wide crop. GHL renders it at opacity .8, so
-                the scrim below approximates that while keeping the display type
-                legible over a busy photograph. */}
-            <section className="relative overflow-hidden border-b border-border">
-                {/* Two layers rather than a <picture>, because the parallax needs
-                    background-attachment and that only applies to CSS backgrounds.
-
-                    Desktop gets the landscape art fixed to the viewport, so it
-                    holds still while the section scrolls over it. Mobile gets the
-                    portrait art scrolling normally: iOS Safari renders
-                    background-attachment:fixed badly — it sizes against the whole
-                    document and stutters — so parallax is desktop-only by design,
-                    not by oversight. motion-reduce also opts out. */}
-                <div
-                    aria-hidden="true"
-                    className="absolute inset-0 bg-cover bg-center bg-no-repeat md:hidden"
-                    style={{ backgroundImage: `url(${HERO_BG_PORTRAIT})` }}
-                />
-                <div
-                    aria-hidden="true"
-                    className="absolute inset-0 hidden bg-cover bg-center bg-no-repeat md:block md:bg-fixed motion-reduce:bg-scroll"
-                    style={{ backgroundImage: `url(${HERO_BG})` }}
-                />
-                <div className="absolute inset-0 bg-background/75" />
-                <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-transparent to-background" />
-
-                <div className="container relative mx-auto max-w-4xl px-4 py-24 text-center md:py-32">
-                    <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
-                        Welcome 2 the
-                    </p>
-                    <h1 className="font-display mt-3 text-5xl uppercase tracking-wider text-balance md:text-7xl">
-                        <span className="text-primary">FUNKIEST BOOKSTORE</span>{" "}
-                        <span className="text-secondary">IN THE UNIVERSE!</span>
-                    </h1>
-                    <p className="mt-6 text-lg text-muted-foreground">
-                        Creative literature and art through Komet books and merch.
-                    </p>
-                    <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                        <Button asChild size="lg">
-                            <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
-                        </Button>
-                        <Button asChild size="lg" variant="outline">
-                            <Link href="/komet-book-club">Learn About the Club</Link>
-                        </Button>
-                    </div>
+                (1024x1536) for narrow screens, so PageHero is given both. */}
+            <PageHero image={HERO_BG} imagePortrait={HERO_BG_PORTRAIT}>
+                <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
+                    Welcome 2 the
+                </p>
+                <h1 className="font-display mt-3 text-5xl uppercase tracking-wider text-balance md:text-7xl">
+                    <span className="text-primary">FUNKIEST BOOKSTORE</span>{" "}
+                    <span className="text-secondary">IN THE UNIVERSE!</span>
+                </h1>
+                <p className="mt-6 text-lg text-muted-foreground">
+                    Creative literature and art through Komet books and merch.
+                </p>
+                <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                    <Button asChild size="lg">
+                        <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
+                    </Button>
+                    <Button asChild size="lg" variant="outline">
+                        <Link href="/komet-book-club">Learn About the Club</Link>
+                    </Button>
                 </div>
-            </section>
+            </PageHero>
 
             {/* Video + More About Us — one section directly below the hero, in
                 the source site's order: video, eyebrow, statement, join CTA. */}
