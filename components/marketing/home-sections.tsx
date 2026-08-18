@@ -28,6 +28,12 @@ const HERO_VIDEO = "/marketing/video/kanes-hero.mp4"
 // on a white background — wrong subject, and jarring on a dark page.
 const HERO_POSTER = "/marketing/video/kanes-hero-poster.jpg"
 
+// Hero background lifted from kanesbookstore.com. The source page stores these
+// as section backgrounds in its page model rather than as CSS or markup, which
+// is why they were not picked up by the content import.
+const HERO_BG = "/marketing/kanes-hero-bg.webp"
+const HERO_BG_PORTRAIT = "/marketing/kanes-hero-bg-portrait.webp"
+
 /** Unique image sources between two block indices, in document order. */
 function imagesBetween(blocks: MarketingBlock[], from: number, to: number) {
     const seen = new Set<string>()
@@ -120,40 +126,66 @@ export async function HomeSections() {
 
     return (
         <>
-            {/* Hero */}
+            {/* Hero — full-bleed background, matching kanesbookstore.com. The
+                source art is landscape (1536x1024) for desktop and portrait
+                (1024x1536) for narrow screens; <picture> picks per viewport so
+                phones do not get a wide crop. GHL renders it at opacity .8, so
+                the scrim below approximates that while keeping the display type
+                legible over a busy photograph. */}
             <section className="relative overflow-hidden border-b border-border">
-                <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-background to-background" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,color-mix(in_oklch,var(--primary)_28%,transparent),transparent_60%)]" />
+                {/* Two layers rather than a <picture>, because the parallax needs
+                    background-attachment and that only applies to CSS backgrounds.
 
-                <div className="container relative mx-auto px-4 py-16 md:py-24">
-                    <div className="grid items-center gap-12 lg:grid-cols-2">
-                        <div className="text-center lg:text-left">
-                            <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
-                                Welcome 2 the
-                            </p>
-                            <h1 className="font-display mt-3 text-5xl uppercase tracking-wider text-balance md:text-7xl">
-                                <span className="text-primary">FUNKIEST BOOKSTORE</span>{" "}
-                                <span className="text-secondary">IN THE UNIVERSE!</span>
-                            </h1>
-                            <p className="mt-6 text-lg text-muted-foreground">
-                                Creative literature and art through Komet books and merch.
-                            </p>
-                            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
-                                <Button asChild size="lg">
-                                    <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
-                                </Button>
-                                <Button asChild size="lg" variant="outline">
-                                    <Link href="/komet-book-club">Learn About the Club</Link>
-                                </Button>
-                            </div>
-                        </div>
+                    Desktop gets the landscape art fixed to the viewport, so it
+                    holds still while the section scrolls over it. Mobile gets the
+                    portrait art scrolling normally: iOS Safari renders
+                    background-attachment:fixed badly — it sizes against the whole
+                    document and stutters — so parallax is desktop-only by design,
+                    not by oversight. motion-reduce also opts out. */}
+                <div
+                    aria-hidden="true"
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat md:hidden"
+                    style={{ backgroundImage: `url(${HERO_BG_PORTRAIT})` }}
+                />
+                <div
+                    aria-hidden="true"
+                    className="absolute inset-0 hidden bg-cover bg-center bg-no-repeat md:block md:bg-fixed motion-reduce:bg-scroll"
+                    style={{ backgroundImage: `url(${HERO_BG})` }}
+                />
+                <div className="absolute inset-0 bg-background/75" />
+                <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-transparent to-background" />
 
-                        <HeroVideo
-                            src={HERO_VIDEO}
-                            poster={HERO_POSTER}
-                            caption="Press play for a look inside Kane's Komet Bookstore."
-                        />
+                <div className="container relative mx-auto max-w-4xl px-4 py-24 text-center md:py-32">
+                    <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
+                        Welcome 2 the
+                    </p>
+                    <h1 className="font-display mt-3 text-5xl uppercase tracking-wider text-balance md:text-7xl">
+                        <span className="text-primary">FUNKIEST BOOKSTORE</span>{" "}
+                        <span className="text-secondary">IN THE UNIVERSE!</span>
+                    </h1>
+                    <p className="mt-6 text-lg text-muted-foreground">
+                        Creative literature and art through Komet books and merch.
+                    </p>
+                    <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                        <Button asChild size="lg">
+                            <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
+                        </Button>
+                        <Button asChild size="lg" variant="outline">
+                            <Link href="/komet-book-club">Learn About the Club</Link>
+                        </Button>
                     </div>
+                </div>
+            </section>
+
+            {/* Video — sits directly below the hero, as it does on the source
+                site, rather than inside it. */}
+            <section className="border-b border-border">
+                <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
+                    <HeroVideo
+                        src={HERO_VIDEO}
+                        poster={HERO_POSTER}
+                        caption="Press play for a look inside Kane's Komet Bookstore."
+                    />
                 </div>
             </section>
 
