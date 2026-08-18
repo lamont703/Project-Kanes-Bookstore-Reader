@@ -177,8 +177,8 @@ export async function HomeSections() {
                 </div>
             </section>
 
-            {/* Video — sits directly below the hero, as it does on the source
-                site, rather than inside it. */}
+            {/* Video + More About Us — one section directly below the hero, in
+                the source site's order: video, eyebrow, statement, join CTA. */}
             <section className="border-b border-border">
                 <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                     <HeroVideo
@@ -186,23 +186,22 @@ export async function HomeSections() {
                         poster={HERO_POSTER}
                         caption="Press play for a look inside Kane's Komet Bookstore."
                     />
-                </div>
-            </section>
 
-            {/* More about us */}
-            <section className="border-b border-border">
-                <div className="container mx-auto max-w-3xl px-4 py-16 text-center md:py-20">
-                    <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
-                        More About Us
-                    </p>
-                    {aboutBlurb && (
-                        <h2 className="mt-4 text-xl font-semibold tracking-tight text-balance md:text-2xl">
-                            {aboutBlurb.text}
-                        </h2>
-                    )}
-                    <Button asChild variant="outline" className="mt-8">
-                        <Link href="/about">Read Our Story</Link>
-                    </Button>
+                    <div className="mx-auto mt-14 max-w-3xl">
+                        <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
+                            More About Us
+                        </p>
+                        {aboutBlurb && (
+                            <h2 className="mt-4 text-xl font-semibold tracking-tight text-balance md:text-2xl">
+                                {aboutBlurb.text}
+                            </h2>
+                        )}
+                        <div className="mt-8 flex justify-center">
+                            <Button asChild size="lg">
+                                <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
