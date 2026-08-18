@@ -1,8 +1,11 @@
 import { SiteHeader } from "@/components/site-header"
+import { SiteFooter } from "@/components/nav/site-footer"
 import { BookCard } from "@/components/book-card"
 import type { Book } from "@/lib/types/book"
 import { createClient } from "@/lib/supabase/server"
 import { BrowseFilters } from "@/components/browse-filters"
+import { BrowsePagination } from "@/components/browse-pagination"
+import { DEFAULT_PER_PAGE, PER_PAGE_OPTIONS } from "@/lib/browse-options"
 
 interface BrowsePageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -14,6 +17,16 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   const query = (params.q as string) || ""
   const sort = (params.sort as string) || "title"
 
+  // Page size comes from the URL but is not trusted: only the offered options
+  // are honoured, so a hand-edited ?perPage=5000 cannot ask the database for
+  // the whole catalogue in one request.
+  const requestedPerPage = Number(params.perPage)
+  const perPage = (PER_PAGE_OPTIONS as readonly number[]).includes(requestedPerPage)
+    ? requestedPerPage
+    : DEFAULT_PER_PAGE
+  const requestedPage = Number(params.page)
+  const page = Number.isFinite(requestedPage) && requestedPage >= 1 ? Math.floor(requestedPage) : 1
+
   const supabase = await createClient()
 
   // Build the Supabase query on the server
@@ -22,7 +35,7 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     .select(`
       *,
       book_variants (*)
-    `)
+    `, { count: 'exact' })
     .eq('status', 'published')
     // `books` is now a general catalog and also holds merchandise; this page
     // renders book-shaped cards, so keep it to books. See migration
@@ -47,7 +60,15 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     // For now we'll sort alphabetically, but we can refine our SQL here
   }
 
-  const { data, error } = await dbQuery
+  // Fetch only the current page. Previously the whole catalogue came back on
+  // every request and was rendered in one grid.
+  const from = (page - 1) * perPage
+  const { data, error, count } = await dbQuery.range(from, from + perPage - 1)
+
+  const total = count ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / perPage))
+  const rangeStart = total === 0 ? 0 : from + 1
+  const rangeEnd = Math.min(from + perPage, total)
 
   if (error) {
     console.error("❌ Supabase Error on Server:", error)
@@ -86,12 +107,6 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
         {/* Search and Filters (Client Component) */}
         <BrowseFilters />
 
-        <div className="mb-6">
-          <p className="text-sm text-muted-foreground">
-            Showing {books.length} {books.length === 1 ? "book" : "books"}
-          </p>
-        </div>
-
         {books.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {books.map((book) => (
@@ -104,7 +119,18 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
             <p className="text-sm text-muted-foreground max-w-xs mx-auto mb-6">Your search criteria didn't yield any book signals from the galaxy.</p>
           </div>
         )}
+
+        <BrowsePagination
+          page={Math.min(page, totalPages)}
+          totalPages={totalPages}
+          perPage={perPage}
+          total={total}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+        />
       </div>
+
+      <SiteFooter mode="app" />
     </div>
   )
 }

@@ -25,9 +25,9 @@ import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
  */
 
 const HERO_VIDEO = "/marketing/video/kanes-hero.mp4"
-// A real frame from the clip. The video's own GHL "thumbnail" was the site logo
-// on a white background — wrong subject, and jarring on a dark page.
-const HERO_POSTER = "/marketing/video/kanes-hero-poster.jpg"
+// The site logo, used as the video thumbnail. Same asset the header wordmark
+// uses, so the still frame reads as branding rather than an arbitrary moment.
+const HERO_POSTER = "/marketing/b9ed83bb-661ea792d03e91ccb4968534.webp"
 
 // Hero background lifted from kanesbookstore.com. The source page stores these
 // as section backgrounds in its page model rather than as CSS or markup, which

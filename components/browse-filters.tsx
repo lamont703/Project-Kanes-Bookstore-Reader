@@ -26,6 +26,10 @@ export function BrowseFilters() {
             }
         })
 
+        // Any change to the result set invalidates the current offset. Without
+        // this, filtering while on page 30 lands on an empty page past the end.
+        params.delete("page")
+
         startTransition(() => {
             router.push(`/browse?${params.toString()}`, { scroll: false })
         })

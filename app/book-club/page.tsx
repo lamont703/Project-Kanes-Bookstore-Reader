@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
+import { SiteFooter } from "@/components/nav/site-footer"
 import { BookClubContent } from "@/components/book-club-content"
 import { sortSelections, getCurrentStatus, isEventPast } from "@/lib/book-club-utils"
 
@@ -91,6 +92,8 @@ export default async function BookClubPage() {
         eligibleBooks={eligibleBooks || []}
         userRsvps={userRsvps}
       />
+
+      <SiteFooter mode="app" />
     </div>
   )
 }
