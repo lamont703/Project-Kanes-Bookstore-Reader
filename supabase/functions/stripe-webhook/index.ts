@@ -55,16 +55,32 @@ async function handlePaymentSuccess(supabase: any, paymentIntent: any) {
 
     if (order) {
         // 1. Update User's Profile (Mailing Address)
+        //
+        // These come from the order's own columns. This block used to treat
+        // order.shipping_address as an object and read .address/.city/.zip/
+        // .country off it, but it is a TEXT column holding only the street
+        // line — so every physical purchase wrote the literal string
+        // "undefined, undefined, undefined, undefined" over the customer's
+        // mailing address and "undefined undefined" over their real name.
         if (order.shipping_address) {
-            const addr = order.shipping_address
-            const addressString = `${addr.address}, ${addr.city}, ${addr.zip}, ${addr.country}`
+            const addressString = [
+                order.shipping_address,
+                order.shipping_city,
+                order.shipping_state,
+                order.shipping_zip
+            ].filter(Boolean).join(', ')
+
+            const updates: Record<string, string> = { mailing_address: addressString }
+
+            // Only overwrite the stored name when the order actually carried one,
+            // so a blank checkout field cannot erase an existing profile name.
+            if (typeof order.shipping_name === 'string' && order.shipping_name.trim()) {
+                updates.full_name = order.shipping_name.trim()
+            }
 
             await supabase
                 .from('users')
-                .update({
-                    mailing_address: addressString,
-                    full_name: `${addr.firstName} ${addr.lastName}`.trim()
-                })
+                .update(updates)
                 .eq('id', order.user_id)
         }
 
@@ -85,7 +101,39 @@ async function handlePaymentSuccess(supabase: any, paymentIntent: any) {
                         source: 'purchase'
                     }, { onConflict: 'user_id,book_id' })
                 }
+
+                // 2.1 Draw down inventory now that the money has actually landed.
+                //
+                // Deliberately at payment success rather than at checkout: an
+                // abandoned payment must not hold stock hostage. The trade-off is
+                // that two buyers can both clear the checkout-time availability
+                // check for the last unit, so this can legitimately fail. It is
+                // logged and left non-fatal — the customer has paid and the order
+                // stands; overselling is an admin problem, not a reason to drop
+                // the webhook and have Stripe retry the whole fulfilment.
+                const { error: stockError } = await supabase.rpc('decrement_variant_stock', {
+                    p_variant_id: item.variant_id,
+                    p_quantity: item.quantity
+                })
+                if (stockError) {
+                    console.error(
+                        `⚠️ Stock decrement failed for order ${order.id}, variant ${item.variant_id}:`,
+                        stockError.message
+                    )
+                }
             }
+        }
+
+        // 2.2 Close out orders that have nothing to ship.
+        //
+        // fulfillment_status defaults to 'unfulfilled', and nothing ever moved a
+        // digital order off it, so the admin queue filled with orders that were
+        // already complete the moment they were paid for.
+        if (!order.has_physical_items) {
+            await supabase
+                .from('orders')
+                .update({ fulfillment_status: 'fulfilled', fulfilled_at: new Date().toISOString() })
+                .eq('id', order.id)
         }
 
         // 3. Trigger Order Confirmation Email (GHL Tagging)

@@ -67,6 +67,7 @@ export default function CheckoutPage() {
         lastName: "",
         address: "",
         city: "",
+        state: "",
         zip: "",
         country: "United States",
     })
@@ -96,6 +97,7 @@ export default function CheckoutPage() {
             if (!formData.lastName) newErrors.lastName = true
             if (!formData.address || formData.address.length < 5) newErrors.address = true
             if (!formData.city) newErrors.city = true
+            if (!formData.state) newErrors.state = true
             if (!formData.zip || !/^\d{5}(-\d{4})?$/.test(formData.zip)) newErrors.zip = true
         }
 
@@ -199,6 +201,7 @@ export default function CheckoutPage() {
                     lastName: formData.lastName,
                     address: formData.address,
                     city: formData.city,
+                    state: formData.state,
                     zip: formData.zip,
                     country: formData.country,
                 } : undefined,
@@ -337,7 +340,7 @@ export default function CheckoutPage() {
                                             className={errors.address ? "border-destructive/50 ring-destructive/20" : ""}
                                         />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                                         <div className="space-y-2">
                                             <Label htmlFor="city">City</Label>
                                             <Input
@@ -347,6 +350,17 @@ export default function CheckoutPage() {
                                                 value={formData.city}
                                                 onChange={e => updateFormData("city", e.target.value)}
                                                 className={errors.city ? "border-destructive/50 ring-destructive/20" : ""}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="state">State</Label>
+                                            <Input
+                                                id="state"
+                                                placeholder="GA"
+                                                required
+                                                value={formData.state}
+                                                onChange={e => updateFormData("state", e.target.value)}
+                                                className={errors.state ? "border-destructive/50 ring-destructive/20" : ""}
                                             />
                                         </div>
                                         <div className="space-y-2">

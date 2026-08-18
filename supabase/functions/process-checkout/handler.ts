@@ -17,11 +17,22 @@ export async function handleCheckout(authHeader: string, body: any) {
         throw { status: 400, code: 'VALIDATION_ERROR', message: 'Cart is empty' }
     }
 
-    // 2. Validate Cart and Calculate Totals
+    // 2. Validate the cart against the database.
+    //
+    // Every value that decides what is charged, what is owed, or what is
+    // fulfilled is read back from the variant row. The request supplies only
+    // variantId and quantity; price, format, book_id, stock and publication
+    // state all come from the database. This function is callable directly, not
+    // just through the checkout page, so the request body cannot be trusted.
     const variantIds = items.map((i: any) => i.variantId)
+
+    if (variantIds.some((id: any) => typeof id !== 'string' || !id)) {
+        throw { status: 400, code: 'VALIDATION_ERROR', message: 'Invalid items in cart' }
+    }
+
     const { data: variants, error: variantError } = await adminSupabase
         .from('book_variants')
-        .select('*')
+        .select('id, book_id, format, price, is_in_stock, stock_quantity, book:books(id, title, status, deleted_at)')
         .in('id', variantIds)
 
     if (variantError || !variants) {
@@ -29,13 +40,71 @@ export async function handleCheckout(authHeader: string, body: any) {
         throw { status: 400, code: 'VALIDATION_ERROR', message: 'Invalid items in cart' }
     }
 
-    let subtotal = 0
-    items.forEach((item: any) => {
-        const variant = variants.find((v: any) => v.id === item.variantId)
-        if (variant) {
-            subtotal += variant.price * item.quantity
+    // Resolve every line up front and reject the whole order if any line fails.
+    // Previously an unresolvable line was silently skipped by the subtotal loop
+    // but still written to order_items at unit_price 0 — a free item.
+    const lines = items.map((item: any) => {
+        const variant: any = variants.find((v: any) => v.id === item.variantId)
+        if (!variant) {
+            throw {
+                status: 400,
+                code: 'ITEM_UNAVAILABLE',
+                message: 'An item in your cart is no longer available.'
+            }
         }
+
+        const quantity = Number(item.quantity)
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+            // A negative quantity used to subtract from the subtotal, which let
+            // one line pay for another.
+            throw {
+                status: 400,
+                code: 'VALIDATION_ERROR',
+                message: 'Item quantity must be a whole number between 1 and 99.'
+            }
+        }
+
+        const book = variant.book
+        if (!book || book.status !== 'published' || book.deleted_at !== null) {
+            throw {
+                status: 400,
+                code: 'ITEM_UNAVAILABLE',
+                message: 'An item in your cart is no longer available for purchase.'
+            }
+        }
+
+        if (!variant.is_in_stock) {
+            throw {
+                status: 400,
+                code: 'OUT_OF_STOCK',
+                message: `"${book.title}" is out of stock.`
+            }
+        }
+
+        // stock_quantity NULL means the variant is not inventory-tracked
+        // (ebooks are unlimited). A number means we must have enough.
+        //
+        // This is a check, not a reservation: stock is only decremented once
+        // payment succeeds, so two people can still pass this check for the last
+        // unit. decrement_variant_stock() is the backstop that refuses to go
+        // negative, and surfaces the loser as a failed fulfilment.
+        if (variant.stock_quantity !== null && variant.stock_quantity < quantity) {
+            throw {
+                status: 400,
+                code: 'OUT_OF_STOCK',
+                message: variant.stock_quantity === 0
+                    ? `"${book.title}" is out of stock.`
+                    : `Only ${variant.stock_quantity} of "${book.title}" left.`
+            }
+        }
+
+        return { variant, book, quantity }
     })
+
+    const subtotal = lines.reduce(
+        (sum: number, l: any) => sum + Number(l.variant.price) * l.quantity,
+        0
+    )
 
     // 2.1 Handle Promo Code
     let discountAmount = 0
@@ -54,7 +123,24 @@ export async function handleCheckout(authHeader: string, body: any) {
         }
     }
 
-    const shippingAmount = items.some((i: any) => i.format !== 'ebook') ? 5.99 : 0
+    // Physicality is a property of the variant, not of whatever format the
+    // request claimed — otherwise a candle could be labelled an ebook to skip
+    // the shipping charge.
+    const hasPhysicalItems = lines.some((l: any) => l.variant.format !== 'ebook')
+    const shippingAmount = hasPhysicalItems ? 5.99 : 0
+
+    // Nothing physical can be delivered without somewhere to send it. The
+    // checkout page enforces this, but the page is not the only caller.
+    if (hasPhysicalItems) {
+        const a = shippingAddress
+        if (!a?.address || !a?.city || !a?.zip || !a?.state) {
+            throw {
+                status: 400,
+                code: 'VALIDATION_ERROR',
+                message: 'A complete shipping address is required for physical items.'
+            }
+        }
+    }
     const taxAmount = (subtotal - discountAmount) * 0.05
     const totalAmount = subtotal - discountAmount + taxAmount + shippingAmount
 
@@ -79,7 +165,7 @@ export async function handleCheckout(authHeader: string, body: any) {
             customer: await getOrCreateStripeCustomer(adminSupabase, user),
             metadata: {
                 user_id: user.id,
-                items: JSON.stringify(items.map((i: any) => ({ id: i.bookId, q: i.quantity, f: i.format }))),
+                items: JSON.stringify(lines.map((l: any) => ({ id: l.variant.book_id, q: l.quantity, f: l.variant.format }))),
                 promo_code: promoCode || null
             },
             automatic_payment_methods: {
@@ -101,14 +187,14 @@ export async function handleCheckout(authHeader: string, body: any) {
             shipping_amount: shippingAmount,
             tax_amount: taxAmount,
             total: totalAmount,
-            has_physical_items: shippingAmount > 0,
+            has_physical_items: hasPhysicalItems,
             promo_code_id: promoCodeId,
             stripe_payment_intent_id: paymentIntentId,
             shipping_name: shippingAddress ? `${shippingAddress.firstName} ${shippingAddress.lastName}` : null,
             shipping_address: shippingAddress?.address,
             shipping_city: shippingAddress?.city,
             shipping_zip: shippingAddress?.zip,
-            shipping_state: null,
+            shipping_state: shippingAddress?.state ?? null,
         })
         .select()
         .single()
@@ -129,17 +215,16 @@ export async function handleCheckout(authHeader: string, body: any) {
     }
 
     // 6. Create Order Items
-    const orderItems = items.map((item: any) => {
-        const variant = variants.find((v: any) => v.id === item.variantId)
-        return {
-            order_id: order.id,
-            book_id: item.bookId,
-            variant_id: item.variantId,
-            format: item.format,
-            quantity: item.quantity,
-            unit_price: variant?.price || 0
-        }
-    })
+    // book_id and format come from the variant, not the request, so the order
+    // record always describes what was actually bought.
+    const orderItems = lines.map((l: any) => ({
+        order_id: order.id,
+        book_id: l.variant.book_id,
+        variant_id: l.variant.id,
+        format: l.variant.format,
+        quantity: l.quantity,
+        unit_price: Number(l.variant.price)
+    }))
 
     const { error: itemsError } = await adminSupabase
         .from('order_items')
