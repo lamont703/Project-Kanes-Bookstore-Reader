@@ -23,13 +23,6 @@ export default function ContactPage() {
             <div className="mt-10">
                 <ContactForm />
             </div>
-
-            <div className="mt-14 border-t border-border pt-8">
-                <h2 className="font-display text-xl uppercase tracking-wider text-primary">Get In Touch</h2>
-                <p className="mt-2 text-sm text-muted-foreground">Mon – Sat 9:00am – 8:00pm</p>
-                <p className="text-sm text-muted-foreground">Sunday – CLOSED</p>
-                <p className="mt-2 text-sm text-muted-foreground">Atlanta, GA, USA</p>
-            </div>
         </div>
     )
 }
