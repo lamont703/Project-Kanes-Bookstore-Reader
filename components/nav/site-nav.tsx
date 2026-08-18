@@ -41,6 +41,34 @@ export interface SiteNavProps {
     onSignOut?: () => void
     /** Bounce the cart badge when an item is added (app host only). */
     cartBounce?: boolean
+    /**
+     * False while the viewer is still being resolved. Account links and the auth
+     * button are held back until this flips, so they appear together in one step
+     * rather than trickling in as each async check lands. Defaults to true so a
+     * caller that does not know about auth renders exactly as before.
+     */
+    viewerReady?: boolean
+}
+
+/**
+ * Placeholder shown in place of the account links while the viewer resolves.
+ *
+ * Purely cosmetic — it holds space so the header is not visibly empty and the
+ * real links do not arrive into a bare bar. Entitlement counts are unknowable
+ * until auth settles, so this cannot reserve the exact final width.
+ */
+function NavSkeleton({ count = 3 }: { count?: number }) {
+    return (
+        <div className="flex items-center gap-6" aria-hidden="true">
+            {Array.from({ length: count }).map((_, i) => (
+                <span
+                    key={i}
+                    className="h-3.5 animate-pulse rounded-full bg-muted-foreground/20"
+                    style={{ width: [68, 80, 54][i % 3] }}
+                />
+            ))}
+        </div>
+    )
 }
 
 /**
@@ -94,7 +122,14 @@ function NavAnchor({
     )
 }
 
-export function SiteNav({ mode, viewer, cartCount, onSignOut, cartBounce }: SiteNavProps) {
+export function SiteNav({
+    mode,
+    viewer,
+    cartCount,
+    onSignOut,
+    cartBounce,
+    viewerReady = true,
+}: SiteNavProps) {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false)
     const pathname = usePathname()
 
@@ -143,9 +178,13 @@ export function SiteNav({ mode, viewer, cartCount, onSignOut, cartBounce }: Site
                         {primary.map((link) => (
                             <NavAnchor key={link.label} link={link} className={linkClass(link.href)} />
                         ))}
-                        {account.map((link) => (
-                            <NavAnchor key={link.label} link={link} className={linkClass(link.href)} />
-                        ))}
+                        {viewerReady ? (
+                            account.map((link) => (
+                                <NavAnchor key={link.label} link={link} className={linkClass(link.href)} />
+                            ))
+                        ) : (
+                            <NavSkeleton />
+                        )}
                     </nav>
 
                     <div className="flex items-center gap-3">
@@ -165,7 +204,12 @@ export function SiteNav({ mode, viewer, cartCount, onSignOut, cartBounce }: Site
                             </div>
                         </Link>
 
-                        {viewer.isLoggedIn && onSignOut ? (
+                        {!viewerReady ? (
+                            <span
+                                aria-hidden="true"
+                                className="h-8 w-20 animate-pulse rounded-md bg-muted-foreground/20"
+                            />
+                        ) : viewer.isLoggedIn && onSignOut ? (
                             <Button variant="outline" size="sm" onClick={onSignOut}>
                                 Sign Out
                             </Button>
@@ -214,14 +258,15 @@ export function SiteNav({ mode, viewer, cartCount, onSignOut, cartBounce }: Site
                             />
                         ))}
                         <div className="grid gap-4 border-t border-border pt-4">
-                            {account.map((link) => (
-                                <NavAnchor
-                                    key={link.label}
-                                    link={link}
-                                    className={linkClass(link.href)}
-                                    onClick={() => setIsMenuOpen(false)}
-                                />
-                            ))}
+                            {viewerReady &&
+                                account.map((link) => (
+                                    <NavAnchor
+                                        key={link.label}
+                                        link={link}
+                                        className={linkClass(link.href)}
+                                        onClick={() => setIsMenuOpen(false)}
+                                    />
+                                ))}
                             {mode === "marketing" && (
                                 <SmartLink
                                     href={kometzUrl("/login")}

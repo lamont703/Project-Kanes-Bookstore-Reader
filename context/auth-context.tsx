@@ -12,6 +12,17 @@ interface AuthContextType {
     isAdmin: boolean
     isPremium: boolean
     isLoading: boolean
+    /**
+     * True once the viewer is fully known: the session check has finished AND,
+     * for a signed-in user, their profile and subscription have landed.
+     *
+     * isLoading alone is not enough. onAuthStateChange fires INITIAL_SESSION and
+     * clears isLoading on the no-transition path, which can win the race against
+     * the profile/subscription fetch still in flight from getInitialSession. In
+     * that window user is set but isAdmin/isPremium are still false, which is what
+     * made the header reveal My Library first and Discussions/Events/Admin after.
+     */
+    isReady: boolean
     signOut: () => Promise<void>
 }
 
@@ -23,6 +34,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<any | null>(null)
     const [subscription, setSubscription] = useState<any | null>(null)
     const [isLoading, setIsLoading] = useState(true)
+    // The user id whose profile/subscription are currently loaded. Compared
+    // against the live user below so a stale or in-flight fetch never reads as
+    // resolved.
+    const [entitlementsFor, setEntitlementsFor] = useState<string | null>(null)
     const [supabase] = useState(() => createClient())
     const lastUserIdRef = useRef<string | null>(null)
 
@@ -34,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ])
             setProfile(profileRes.data)
             setSubscription(subRes.data)
+            setEntitlementsFor(userId)
         }
 
         const getInitialSession = async () => {
@@ -54,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setSession(null)
                     setProfile(null)
                     setSubscription(null)
+                    setEntitlementsFor(null)
                 }
             } catch (error) {
                 console.error("❌ Session check failed:", error)
@@ -80,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 } else {
                     setProfile(null)
                     setSubscription(null)
+                    setEntitlementsFor(null)
                 }
             } else if (session?.access_token !== session?.access_token) {
                 // Token refresh happened but user is the same
@@ -101,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSession(null)
             setProfile(null)
             setSubscription(null)
+            setEntitlementsFor(null)
 
             // Trigger Supabase sign out
             await supabase.auth.signOut()
@@ -111,9 +130,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const isAdmin = profile?.role === 'admin'
     const isPremium = subscription?.plan === 'premium' && subscription?.status === 'active'
+    const isReady = !isLoading && (user ? entitlementsFor === user.id : true)
 
     return (
-        <AuthContext.Provider value={{ user, session, profile, subscription, isAdmin, isPremium, isLoading, signOut }}>
+        <AuthContext.Provider value={{ user, session, profile, subscription, isAdmin, isPremium, isLoading, isReady, signOut }}>
             {children}
         </AuthContext.Provider>
     )
