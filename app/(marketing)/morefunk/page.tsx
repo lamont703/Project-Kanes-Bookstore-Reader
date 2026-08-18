@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import { createStaticClient } from "@/lib/supabase/server"
 import { apexUrl, kometzUrl } from "@/lib/hosts"
-import { Button } from "@/components/ui/button"
 import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
 
 export const metadata: Metadata = {
@@ -140,12 +139,6 @@ export default async function MoreFunkPage() {
                     </TileGrid>
                 </section>
             ))}
-
-            <div className="mt-16 text-center">
-                <Button asChild size="lg">
-                    <a href={kometzUrl("/browse")}>Browse the Full Store</a>
-                </Button>
-            </div>
         </div>
     )
 }

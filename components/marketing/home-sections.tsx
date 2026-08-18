@@ -192,7 +192,7 @@ export async function HomeSections() {
                         <Gallery images={books} aspect="cover" />
                         <div className="mt-10 text-center">
                             <Button asChild size="lg">
-                                <Link href="/kometbooks">View All Of Our Kometz</Link>
+                                <Link href="/browse">View All Of Our Kometz</Link>
                             </Button>
                         </div>
                     </div>
@@ -229,7 +229,7 @@ export async function HomeSections() {
                         </h2>
                         <Gallery images={characters} aspect="square" />
                         <div className="mt-10 text-center">
-                            <Button asChild size="lg" variant="outline">
+                            <Button asChild size="lg">
                                 <Link href="/characters">Meet All Of Our Komet Characters!</Link>
                             </Button>
                         </div>

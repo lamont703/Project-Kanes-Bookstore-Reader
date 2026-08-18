@@ -52,18 +52,31 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     dbQuery = dbQuery.or(`title.ilike.%${query}%,author.ilike.%${query}%`)
   }
 
-  // Handle Sort
-  if (sort === 'title') {
-    dbQuery = dbQuery.order('title', { ascending: true })
-  } else if (sort === 'price-low') {
-    // Sorting by price is trickier because prices are in the variants table
-    // For now we'll sort alphabetically, but we can refine our SQL here
-  }
+  // Sorting.
+  //
+  // Price lives in book_variants, a to-many relation, so Postgres cannot order
+  // parent rows by it — which is why the price options previously did nothing.
+  // For those we fetch the whole matching set, sort it here, then slice the
+  // page. Sorting only the current page would order 12 books against each other
+  // rather than the catalogue.
+  //
+  // Title sorting stays in the database, where .range() can do the paging.
+  // Title order is always applied: it pages the title sort in the database, and
+  // for price sorts it is the tiebreak, so books at the same price keep a stable
+  // order instead of shuffling between requests.
+  const isPriceSort = sort === 'price-low' || sort === 'price-high'
+  dbQuery = dbQuery.order('title', { ascending: true })
 
   // Fetch only the current page. Previously the whole catalogue came back on
   // every request and was rendered in one grid.
+  //
+  // Price sorts are the exception: they need every matching row before the page
+  // can be chosen. The explicit upper bound keeps that honest — PostgREST caps
+  // rows anyway, and a silent truncation would quietly drop books from the sort.
   const from = (page - 1) * perPage
-  const { data, error, count } = await dbQuery.range(from, from + perPage - 1)
+  const { data, error, count } = isPriceSort
+    ? await dbQuery.range(0, 999)
+    : await dbQuery.range(from, from + perPage - 1)
 
   const total = count ?? 0
   const totalPages = Math.max(1, Math.ceil(total / perPage))
@@ -82,7 +95,21 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     coverImage: b.cover_image_url || "/placeholder.webp",
     genre: b.genre,
     description: b.description || "",
-    price: b.book_variants?.find((v: any) => v.format === 'ebook')?.price || b.book_variants?.[0]?.price || 0,
+    // Mirrors components/book-card.tsx: the ebook when it is in stock, else the
+    // first in-stock format. Sorting on any other value would order the list by
+    // a number the cards never display.
+    price: Number(
+      (() => {
+        const vs = b.book_variants ?? []
+        const inStock = vs.filter((v: any) => v.is_in_stock)
+        const pick =
+          inStock.find((v: any) => v.format === 'ebook') ??
+          inStock[0] ??
+          vs.find((v: any) => v.format === 'ebook') ??
+          vs[0]
+        return pick?.price ?? 0
+      })(),
+    ),
     variants: b.book_variants?.map((v: any) => ({
       id: v.id,
       format: v.format,
@@ -90,6 +117,13 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
       available: v.is_in_stock
     })) || []
   }))
+
+  // Sort by the displayed price, then take the requested page.
+  const ordered = isPriceSort
+    ? [...books]
+        .sort((a, b) => (sort === 'price-low' ? a.price - b.price : b.price - a.price))
+        .slice(from, from + perPage)
+    : books
 
   return (
     <div className="min-h-screen">
@@ -107,9 +141,9 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
         {/* Search and Filters (Client Component) */}
         <BrowseFilters />
 
-        {books.length > 0 ? (
+        {ordered.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {books.map((book) => (
+            {ordered.map((book) => (
               <BookCard key={book.id} book={book} />
             ))}
           </div>

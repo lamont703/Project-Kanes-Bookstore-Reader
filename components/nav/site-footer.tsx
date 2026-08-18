@@ -24,7 +24,7 @@ export function SiteFooter({ mode }: { mode: NavMode }) {
                 step always orphans the third block. */}
             <div className="mx-auto flex w-fit max-w-6xl flex-col gap-10 px-4 py-12 text-center md:flex-row md:justify-center md:gap-x-24 md:text-left">
                 <div>
-                    <h2 className="font-display text-xl tracking-wider text-primary">GET IN TOUCH</h2>
+                    <h2 className="font-display text-xl tracking-wider text-secondary">GET IN TOUCH</h2>
                     <p className="mt-3 text-sm text-muted-foreground">Mon – Sat 9:00am – 8:00pm</p>
                     <p className="text-sm text-muted-foreground">Sunday – CLOSED</p>
                     <p className="mt-2 text-sm text-muted-foreground">Atlanta, GA, USA</p>
