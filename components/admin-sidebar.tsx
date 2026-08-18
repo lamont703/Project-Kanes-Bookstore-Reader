@@ -29,7 +29,7 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
       <div className="p-6 border-b border-border flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
           <Image
-            src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+            src="/marketing/b9ed83bb-661ea792d03e91ccb4968534.webp"
             alt="Kane's Komets Logo"
             width={40}
             height={40}

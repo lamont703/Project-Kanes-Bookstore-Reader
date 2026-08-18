@@ -130,7 +130,7 @@ function AuthContent() {
       <div className="text-center mb-8">
         <Link href="/" className="inline-flex items-center gap-3 mb-4">
           <Image
-            src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+            src="/marketing/b9ed83bb-661ea792d03e91ccb4968534.webp"
             alt="Kane's Komets Logo"
             width={40}
             height={40}

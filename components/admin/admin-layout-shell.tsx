@@ -35,7 +35,7 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
         <header className="lg:hidden h-16 border-b border-border bg-card/30 backdrop-blur flex items-center justify-between px-4 flex-shrink-0">
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+              src="/marketing/b9ed83bb-661ea792d03e91ccb4968534.webp"
               alt="Kane's Komets Logo"
               width={32}
               height={32}

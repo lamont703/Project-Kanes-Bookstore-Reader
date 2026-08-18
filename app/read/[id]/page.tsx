@@ -466,7 +466,7 @@ export default function ReadPage() {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <Link href="/browse" className="flex items-center gap-2">
-              <Image src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png" width={24} height={24} alt="log" className="w-6 h-6 rounded" />
+              <Image src="/marketing/b9ed83bb-661ea792d03e91ccb4968534.webp" width={24} height={24} alt="log" className="w-6 h-6 rounded" />
               <span className="font-display text-xl tracking-wider text-primary">KANE&apos;S KOMETS</span>
             </Link>
             <div className="flex items-center gap-2">
