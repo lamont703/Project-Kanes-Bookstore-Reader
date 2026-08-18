@@ -29,6 +29,11 @@ export default async function AdminOrdersPage() {
             shipping_state,
             shipping_zip,
             placed_at,
+            has_physical_items,
+            fulfillment_status,
+            tracking_number,
+            tracking_carrier,
+            shipped_at,
             users:user_id (
                 email,
                 full_name,
