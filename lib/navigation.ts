@@ -29,11 +29,15 @@ export interface NavItem {
 
 /** Primary navigation, shown on both hosts in this order. */
 export const PRIMARY_NAV: NavItem[] = [
-    // The catalog exists on both hosts: /kometbooks is the marketing view of the
-    // same published books /browse shows. One entry, resolved per host, rather
-    // than two entries that invite "which one do I click?".
-    { label: "Books", marketing: "/kometbooks", app: "/browse" },
-    { label: "Book Club", marketing: "/komet-book-club", app: "/book-club" },
+    // Books goes to the app's real catalogue at /browse from every host, rather
+    // than the marketing view at /kometbooks. Both render the same published
+    // books, but only /browse can add to a cart, so the header should land
+    // people where they can act. /kometbooks stays reachable from the footer.
+    { label: "Books", app: "/browse" },
+    // Book Club points at the app host's ROOT, not /book-club. Resolution is
+    // environment-aware via kometzUrl, so it stays on localhost in dev and on
+    // staging when browsing staging, rather than jumping to production.
+    { label: "Book Club", app: "/" },
     { label: "Characters", marketing: "/characters", app: "/characters" },
     { label: "More Funk", marketing: "/morefunk", app: "/morefunk" },
 ]
