@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button"
 import { PER_PAGE_OPTIONS, DEFAULT_PER_PAGE } from "@/lib/browse-options"
 
 /**
+ * Shared pagination control. Used by /browse and the admin merchandise list —
+ * basePath decides which route the links rewrite.
+ *
  * Page numbers to render, collapsing long runs to ellipses.
  *
  * 435 books at 10 a page is 44 pages, so every number will not fit. Always show
@@ -36,6 +39,8 @@ export function BrowsePagination({
     total,
     rangeStart,
     rangeEnd,
+    basePath = "/browse",
+    noun = "book",
 }: {
     page: number
     totalPages: number
@@ -43,6 +48,10 @@ export function BrowsePagination({
     total: number
     rangeStart: number
     rangeEnd: number
+    /** Route the page links point at. Defaults to /browse. */
+    basePath?: string
+    /** Singular noun for the "Showing 1–12 of 40 …" summary. */
+    noun?: string
 }) {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -54,7 +63,7 @@ export function BrowsePagination({
             if (v === null) params.delete(k)
             else params.set(k, v)
         })
-        startTransition(() => router.push(`/browse?${params.toString()}`, { scroll: false }))
+        startTransition(() => router.push(`${basePath}?${params.toString()}`, { scroll: false }))
     }
 
     return (
@@ -62,12 +71,12 @@ export function BrowsePagination({
             <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between sm:self-stretch">
                 <p className="text-sm text-muted-foreground">
                     {total === 0
-                        ? "No books"
-                        : `Showing ${rangeStart}–${rangeEnd} of ${total} ${total === 1 ? "book" : "books"}`}
+                        ? `No ${noun}s`
+                        : `Showing ${rangeStart}–${rangeEnd} of ${total} ${total === 1 ? noun : `${noun}s`}`}
                 </p>
 
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                    Books per page
+                    {noun === "book" ? "Books" : "Items"} per page
                     <select
                         className="rounded-md border border-border bg-card px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         value={perPage}
