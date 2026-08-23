@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 
+import { createClient } from "@/lib/supabase/server"
 import { getDraft } from "@/lib/page-editor"
 import { HomeSections } from "@/components/marketing/home-sections"
 import { ContentBlocks } from "@/components/marketing/content-blocks"
@@ -12,14 +13,29 @@ import { PolicyContent } from "@/components/marketing/policy-content"
  * public site uses rather than a second implementation, so the preview cannot
  * drift away from what publishing will actually produce.
  *
- * Reached only through /admin, which the middleware gates to admins, and it
- * reads the draft with the cookie-aware client, so RLS refuses it for anyone
- * else even if the URL leaks.
+ * Lives outside /admin deliberately. Under /admin it inherited the admin
+ * layout, so the iframe rendered the whole admin shell — sidebar, header and
+ * nav — wrapped around the page, which is what made every preview look clipped
+ * and unreadable. Only the root layout applies here, so the preview is the page
+ * and nothing else.
+ *
+ * Being outside /admin means it does not get the middleware's admin gate for
+ * free, so it checks the role itself. RLS is the real backstop — getDraft reads
+ * with the cookie-aware client and drafts are admin-only — but a redirect is a
+ * better answer than an empty page.
  */
 export const dynamic = "force-dynamic"
 
 export default async function PreviewPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect(`/login?redirect=/preview/${slug}`)
+    const { data: profile } = await supabase
+        .from("users").select("role").eq("id", user.id).single()
+    if (profile?.role !== "admin") redirect("/")
+
     const draft = await getDraft(slug)
     if (!draft) notFound()
 

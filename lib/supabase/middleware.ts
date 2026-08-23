@@ -38,7 +38,11 @@ export async function updateSession(request: NextRequest) {
 
     const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
         request.nextUrl.pathname.startsWith('/auth')
-    const isAdminPage = request.nextUrl.pathname.startsWith('/admin')
+    // /preview renders unpublished draft content, so it is gated exactly like
+    // /admin even though it sits outside that segment (it must not inherit the
+    // admin layout — see app/preview/[slug]/page.tsx).
+    const isAdminPage = request.nextUrl.pathname.startsWith('/admin') ||
+        request.nextUrl.pathname.startsWith('/preview')
     const isPremiumPage = request.nextUrl.pathname.startsWith('/book-club/discussions') ||
         request.nextUrl.pathname.startsWith('/book-club/events')
 

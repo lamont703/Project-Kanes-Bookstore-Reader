@@ -207,6 +207,59 @@ function BlockEditor({
     )
 }
 
+
+/**
+ * The draft preview pane.
+ *
+ * Renders the page at a real desktop width and scales it down to fit, rather
+ * than letting a half-width pane render the site at its mobile breakpoints. An
+ * admin checking a layout wants to see the layout visitors get, not a phone
+ * rendering of it.
+ *
+ * The iframe's height is divided back out by the scale so the scaled result
+ * fills the pane exactly — otherwise the frame is shorter than its container
+ * and the page appears cut off partway down.
+ */
+const PREVIEW_WIDTH = 1280
+
+function PreviewFrame({ src, refreshKey }: { src: string; refreshKey: number }) {
+    const wrapRef = React.useRef<HTMLDivElement>(null)
+    const [box, setBox] = React.useState({ width: PREVIEW_WIDTH, height: 700 })
+
+    React.useEffect(() => {
+        const el = wrapRef.current
+        if (!el) return
+        const measure = () => setBox({ width: el.clientWidth, height: el.clientHeight })
+        measure()
+        const ro = new ResizeObserver(measure)
+        ro.observe(el)
+        return () => ro.disconnect()
+    }, [])
+
+    // Never scale up: on a narrow screen the pane is already full width.
+    const scale = Math.min(1, box.width / PREVIEW_WIDTH)
+
+    return (
+        <div
+            ref={wrapRef}
+            className="relative h-[72vh] w-full overflow-hidden rounded-xl border border-border bg-background"
+        >
+            <iframe
+                key={refreshKey}
+                src={src}
+                title="Draft preview"
+                style={{
+                    width: PREVIEW_WIDTH,
+                    height: box.height / scale,
+                    transform: `scale(${scale})`,
+                    transformOrigin: "top left",
+                    border: 0,
+                }}
+            />
+        </div>
+    )
+}
+
 export function PageEditor({
     slug,
     title,
@@ -320,7 +373,7 @@ export function PageEditor({
         })
     }
 
-    const previewSrc = `/admin/pages/${slug}/preview?v=${previewKey}`
+    const previewSrc = `/preview/${slug}?v=${previewKey}`
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -365,6 +418,11 @@ export function PageEditor({
                 {/* ---- editor ---- */}
                 <div className="space-y-4">
                     <DndContext
+                        // Explicit and stable: without it dnd-kit derives its
+                        // aria-describedby ids from a counter that advances
+                        // differently on server and client, and React reports a
+                        // hydration mismatch it cannot patch up.
+                        id={`sections-${slug}`}
                         sensors={sensors}
                         collisionDetection={closestCenter}
                         modifiers={[restrictToVerticalAxis]}
@@ -444,6 +502,7 @@ export function PageEditor({
                                             )}
 
                                             <DndContext
+                                                id={`blocks-${section.id}`}
                                                 sensors={sensors}
                                                 collisionDetection={closestCenter}
                                                 modifiers={[restrictToVerticalAxis]}
@@ -513,21 +572,23 @@ export function PageEditor({
                         <p className="text-xs uppercase tracking-widest text-muted-foreground">
                             Draft preview
                         </p>
-                        <Button variant="ghost" size="sm" onClick={() => setPreviewKey((k) => k + 1)}>
-                            <RotateCcw className="mr-1 size-3" /> Refresh
-                        </Button>
+                        <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" asChild>
+                                <a href={previewSrc} target="_blank" rel="noreferrer">
+                                    <Eye className="mr-1 size-3" /> Full size
+                                </a>
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setPreviewKey((k) => k + 1)}>
+                                <RotateCcw className="mr-1 size-3" /> Refresh
+                            </Button>
+                        </div>
                     </div>
                     {dirty && (
                         <p className="mb-2 text-xs text-yellow-500">
                             Preview shows the last saved draft. Save to see these edits.
                         </p>
                     )}
-                    <iframe
-                        key={previewKey}
-                        src={previewSrc}
-                        title="Draft preview"
-                        className="h-[70vh] w-full rounded-xl border border-border bg-background"
-                    />
+                    <PreviewFrame src={previewSrc} refreshKey={previewKey} />
                 </div>
             </div>
         </div>
