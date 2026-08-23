@@ -1,8 +1,13 @@
 import type { Metadata } from "next"
 import { ContentBlocks } from "@/components/marketing/content-blocks"
-import { getMarketingPage } from "@/lib/marketing-content"
+import { getPublishedBlocks } from "@/lib/page-content"
 import { apexUrl, kometzUrl } from "@/lib/hosts"
 import { Button } from "@/components/ui/button"
+
+// Content is editable at runtime, so this cannot be baked in permanently at
+// build time. Five minutes matches the other content-driven marketing pages;
+// publishing revalidates explicitly rather than waiting for it.
+export const revalidate = 300
 
 export const metadata: Metadata = {
     title: "Komet Book Club | Kane's Komet Bookstore",
@@ -12,10 +17,10 @@ export const metadata: Metadata = {
 }
 
 export default async function KometBookClubPage() {
-    const page = await getMarketingPage("komet-book-club")
+    const blocks = await getPublishedBlocks("komet-book-club")
     return (
         <div className="container mx-auto max-w-4xl px-4 py-12 md:py-20">
-            <ContentBlocks blocks={page.blocks} />
+            <ContentBlocks blocks={blocks} />
 
             {/* Joining, paying, and membership all live on the app host. */}
             <div className="mt-12 rounded-xl border border-primary/30 bg-primary/10 p-8 text-center">

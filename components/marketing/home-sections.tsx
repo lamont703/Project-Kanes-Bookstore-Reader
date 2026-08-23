@@ -4,8 +4,14 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { HeroVideo } from "@/components/marketing/hero-video"
 import { PageHero } from "@/components/marketing/page-hero"
-import { getMarketingPage, type MarketingBlock } from "@/lib/marketing-content"
-import { kometzUrl } from "@/lib/hosts"
+import {
+    getPublishedPage,
+    findSection,
+    sectionImages,
+    setting,
+    type PageSection,
+} from "@/lib/page-content"
+import { APEX_PATHS, kometzUrl } from "@/lib/hosts"
 import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
 
 /**
@@ -18,11 +24,28 @@ import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
  * layout. Keeping the body in one component means the entry point cannot drift
  * between hosts.
  *
- * Content comes from the imported GoHighLevel page. That page renders each
- * gallery twice (carousel slides, not responsive variants — the two copies hold
- * different images), so images are deduped and each section renders once with
- * the full unique set.
+ * Content comes from the database (see lib/page-content.ts), addressed by
+ * section id. It previously came from a JSON file on disk and located each
+ * gallery by document position — blocks 10..26 were "the books" — so inserting
+ * or dragging a single block would have quietly moved images into the wrong
+ * section. Nothing here refers to a block index any more.
+ *
+ * The source page renders each gallery twice (carousel slides, not responsive
+ * variants — the two copies hold different images), so images are deduped and
+ * each section renders once with the full unique set.
  */
+
+/**
+ * Resolve a stored call-to-action path for the host currently rendering.
+ *
+ * The homepage renders on both hosts, but only the marketing paths exist on the
+ * apex. Anything the app owns (/browse, /book-club) has to become an absolute
+ * link into kometz, or an apex visitor would land on a route that is not there.
+ */
+function ctaHref(href: string | undefined, fallback: string): string {
+    const path = href ?? fallback
+    return (APEX_PATHS as readonly string[]).includes(path) ? path : kometzUrl(path)
+}
 
 const HERO_VIDEO = "/marketing/video/kanes-hero.mp4"
 // The site logo, used as the video thumbnail. Same asset the header wordmark
@@ -37,19 +60,6 @@ const HERO_BG_PORTRAIT = "/marketing/kanes-hero-bg-portrait.webp"
 
 // Closing-section photo, block 54 of the imported homepage.
 const CLOSING_IMAGE = "/marketing/ec93931a-6621b6c18381f2b6f9098b2d.webp"
-
-/** Unique image sources between two block indices, in document order. */
-function imagesBetween(blocks: MarketingBlock[], from: number, to: number) {
-    const seen = new Set<string>()
-    const out: { src: string; alt: string }[] = []
-    for (const block of blocks.slice(from, to)) {
-        if (block.type !== "image" || block.role === "background") continue
-        if (seen.has(block.src)) continue
-        seen.add(block.src)
-        out.push({ src: block.src, alt: block.alt })
-    }
-    return out
-}
 
 /**
  * Gallery grid.
@@ -67,14 +77,14 @@ function Gallery({
     images,
     aspect,
 }: {
-    images: { src: string; alt: string }[]
+    images: { id: string; src: string; alt: string }[]
     aspect: "square" | "cover"
 }) {
     return (
         <TileGrid className="mt-8">
             {images.map((img) => (
                 <div
-                    key={img.src}
+                    key={img.id}
                     className={`${TILE_BASIS} overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50`}
                 >
                     <Image
@@ -99,7 +109,7 @@ function Gallery({
  * rendered as a lone quarter-width tile pinned to the left, which is what made
  * that section look misaligned against its centred heading and button.
  */
-function FeatureImage({ image }: { image: { src: string; alt: string } }) {
+function FeatureImage({ image }: { image: { id: string; src: string; alt: string } }) {
     return (
         <div className="mx-auto mt-8 max-w-3xl overflow-hidden rounded-xl border border-border bg-card">
             <Image
@@ -114,39 +124,51 @@ function FeatureImage({ image }: { image: { src: string; alt: string } }) {
 }
 
 export async function HomeSections() {
-    const page = await getMarketingPage("home")
-    const blocks = page.blocks
+    const doc = await getPublishedPage("home")
 
-    // Section boundaries follow the source document order; see the block dump
-    // in content/marketing/home.json.
-    const books = imagesBetween(blocks, 10, 26)
-    const funk = imagesBetween(blocks, 26, 30)
-    const characters = imagesBetween(blocks, 30, 54)
+    if (!doc) {
+        // Loud rather than silently blank: this only happens if the target
+        // database has not been seeded (scripts/seed-page-content.py).
+        console.error("HomeSections: no published 'home' document — page content is unseeded")
+        return null
+    }
 
-    const aboutBlurb = blocks.find(
-        (b): b is Extract<MarketingBlock, { type: "heading" }> =>
-            b.type === "heading" && b.text.startsWith("Kane's Bookstore:"),
-    )
+    const hero = findSection(doc, "home-hero")
+    const video = findSection(doc, "home-video")
+    const booksSection = findSection(doc, "home-books")
+    const funkSection = findSection(doc, "home-funk")
+    const charactersSection = findSection(doc, "home-characters")
+    const closing = findSection(doc, "home-closing")
+
+    const books = sectionImages(booksSection)
+    const funk = sectionImages(funkSection)
+    const characters = sectionImages(charactersSection)
+
+    const galleryAspect = (s: PageSection | undefined): "square" | "cover" =>
+        setting(s, "aspect") === "square" ? "square" : "cover"
 
     return (
         <>
             {/* Hero — full-bleed background, matching kanesbookstore.com. The
                 source art is landscape (1536x1024) for desktop and portrait
                 (1024x1536) for narrow screens, so PageHero is given both. */}
-            <PageHero image={HERO_BG} imagePortrait={HERO_BG_PORTRAIT}>
+            <PageHero
+                image={setting(hero, "image") ?? HERO_BG}
+                imagePortrait={setting(hero, "imagePortrait") ?? HERO_BG_PORTRAIT}
+            >
                 <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
-                    Welcome 2 the
+                    {setting(hero, "eyebrow")}
                 </p>
                 <h1 className="font-display mt-3 text-5xl uppercase tracking-wider text-balance md:text-7xl">
-                    <span className="text-primary">FUNKIEST BOOKSTORE</span>{" "}
-                    <span className="text-secondary">IN THE UNIVERSE!</span>
+                    <span className="text-primary">{setting(hero, "headingPrimary")}</span>{" "}
+                    <span className="text-secondary">{setting(hero, "headingSecondary")}</span>
                 </h1>
-                <p className="mt-6 text-lg text-muted-foreground">
-                    Creative literature and art through Komet books and merch.
-                </p>
+                <p className="mt-6 text-lg text-muted-foreground">{setting(hero, "body")}</p>
                 <div className="mt-8 flex justify-center">
                     <Button asChild size="lg">
-                        <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
+                        <a href={ctaHref(setting(hero, "ctaHref"), "/book-club")}>
+                            {setting(hero, "ctaLabel")}
+                        </a>
                     </Button>
                 </div>
             </PageHero>
@@ -156,23 +178,25 @@ export async function HomeSections() {
             <section className="border-b border-border">
                 <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                     <HeroVideo
-                        src={HERO_VIDEO}
-                        poster={HERO_POSTER}
-                        caption="Press play for a look inside Kane's Komet Bookstore."
+                        src={setting(video, "videoSrc") ?? HERO_VIDEO}
+                        poster={setting(video, "poster") ?? HERO_POSTER}
+                        caption={setting(video, "caption") ?? ""}
                     />
 
                     <div className="mx-auto mt-14 max-w-3xl">
                         <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
-                            More About Us
+                            {setting(video, "eyebrow")}
                         </p>
-                        {aboutBlurb && (
+                        {setting(video, "heading") && (
                             <h2 className="mt-4 text-xl font-semibold tracking-tight text-balance md:text-2xl">
-                                {aboutBlurb.text}
+                                {setting(video, "heading")}
                             </h2>
                         )}
                         <div className="mt-8 flex justify-center">
                             <Button asChild size="lg">
-                                <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
+                                <a href={ctaHref(setting(video, "ctaHref"), "/book-club")}>
+                                    {setting(video, "ctaLabel")}
+                                </a>
                             </Button>
                         </div>
                     </div>
@@ -184,15 +208,17 @@ export async function HomeSections() {
                 <section className="border-b border-border">
                     <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                         <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
-                            Our Books
+                            {setting(booksSection, "eyebrow")}
                         </p>
                         <h2 className="font-display mt-2 text-3xl uppercase tracking-wider md:text-4xl">
-                            Learn About Our Kometz
+                            {setting(booksSection, "heading")}
                         </h2>
-                        <Gallery images={books} aspect="cover" />
+                        <Gallery images={books} aspect={galleryAspect(booksSection)} />
                         <div className="mt-10 text-center">
                             <Button asChild size="lg">
-                                <Link href="/browse">View All Of Our Kometz</Link>
+                                <a href={ctaHref(setting(booksSection, "ctaHref"), "/browse")}>
+                                    {setting(booksSection, "ctaLabel")}
+                                </a>
                             </Button>
                         </div>
                     </div>
@@ -203,15 +229,17 @@ export async function HomeSections() {
             <section className="border-b border-border">
                 <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                     <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
-                        More Funk
+                        {setting(funkSection, "eyebrow")}
                     </p>
                     <h2 className="font-display mt-2 text-3xl uppercase tracking-wider md:text-4xl">
-                        Buy More Products
+                        {setting(funkSection, "heading")}
                     </h2>
                     {funk.length > 0 && <FeatureImage image={funk[0]} />}
                     <div className="mt-10 text-center">
                         <Button asChild size="lg">
-                            <Link href="/morefunk">More Funk for Purchase</Link>
+                            <Link href={setting(funkSection, "ctaHref") ?? "/morefunk"}>
+                                {setting(funkSection, "ctaLabel")}
+                            </Link>
                         </Button>
                     </div>
                 </div>
@@ -222,15 +250,17 @@ export async function HomeSections() {
                 <section className="border-b border-border">
                     <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                         <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
-                            Our Characters
+                            {setting(charactersSection, "eyebrow")}
                         </p>
                         <h2 className="font-display mt-2 text-3xl uppercase tracking-wider md:text-4xl">
-                            Learn About Our Characters
+                            {setting(charactersSection, "heading")}
                         </h2>
-                        <Gallery images={characters} aspect="square" />
+                        <Gallery images={characters} aspect={galleryAspect(charactersSection)} />
                         <div className="mt-10 text-center">
                             <Button asChild size="lg">
-                                <Link href="/characters">Meet All Of Our Komet Characters!</Link>
+                                <Link href={setting(charactersSection, "ctaHref") ?? "/characters"}>
+                                    {setting(charactersSection, "ctaLabel")}
+                                </Link>
                             </Button>
                         </div>
                     </div>
@@ -244,18 +274,15 @@ export async function HomeSections() {
             <section>
                 <div className="container mx-auto max-w-3xl px-4 py-20 text-center">
                     <h2 className="font-display text-4xl uppercase tracking-wider md:text-5xl">
-                        <span className="text-primary">HAVE A</span>{" "}
-                        <span className="text-secondary">KANE DAY</span>
+                        <span className="text-primary">{setting(closing, "headingPrimary")}</span>{" "}
+                        <span className="text-secondary">{setting(closing, "headingSecondary")}</span>
                     </h2>
-                    <p className="mt-4 text-muted-foreground">
-                        Members get a membership tee, a book bundle, a surprise gift, and an
-                        automatic Kane Dealer code for 35% off at checkout.
-                    </p>
+                    <p className="mt-4 text-muted-foreground">{setting(closing, "body")}</p>
 
                     <div className="mx-auto mt-10 overflow-hidden rounded-xl border border-border bg-card">
                         <Image
-                            src={CLOSING_IMAGE}
-                            alt="A reader with a Komet book"
+                            src={setting(closing, "image") ?? CLOSING_IMAGE}
+                            alt={setting(closing, "imageAlt") ?? ""}
                             width={800}
                             height={533}
                             className="h-auto w-full object-cover"
@@ -263,7 +290,9 @@ export async function HomeSections() {
                     </div>
 
                     <Button asChild size="lg" className="mt-10">
-                        <a href={kometzUrl("/book-club")}>Join Our Komet Book Club</a>
+                        <a href={ctaHref(setting(closing, "ctaHref"), "/book-club")}>
+                            {setting(closing, "ctaLabel")}
+                        </a>
                     </Button>
                 </div>
             </section>

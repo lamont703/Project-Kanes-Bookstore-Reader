@@ -1,5 +1,5 @@
 import Image from "next/image"
-import type { MarketingBlock } from "@/lib/marketing-content"
+import type { PageBlock } from "@/lib/page-content"
 import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
 
 /**
@@ -23,7 +23,7 @@ function Heading({ level, text }: { level: number; text: string }) {
     return <Tag className={`${cls} mt-10 first:mt-0`}>{text}</Tag>
 }
 
-function Gallery({ images }: { images: Extract<MarketingBlock, { type: "image" }>[] }) {
+function Gallery({ images }: { images: Extract<PageBlock, { type: "image" }>[] }) {
     if (images.length === 1) {
         const img = images[0]
         return (
@@ -61,9 +61,9 @@ function Gallery({ images }: { images: Extract<MarketingBlock, { type: "image" }
     )
 }
 
-export function ContentBlocks({ blocks }: { blocks: MarketingBlock[] }) {
+export function ContentBlocks({ blocks }: { blocks: PageBlock[] }) {
     const rendered: React.ReactNode[] = []
-    let run: Extract<MarketingBlock, { type: "image" }>[] = []
+    let run: Extract<PageBlock, { type: "image" }>[] = []
 
     const flushRun = (key: string) => {
         if (run.length) {

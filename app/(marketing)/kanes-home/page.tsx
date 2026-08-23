@@ -3,6 +3,11 @@ import type { Metadata } from "next"
 import { HomeSections } from "@/components/marketing/home-sections"
 import { apexUrl } from "@/lib/hosts"
 
+// Content is editable at runtime, so this cannot be baked in permanently at
+// build time. Five minutes matches the other content-driven marketing pages;
+// publishing revalidates explicitly rather than waiting for it.
+export const revalidate = 300
+
 /**
  * Marketing homepage for kanesbookstore.com.
  *

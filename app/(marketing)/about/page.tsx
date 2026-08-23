@@ -1,8 +1,13 @@
 import type { Metadata } from "next"
 import { ContentBlocks } from "@/components/marketing/content-blocks"
 import { PageHero } from "@/components/marketing/page-hero"
-import { getMarketingPage } from "@/lib/marketing-content"
+import { getPublishedBlocks } from "@/lib/page-content"
 import { apexUrl } from "@/lib/hosts"
+
+// Content is editable at runtime, so this cannot be baked in permanently at
+// build time. Five minutes matches the other content-driven marketing pages;
+// publishing revalidates explicitly rather than waiting for it.
+export const revalidate = 300
 
 export const metadata: Metadata = {
     title: "About | Kane's Komet Bookstore",
@@ -18,13 +23,13 @@ export const metadata: Metadata = {
 const ABOUT_HERO = "/marketing/about-hero-bg.webp"
 
 export default async function AboutPage() {
-    const page = await getMarketingPage("about")
+    const blocks = await getPublishedBlocks("about")
 
     // The page's own h1 moves into the hero; the rest becomes the body, so the
     // title is not rendered twice.
-    const first = page.blocks[0]
+    const first = blocks[0]
     const heading = first?.type === "heading" ? first.text : "About Us"
-    const body = first?.type === "heading" ? page.blocks.slice(1) : page.blocks
+    const body = first?.type === "heading" ? blocks.slice(1) : blocks
 
     return (
         <>

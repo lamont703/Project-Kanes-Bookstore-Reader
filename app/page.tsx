@@ -4,6 +4,11 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/nav/site-footer"
 import { HomeSections } from "@/components/marketing/home-sections"
 
+// Content is editable at runtime, so this cannot be baked in permanently at
+// build time. Five minutes matches the other content-driven marketing pages;
+// publishing revalidates explicitly rather than waiting for it.
+export const revalidate = 300
+
 /**
  * The application entry point.
  *

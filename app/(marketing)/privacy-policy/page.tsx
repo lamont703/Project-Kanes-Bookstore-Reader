@@ -1,7 +1,12 @@
 import type { Metadata } from "next"
 import { PolicyContent } from "@/components/marketing/policy-content"
-import { getMarketingPage } from "@/lib/marketing-content"
+import { getPublishedBlocks } from "@/lib/page-content"
 import { apexUrl } from "@/lib/hosts"
+
+// Content is editable at runtime, so this cannot be baked in permanently at
+// build time. Five minutes matches the other content-driven marketing pages;
+// publishing revalidates explicitly rather than waiting for it.
+export const revalidate = 300
 
 export const metadata: Metadata = {
     title: "Privacy Policy | Kane's Komet Bookstore",
@@ -10,7 +15,7 @@ export const metadata: Metadata = {
 }
 
 export default async function PrivacyPolicyPage() {
-    const page = await getMarketingPage("privacy-policy")
+    const blocks = await getPublishedBlocks("privacy-policy")
 
     // The imported page carries three regions: the site's hero band, the policy
     // itself, then promotional Our Books / Our Characters sections with their
@@ -21,10 +26,10 @@ export default async function PrivacyPolicyPage() {
     // markdown blob, so its own headings arrive as TEXT lines beginning "###";
     // the promo sections arrive as real heading blocks. That difference marks
     // where the policy ends.
-    const start = page.blocks.findIndex(
+    const start = blocks.findIndex(
         (b) => b.type === "text" && b.text.trim().startsWith("###"),
     )
-    const rest = start === -1 ? page.blocks : page.blocks.slice(start)
+    const rest = start === -1 ? blocks : blocks.slice(start)
     const endOffset = rest.findIndex((b) => b.type === "heading")
     const policy = endOffset === -1 ? rest : rest.slice(0, endOffset)
 

@@ -1,4 +1,4 @@
-import type { MarketingBlock } from "@/lib/marketing-content"
+import type { PageBlock } from "@/lib/page-content"
 
 /**
  * Renders the imported privacy policy.
@@ -9,9 +9,9 @@ import type { MarketingBlock } from "@/lib/marketing-content"
  * "- " before every bullet. This turns the four constructs actually used back
  * into real elements; a markdown dependency would be overkill for that set.
  */
-export function PolicyContent({ blocks }: { blocks: MarketingBlock[] }) {
+export function PolicyContent({ blocks }: { blocks: PageBlock[] }) {
     const lines = blocks
-        .filter((b): b is Extract<MarketingBlock, { type: "text" }> => b.type === "text")
+        .filter((b): b is Extract<PageBlock, { type: "text" }> => b.type === "text")
         .map((b) => b.text.trim())
 
     const out: React.ReactNode[] = []
