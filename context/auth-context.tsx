@@ -42,6 +42,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const lastUserIdRef = useRef<string | null>(null)
 
     useEffect(() => {
+        // The draft preview renders the whole app inside a same-origin iframe,
+        // so without this two Supabase clients in the same origin fight over the
+        // Navigator lock named for the auth token. Each waits the full ten
+        // seconds and both report NavigatorLockAcquireTimeoutError. The preview
+        // renders public marketing content and needs no session at all.
+        if (typeof window !== "undefined" && window.location.pathname.startsWith("/preview/")) {
+            setIsLoading(false)
+            return
+        }
+
         const fetchUserData = async (userId: string) => {
             const [profileRes, subRes] = await Promise.all([
                 supabase.from('users').select('*').eq('id', userId).single(),

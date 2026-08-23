@@ -12,36 +12,39 @@ import type { PageBlock } from "@/lib/page-content"
 export function PolicyContent({ blocks }: { blocks: PageBlock[] }) {
     const lines = blocks
         .filter((b): b is Extract<PageBlock, { type: "text" }> => b.type === "text")
-        .map((b) => b.text.trim())
+        .map((b) => ({ id: b.id, text: b.text.trim() }))
 
     const out: React.ReactNode[] = []
-    let bullets: string[] = []
+    let bullets: { id: string; text: string }[] = []
 
     const flushBullets = (key: string) => {
         if (!bullets.length) return
         out.push(
             <ul key={key} className="mt-3 list-disc space-y-1 pl-6 text-muted-foreground">
-                {bullets.map((b, i) => (
-                    <li key={i}>{b}</li>
+                {bullets.map((b) => (
+                    <li key={b.id} data-edit-id={b.id}>
+                        {b.text}
+                    </li>
                 ))}
             </ul>,
         )
         bullets = []
     }
 
-    lines.forEach((line, i) => {
+    lines.forEach(({ id, text: line }, i) => {
         if (line.startsWith("- ")) {
-            bullets.push(line.slice(2).trim())
+            bullets.push({ id, text: line.slice(2).trim() })
             return
         }
         flushBullets(`ul-${i}`)
 
         if (line === "---") {
-            out.push(<hr key={i} className="my-10 border-border" />)
+            out.push(<hr key={id} data-edit-id={id} className="my-10 border-border" />)
         } else if (line.startsWith("###")) {
             out.push(
                 <h2
-                    key={i}
+                    key={id}
+                    data-edit-id={id}
                     className="font-display mt-10 text-2xl uppercase tracking-wider text-secondary"
                 >
                     {line.replace(/^#+\s*/, "")}
@@ -50,13 +53,13 @@ export function PolicyContent({ blocks }: { blocks: PageBlock[] }) {
         } else if (/^\d+\.\s/.test(line)) {
             // "1. Personal Information" — a labelled subsection, not a list item
             out.push(
-                <h3 key={i} className="mt-6 font-semibold text-foreground">
+                <h3 key={id} data-edit-id={id} className="mt-6 font-semibold text-foreground">
                     {line}
                 </h3>,
             )
         } else {
             out.push(
-                <p key={i} className="mt-4 leading-relaxed text-muted-foreground">
+                <p key={id} data-edit-id={id} className="mt-4 leading-relaxed text-muted-foreground">
                     {line}
                 </p>,
             )

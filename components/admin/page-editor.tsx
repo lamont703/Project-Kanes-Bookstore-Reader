@@ -5,7 +5,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, Plus, Trash2, Upload, Loader2, RotateCcw, Eye } from "lucide-react"
+import { GripVertical, Plus, Trash2, Upload, Loader2, RotateCcw, Eye, MousePointerClick } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -184,7 +184,9 @@ function BlockEditor({
 
                 {block.type === "image" ? (
                     <div className="space-y-2">
-                        <ImageField value={block.src} onChange={(src) => onChange({ ...block, src })} />
+                        <div data-field-id={block.id}>
+                            <ImageField value={block.src} onChange={(src) => onChange({ ...block, src })} />
+                        </div>
                         <Input
                             value={block.alt}
                             placeholder="Alt text (describes the image for screen readers)"
@@ -194,6 +196,7 @@ function BlockEditor({
                     </div>
                 ) : (
                     <textarea
+                        data-field-id={block.id}
                         className="min-h-16 w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         value={block.text}
                         onChange={(e) => onChange({ ...block, text: e.target.value })}
@@ -222,8 +225,123 @@ function BlockEditor({
  */
 const PREVIEW_WIDTH = 1280
 
-function PreviewFrame({ src, refreshKey }: { src: string; refreshKey: number }) {
+interface Hotspot {
+    key: string
+    label: string
+    top: number
+    left: number
+    width: number
+    height: number
+}
+
+/**
+ * Boxes drawn over the preview, one per editable thing.
+ *
+ * The preview renders in an iframe on the same origin, so its DOM is readable
+ * from here. Elements mark themselves with data-edit-id (a block) or
+ * data-edit-section (a whole section) and this measures them, scales the rects
+ * to match the shrunken frame, and lays interactive boxes on top.
+ *
+ * The boxes also swallow clicks that would otherwise follow links inside the
+ * preview, which is what you want: in the editor a heading is something to
+ * edit, not something to navigate away from.
+ */
+function useHotspots(
+    frameRef: React.RefObject<HTMLIFrameElement | null>,
+    scale: number,
+    refreshKey: number,
+    enabled: boolean,
+) {
+    const [spots, setSpots] = React.useState<Hotspot[]>([])
+
+    React.useEffect(() => {
+        if (!enabled) {
+            setSpots([])
+            return
+        }
+        const frame = frameRef.current
+        if (!frame) return
+
+        let last = 0
+        const measure = () => {
+            const doc = frame.contentDocument
+            if (!doc?.body) return
+            const found: Hotspot[] = []
+            doc.querySelectorAll<HTMLElement>("[data-edit-id],[data-edit-section]").forEach((el) => {
+                const key = el.dataset.editId
+                    ? `block:${el.dataset.editId}`
+                    : `section:${el.dataset.editSection}`
+                const r = el.getBoundingClientRect()
+                // Skip anything scrolled out of the frame or collapsed.
+                if (r.width < 4 || r.height < 4) return
+                found.push({
+                    key,
+                    label: el.dataset.editSection ? "Section" : el.tagName.toLowerCase(),
+                    top: r.top * scale,
+                    left: r.left * scale,
+                    width: r.width * scale,
+                    height: r.height * scale,
+                })
+            })
+            setSpots(found)
+        }
+
+        const schedule = () => {
+            // Coalesce bursts of scroll events without relying on rAF, which
+            // Chrome suspends entirely while the tab is hidden.
+            const now = Date.now()
+            if (now - last < 60) return
+            last = now
+            measure()
+        }
+
+        // The frame may already be loaded when this runs, so measure now and
+        // again on load rather than relying on the event alone.
+        schedule()
+        frame.addEventListener("load", schedule)
+        const win = frame.contentWindow
+        win?.addEventListener("scroll", schedule, { passive: true })
+        win?.addEventListener("resize", schedule)
+        const timer = window.setInterval(schedule, 1000)
+
+        return () => {
+            clearInterval(timer)
+            frame.removeEventListener("load", schedule)
+            win?.removeEventListener("scroll", schedule)
+            win?.removeEventListener("resize", schedule)
+        }
+    }, [frameRef, scale, refreshKey, enabled])
+
+    return spots
+}
+
+/**
+ * The draft preview pane.
+ *
+ * Renders the page at a real desktop width and scales it down to fit, rather
+ * than letting a half-width pane render the site at its mobile breakpoints. An
+ * admin checking a layout wants to see the layout visitors get, not a phone
+ * rendering of it.
+ *
+ * The iframe's height is divided back out by the scale so the scaled result
+ * fills the pane exactly — otherwise the frame is shorter than its container
+ * and the page appears cut off partway down.
+ */
+function PreviewFrame({
+    src,
+    refreshKey,
+    editing,
+    onSelect,
+    selected,
+}: {
+    src: string
+    refreshKey: number
+    editing: boolean
+    onSelect: (key: string) => void
+    selected: string | null
+}) {
     const wrapRef = React.useRef<HTMLDivElement>(null)
+    const frameRef = React.useRef<HTMLIFrameElement>(null)
     const [box, setBox] = React.useState({ width: PREVIEW_WIDTH, height: 700 })
 
     React.useEffect(() => {
@@ -238,6 +356,7 @@ function PreviewFrame({ src, refreshKey }: { src: string; refreshKey: number }) 
 
     // Never scale up: on a narrow screen the pane is already full width.
     const scale = Math.min(1, box.width / PREVIEW_WIDTH)
+    const spots = useHotspots(frameRef, scale, refreshKey, editing)
 
     return (
         <div
@@ -245,6 +364,7 @@ function PreviewFrame({ src, refreshKey }: { src: string; refreshKey: number }) 
             className="relative h-[72vh] w-full overflow-hidden rounded-xl border border-border bg-background"
         >
             <iframe
+                ref={frameRef}
                 key={refreshKey}
                 src={src}
                 title="Draft preview"
@@ -256,6 +376,35 @@ function PreviewFrame({ src, refreshKey }: { src: string; refreshKey: number }) 
                     border: 0,
                 }}
             />
+
+            {editing &&
+                spots.map((spot) => {
+                    const isSelected = spot.key === selected
+                    return (
+                        <button
+                            key={spot.key}
+                            type="button"
+                            title={`Edit this ${spot.label}`}
+                            onClick={() => onSelect(spot.key)}
+                            style={{
+                                position: "absolute",
+                                top: spot.top,
+                                left: spot.left,
+                                width: spot.width,
+                                height: spot.height,
+                            }}
+                            className={`group rounded-sm transition-colors ${
+                                isSelected
+                                    ? "bg-primary/15 ring-2 ring-primary"
+                                    : "hover:bg-primary/10 hover:ring-2 hover:ring-primary/60"
+                            }`}
+                        >
+                            <span className="pointer-events-none absolute left-0 top-0 hidden rounded-br bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground group-hover:block">
+                                Edit
+                            </span>
+                        </button>
+                    )
+                })}
         </div>
     )
 }
@@ -276,6 +425,32 @@ export function PageEditor({
     const [hasChanges, setHasChanges] = React.useState(initialHasChanges)
     const [busy, setBusy] = React.useState<null | "save" | "publish" | "discard">(null)
     const [previewKey, setPreviewKey] = React.useState(0)
+    const [editing, setEditing] = React.useState(true)
+    const [selected, setSelected] = React.useState<string | null>(null)
+
+    /**
+     * Bring the field for a clicked preview element into view and focus it.
+     *
+     * The two surfaces are joined by id alone: the preview stamps data-edit-id
+     * on what it renders, the editor stamps data-field-id on the control that
+     * changes it, and this is the only thing that knows they are the same
+     * thing. Nothing depends on the two being in the same order.
+     */
+    const selectFromPreview = React.useCallback((key: string) => {
+        setSelected(key)
+        const [kind, id] = key.split(":")
+        const target = document.querySelector<HTMLElement>(
+            kind === "section" ? `[data-section-card="${id}"]` : `[data-field-id="${id}"]`,
+        )
+        if (!target) return
+        target.scrollIntoView({ behavior: "smooth", block: "center" })
+        const field = target.matches("textarea,input")
+            ? target
+            : target.querySelector<HTMLElement>("textarea,input")
+        // Focusing is what makes a click in the preview feel like it landed on
+        // the thing you clicked, rather than merely scrolling near it.
+        window.setTimeout(() => field?.focus({ preventScroll: true }), 320)
+    }, [])
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
 
@@ -435,7 +610,7 @@ export function PageEditor({
                             {doc.sections.map((section) => (
                                 <SortableRow key={section.id} id={section.id}>
                                     {(handle) => (
-                                        <Card className="mb-4 p-4">
+                                        <Card className="mb-4 p-4" data-section-card={section.id}>
                                             <div className="mb-3 flex items-center gap-2">
                                                 {handle}
                                                 <Input
@@ -573,6 +748,16 @@ export function PageEditor({
                             Draft preview
                         </p>
                         <div className="flex items-center gap-1">
+                            <Button
+                                variant={editing ? "default" : "ghost"}
+                                size="sm"
+                                onClick={() => setEditing((v) => !v)}
+                                aria-pressed={editing}
+                                title="Toggle the click-to-edit overlay"
+                            >
+                                <MousePointerClick className="mr-1 size-3" />
+                                {editing ? "Click-to-edit on" : "Click-to-edit off"}
+                            </Button>
                             <Button variant="ghost" size="sm" asChild>
                                 <a href={previewSrc} target="_blank" rel="noreferrer">
                                     <Eye className="mr-1 size-3" /> Full size
@@ -588,7 +773,13 @@ export function PageEditor({
                             Preview shows the last saved draft. Save to see these edits.
                         </p>
                     )}
-                    <PreviewFrame src={previewSrc} refreshKey={previewKey} />
+                    <PreviewFrame
+                        src={previewSrc}
+                        refreshKey={previewKey}
+                        editing={editing}
+                        onSelect={selectFromPreview}
+                        selected={selected}
+                    />
                 </div>
             </div>
         </div>

@@ -12,7 +12,7 @@ import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
  * them one per row would be unreadable.
  */
 
-function Heading({ level, text }: { level: number; text: string }) {
+function Heading({ level, text, editId }: { level: number; text: string; editId?: string }) {
     const cls =
         level <= 1
             ? "font-display text-4xl md:text-5xl tracking-wider uppercase text-primary"
@@ -20,14 +20,14 @@ function Heading({ level, text }: { level: number; text: string }) {
               ? "font-display text-2xl md:text-3xl tracking-wider uppercase text-secondary"
               : "font-display text-xl tracking-wide uppercase text-foreground"
     const Tag = (`h${Math.min(Math.max(level, 1), 6)}` as unknown) as "h1"
-    return <Tag className={`${cls} mt-10 first:mt-0`}>{text}</Tag>
+    return <Tag className={`${cls} mt-10 first:mt-0`} data-edit-id={editId}>{text}</Tag>
 }
 
 function Gallery({ images }: { images: Extract<PageBlock, { type: "image" }>[] }) {
     if (images.length === 1) {
         const img = images[0]
         return (
-            <div className="my-8 overflow-hidden rounded-xl border border-border bg-card">
+            <div className="my-8 overflow-hidden rounded-xl border border-border bg-card" data-edit-id={img.id}>
                 <Image
                     src={img.src}
                     alt={img.alt}
@@ -45,7 +45,8 @@ function Gallery({ images }: { images: Extract<PageBlock, { type: "image" }>[] }
         <TileGrid className="my-8">
             {images.map((img) => (
                 <div
-                    key={img.src}
+                    key={img.id}
+                    data-edit-id={img.id}
                     className={`${TILE_BASIS} overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50`}
                 >
                     <Image
@@ -79,10 +80,16 @@ export function ContentBlocks({ blocks }: { blocks: PageBlock[] }) {
         }
         flushRun(`gallery-${i}`)
         if (block.type === "heading") {
-            rendered.push(<Heading key={i} level={block.level} text={block.text} />)
+            rendered.push(
+                <Heading key={block.id} level={block.level} text={block.text} editId={block.id} />,
+            )
         } else {
             rendered.push(
-                <p key={i} className="mt-4 leading-relaxed text-muted-foreground">
+                <p
+                    key={block.id}
+                    data-edit-id={block.id}
+                    className="mt-4 leading-relaxed text-muted-foreground"
+                >
                     {block.text}
                 </p>,
             )

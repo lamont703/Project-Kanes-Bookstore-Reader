@@ -86,6 +86,7 @@ function Gallery({
             {images.map((img) => (
                 <div
                     key={img.id}
+                    data-edit-id={img.id}
                     className={`${TILE_BASIS} overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50`}
                 >
                     <Image
@@ -179,7 +180,7 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
 
             {/* Video + More About Us — one section directly below the hero, in
                 the source site's order: video, eyebrow, statement, join CTA. */}
-            <section className="border-b border-border">
+            <section data-edit-section="home-video" className="border-b border-border">
                 <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                     <HeroVideo
                         src={setting(video, "videoSrc") ?? HERO_VIDEO}
@@ -209,7 +210,7 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
 
             {/* Our books */}
             {books.length > 0 && (
-                <section className="border-b border-border">
+                <section data-edit-section="home-books" className="border-b border-border">
                     <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                         <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                             {setting(booksSection, "eyebrow")}
@@ -230,7 +231,7 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
             )}
 
             {/* More funk */}
-            <section className="border-b border-border">
+            <section data-edit-section="home-funk" className="border-b border-border">
                 <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                     <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                         {setting(funkSection, "eyebrow")}
@@ -251,7 +252,7 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
 
             {/* Characters */}
             {characters.length > 0 && (
-                <section className="border-b border-border">
+                <section data-edit-section="home-characters" className="border-b border-border">
                     <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                         <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
                             {setting(charactersSection, "eyebrow")}
@@ -275,7 +276,7 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
                 the source page places it — block 54, immediately before the final
                 CTA. Already part of the content import, so it is served locally
                 rather than hotlinked from the LeadConnector CDN. */}
-            <section>
+            <section data-edit-section="home-closing">
                 <div className="container mx-auto max-w-3xl px-4 py-20 text-center">
                     <h2 className="font-display text-4xl uppercase tracking-wider md:text-5xl">
                         <span className="text-primary">{setting(closing, "headingPrimary")}</span>{" "}
