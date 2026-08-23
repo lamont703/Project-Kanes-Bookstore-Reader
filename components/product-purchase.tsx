@@ -2,9 +2,9 @@
 
 import * as React from "react"
 import Image from "next/image"
-import Link from "next/link"
-import { ShoppingCart, Check, ArrowLeft } from "lucide-react"
+import { ShoppingCart, Check } from "lucide-react"
 
+import { BackLink } from "@/components/back-link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useCart } from "@/context/cart-context"
@@ -62,12 +62,10 @@ export function ProductPurchase({ product, variants }: { product: Product; varia
 
     return (
         <div className="mx-auto max-w-5xl">
-            <Button variant="ghost" asChild className="mb-6">
-                <Link href="/browse">
-                    <ArrowLeft className="mr-2 size-4" />
-                    Continue Shopping
-                </Link>
-            </Button>
+            {/* Falls back to the merch collection rather than /browse: someone
+                who lands on a candle directly is looking for merchandise, not
+                the book catalogue. */}
+            <BackLink fallbackHref="/morefunk" />
 
             <div className="grid gap-10 md:grid-cols-2">
                 <div className="overflow-hidden rounded-xl border border-border bg-muted">
