@@ -9,6 +9,7 @@ import {
     findSection,
     sectionImages,
     setting,
+    type PageDocument,
     type PageSection,
 } from "@/lib/page-content"
 import { APEX_PATHS, kometzUrl } from "@/lib/hosts"
@@ -123,8 +124,11 @@ function FeatureImage({ image }: { image: { id: string; src: string; alt: string
     )
 }
 
-export async function HomeSections() {
-    const doc = await getPublishedPage("home")
+export async function HomeSections({ document }: { document?: PageDocument } = {}) {
+    // A document is passed in only by the draft preview. Everywhere else this
+    // reads the published version, so the public page cannot be made to render
+    // unpublished content by a caller.
+    const doc = document ?? (await getPublishedPage("home"))
 
     if (!doc) {
         // Loud rather than silently blank: this only happens if the target

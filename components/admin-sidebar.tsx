@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Home, BookOpen, Users, Calendar, MessageSquare, X, Star, ShoppingBag, Shirt } from "lucide-react"
+import { Home, BookOpen, Users, Calendar, MessageSquare, X, Star, ShoppingBag, Shirt, FileText } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -21,6 +21,7 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
     // and never surfaces merch. Without this entry the products admin existed
     // but was unreachable by clicking.
     { href: "/admin/products", icon: Shirt, label: "Merchandise" },
+    { href: "/admin/pages", icon: FileText, label: "Site Pages" },
     { href: "/admin/orders", icon: ShoppingBag, label: "Orders" },
     { href: "/admin/book-club", icon: Star, label: "Monthly Selection" },
     { href: "/admin/discussions", icon: MessageSquare, label: "Discussions" },
