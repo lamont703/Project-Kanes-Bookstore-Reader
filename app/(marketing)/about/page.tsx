@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { ContentBlocks } from "@/components/marketing/content-blocks"
 import { PageHero } from "@/components/marketing/page-hero"
-import { getPublishedBlocks } from "@/lib/page-content"
+import { blocksOf, getPublishedBlocks, type PageDocument } from "@/lib/page-content"
 import { apexUrl } from "@/lib/hosts"
 
 // Content is editable at runtime, so this cannot be baked in permanently at
@@ -22,8 +22,12 @@ export const metadata: Metadata = {
 // scrim below.
 const ABOUT_HERO = "/marketing/about-hero-bg.webp"
 
-export default async function AboutPage() {
-    const blocks = await getPublishedBlocks("about")
+export default async function AboutPage({ previewDocument }: {
+    /** Supplied only by the admin draft preview, which renders this
+     *  component so the preview is the page rather than a copy of it. */
+    previewDocument?: PageDocument
+} = {}) {
+    const blocks = previewDocument ? blocksOf(previewDocument) : await getPublishedBlocks("about")
 
     // The page's own h1 moves into the hero; the rest becomes the body, so the
     // title is not rendered twice.

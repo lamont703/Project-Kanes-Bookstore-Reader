@@ -4,9 +4,19 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/nav/site-footer"
 import { BookClubContent } from "@/components/book-club-content"
 import { sortSelections, getCurrentStatus, isEventPast } from "@/lib/book-club-utils"
+import { getPublishedPage, type PageDocument } from "@/lib/page-content"
 
-export default async function BookClubPage() {
+export default async function BookClubPage({
+  previewDocument,
+}: {
+  /**
+   * Supplied only by the admin draft preview, which renders this component so
+   * the preview is the page rather than a copy of it.
+   */
+  previewDocument?: PageDocument
+} = {}) {
   const supabase = await createClient()
+  const copyDoc = previewDocument ?? (await getPublishedPage("book-club"))
 
   // Fetch Current Selections
   const { data: rawSelections } = await supabase
@@ -91,6 +101,7 @@ export default async function BookClubPage() {
         subscription={subscription}
         eligibleBooks={eligibleBooks || []}
         userRsvps={userRsvps}
+        copy={copyDoc}
       />
 
       <SiteFooter mode="app" />

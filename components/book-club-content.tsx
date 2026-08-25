@@ -1,5 +1,6 @@
 "use client"
 
+import { findSection, setting, type PageDocument } from "@/lib/page-model"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -19,6 +20,8 @@ interface BookClubContentProps {
     subscription: any
     eligibleBooks: any[]
     userRsvps?: string[]
+    /** Editable page copy. Null when the database has not been seeded. */
+    copy?: PageDocument | null
 }
 
 
@@ -50,6 +53,20 @@ const bookClubBenefits = [
     },
 ]
 
+/**
+ * Editable copy for this page, addressed by section id. Falls back to the
+ * wording that used to be hardcoded here, so an unseeded database renders the
+ * page as before rather than blank.
+ */
+function copyOf(
+    doc: PageDocument | null | undefined,
+    sectionId: string,
+    key: string,
+    fallback: string,
+): string {
+    return setting(findSection(doc ?? null, sectionId), key) || fallback
+}
+
 export function BookClubContent({
     currentSelection,
     upcomingSelections,
@@ -57,7 +74,8 @@ export function BookClubContent({
     events,
     subscription,
     eligibleBooks,
-    userRsvps = []
+    userRsvps = [],
+    copy = null
 }: BookClubContentProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const { user } = useAuth()
@@ -77,17 +95,26 @@ export function BookClubContent({
 
                         <div className="inline-block px-10 py-12 md:px-16 md:py-16 neon-sign-board mx-auto">
                             <h1 className="flex flex-col items-center gap-2">
-                                <span className="komet-neon-text komet-neon-text-flicker text-5xl md:text-7xl lg:text-8xl">
-                                    KANE&apos;S KOMET
+                                <span
+                                    className="komet-neon-text komet-neon-text-flicker text-5xl md:text-7xl lg:text-8xl"
+                                    data-edit-setting="bookclub-hero:headingPrimary"
+                                >
+                                    {copyOf(copy, "bookclub-hero", "headingPrimary", "KANE'S KOMET")}
                                 </span>
-                                <span className="komet-neon-text text-6xl md:text-8xl lg:text-9xl">
-                                    BOOK CLUB
+                                <span
+                                    className="komet-neon-text text-6xl md:text-8xl lg:text-9xl"
+                                    data-edit-setting="bookclub-hero:headingSecondary"
+                                >
+                                    {copyOf(copy, "bookclub-hero", "headingSecondary", "BOOK CLUB")}
                                 </span>
                             </h1>
                         </div>
 
-                        <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                            Unlock the full Komet Book experience. Get exclusive E-Komet Books, member-only perks, and access to the growing World of Kane's Komet Book library.
+                        <p
+                            className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed"
+                            data-edit-setting="bookclub-hero:intro"
+                        >
+                            {copyOf(copy, "bookclub-hero", "intro", "Unlock the full Komet Book experience.")}
                         </p>
 
                         <div className="flex flex-col items-center justify-center gap-2">
@@ -146,7 +173,12 @@ export function BookClubContent({
                 <section className="mb-16">
                     <div className="mb-8 text-center">
                         <h2 className="font-display text-4xl md:text-5xl tracking-wider mb-2">
-                            <span className="text-secondary">MEMBERSHIP</span> BENEFITS
+                            <span className="text-secondary" data-edit-setting="bookclub-benefits:headingPrimary">
+                                {copyOf(copy, "bookclub-benefits", "headingPrimary", "MEMBERSHIP")}
+                            </span>{" "}
+                            <span data-edit-setting="bookclub-benefits:headingSecondary">
+                                {copyOf(copy, "bookclub-benefits", "headingSecondary", "BENEFITS")}
+                            </span>
                         </h2>
                     </div>
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -171,10 +203,12 @@ export function BookClubContent({
 
                         <div className="relative text-center mb-16 max-w-2xl mx-auto">
                             <h2 className="font-display text-4xl md:text-5xl tracking-wider mb-4 uppercase">
-                                CHOOSE YOUR <span className="text-secondary">2 FREE</span> E-BOOKS
+                                <span data-edit-setting="bookclub-free-books:heading">
+                                    {copyOf(copy, "bookclub-free-books", "heading", "CHOOSE YOUR 2 FREE E-BOOKS")}
+                                </span>
                             </h2>
-                            <p className="text-muted-foreground text-lg">
-                                When you subscribe to the Book Club, you get to instantly pick any two titles from our exclusive eligible collection to keep forever.
+                            <p className="text-muted-foreground text-lg" data-edit-setting="bookclub-free-books:intro">
+                                {copyOf(copy, "bookclub-free-books", "intro", "Pick any two eligible titles to keep forever.")}
                             </p>
                         </div>
 

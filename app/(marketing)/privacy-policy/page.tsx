@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { PolicyContent } from "@/components/marketing/policy-content"
-import { getPublishedBlocks } from "@/lib/page-content"
+import { blocksOf, getPublishedBlocks, type PageDocument } from "@/lib/page-content"
 import { apexUrl } from "@/lib/hosts"
 
 // Content is editable at runtime, so this cannot be baked in permanently at
@@ -14,8 +14,12 @@ export const metadata: Metadata = {
     alternates: { canonical: apexUrl("/privacy-policy") },
 }
 
-export default async function PrivacyPolicyPage() {
-    const blocks = await getPublishedBlocks("privacy-policy")
+export default async function PrivacyPolicyPage({ previewDocument }: {
+    /** Supplied only by the admin draft preview, which renders this
+     *  component so the preview is the page rather than a copy of it. */
+    previewDocument?: PageDocument
+} = {}) {
+    const blocks = previewDocument ? blocksOf(previewDocument) : await getPublishedBlocks("privacy-policy")
 
     // The imported page carries three regions: the site's hero band, the policy
     // itself, then promotional Our Books / Our Characters sections with their

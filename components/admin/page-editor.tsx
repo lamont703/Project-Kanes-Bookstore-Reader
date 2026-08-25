@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 import { saveDraft, publishPage, discardDraft } from "@/lib/page-editor"
-import type { PageBlock, PageDocument, PageSection } from "@/lib/page-content"
+import type { PageBlock, PageDocument, PageSection } from "@/lib/page-model"
 
 /**
  * Dev-mode editor for a marketing page.
@@ -267,16 +267,24 @@ function useHotspots(
             const doc = frame.contentDocument
             if (!doc?.body) return
             const found: Hotspot[] = []
-            doc.querySelectorAll<HTMLElement>("[data-edit-id],[data-edit-section]").forEach((el) => {
+            doc.querySelectorAll<HTMLElement>(
+                "[data-edit-id],[data-edit-section],[data-edit-setting]",
+            ).forEach((el) => {
                 const key = el.dataset.editId
                     ? `block:${el.dataset.editId}`
-                    : `section:${el.dataset.editSection}`
+                    : el.dataset.editSetting
+                      ? `setting:${el.dataset.editSetting}`
+                      : `section:${el.dataset.editSection}`
                 const r = el.getBoundingClientRect()
                 // Skip anything scrolled out of the frame or collapsed.
                 if (r.width < 4 || r.height < 4) return
                 found.push({
                     key,
-                    label: el.dataset.editSection ? "Section" : el.tagName.toLowerCase(),
+                    label: el.dataset.editSection
+                        ? "Section"
+                        : el.dataset.editSetting
+                          ? el.dataset.editSetting.split(":")[1]
+                          : el.tagName.toLowerCase(),
                     top: r.top * scale,
                     left: r.left * scale,
                     width: r.width * scale,
@@ -438,10 +446,15 @@ export function PageEditor({
      */
     const selectFromPreview = React.useCallback((key: string) => {
         setSelected(key)
-        const [kind, id] = key.split(":")
-        const target = document.querySelector<HTMLElement>(
-            kind === "section" ? `[data-section-card="${id}"]` : `[data-field-id="${id}"]`,
-        )
+        const [kind, ...rest] = key.split(":")
+        const id = rest.join(":")
+        const selector =
+            kind === "section"
+                ? `[data-section-card="${id}"]`
+                : kind === "setting"
+                  ? `[data-setting-id="${id}"]`
+                  : `[data-field-id="${id}"]`
+        const target = document.querySelector<HTMLElement>(selector)
         if (!target) return
         target.scrollIntoView({ behavior: "smooth", block: "center" })
         const field = target.matches("textarea,input")
@@ -645,7 +658,11 @@ export function PageEditor({
                                             {Object.keys(section.settings).length > 0 && (
                                                 <div className="mb-4 space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
                                                     {Object.entries(section.settings).map(([key, value]) => (
-                                                        <div key={key} className="space-y-1">
+                                                        <div
+                                                            key={key}
+                                                            data-setting-id={`${section.id}:${key}`}
+                                                            className="space-y-1"
+                                                        >
                                                             <Label className="text-xs text-muted-foreground">
                                                                 {label(key)}
                                                             </Label>

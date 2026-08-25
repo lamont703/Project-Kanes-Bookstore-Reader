@@ -85,8 +85,6 @@ export const APEX_PATHS = [
     "/about",
     "/characters",
     "/contact",
-    "/komet-book-club",
-    "/kometbooks",
     "/morefunk",
     "/privacy-policy",
 ] as const

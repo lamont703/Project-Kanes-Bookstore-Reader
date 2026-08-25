@@ -30,9 +30,9 @@ export interface NavItem {
 /** Primary navigation, shown on both hosts in this order. */
 export const PRIMARY_NAV: NavItem[] = [
     // Books goes to the app's real catalogue at /browse from every host, rather
-    // than the marketing view at /kometbooks. Both render the same published
-    // books, but only /browse can add to a cart, so the header should land
-    // people where they can act. /kometbooks stays reachable from the footer.
+    // The marketing duplicates at /kometbooks and /komet-book-club have been
+    // retired: they showed imported GoHighLevel copy of pages the app already
+    // owns, so there were two versions of the same thing and only one was real.
     { label: "Books", app: "/browse" },
     // Book Club goes to the app's membership page — join flow, bundles, member
     // benefits — not the app root, which now serves the marketing homepage on
@@ -60,9 +60,9 @@ export const FOOTER_NAV = {
         { label: "Privacy Policy", marketing: "/privacy-policy", app: "/privacy-policy" },
     ] as NavItem[],
     shop: [
-        { label: "Komet Books", marketing: "/kometbooks", app: "/browse" },
+        { label: "Komet Books", app: "/browse" },
         { label: "More Funk", marketing: "/morefunk", app: "/morefunk" },
-        { label: "Komet Book Club", marketing: "/komet-book-club", app: "/book-club" },
+        { label: "Komet Book Club", app: "/book-club" },
         { label: "Komet Book Library", app: "/dashboard" },
     ] as NavItem[],
 }

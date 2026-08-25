@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { ContentBlocks } from "@/components/marketing/content-blocks"
-import { getPublishedBlocks } from "@/lib/page-content"
+import { blocksOf, getPublishedBlocks, type PageDocument } from "@/lib/page-content"
 import { apexUrl } from "@/lib/hosts"
 
 // Content is editable at runtime, so this cannot be baked in permanently at
@@ -14,8 +14,12 @@ export const metadata: Metadata = {
     alternates: { canonical: apexUrl("/characters") },
 }
 
-export default async function CharactersPage() {
-    const blocks = await getPublishedBlocks("characters")
+export default async function CharactersPage({ previewDocument }: {
+    /** Supplied only by the admin draft preview, which renders this
+     *  component so the preview is the page rather than a copy of it. */
+    previewDocument?: PageDocument
+} = {}) {
+    const blocks = previewDocument ? blocksOf(previewDocument) : await getPublishedBlocks("characters")
     return (
         <div className="container mx-auto max-w-6xl px-4 py-12 md:py-20">
             <ContentBlocks blocks={blocks} />

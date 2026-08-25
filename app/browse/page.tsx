@@ -6,13 +6,22 @@ import { createClient } from "@/lib/supabase/server"
 import { BrowseFilters } from "@/components/browse-filters"
 import { BrowsePagination } from "@/components/browse-pagination"
 import { DEFAULT_PER_PAGE, PER_PAGE_OPTIONS } from "@/lib/browse-options"
+import { getPublishedPage, findSection, setting, type PageDocument } from "@/lib/page-content"
 
 interface BrowsePageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  /**
+   * Supplied only by the admin draft preview, which renders this very component
+   * so the preview cannot drift from the page. Everywhere else the published
+   * document is read, so a caller cannot make the live page show a draft.
+   */
+  previewDocument?: PageDocument
 }
 
-export default async function BrowsePage({ searchParams }: BrowsePageProps) {
+export default async function BrowsePage({ searchParams, previewDocument }: BrowsePageProps) {
   const params = await searchParams
+  const copyDoc = previewDocument ?? (await getPublishedPage("browse"))
+  const header = findSection(copyDoc, "browse-header")
   const genre = (params.genre as string) || "All"
   const query = (params.q as string) || ""
   const sort = (params.sort as string) || "title"
@@ -133,9 +142,16 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
         {/* Page Header */}
         <div className="mb-8 text-center md:text-left">
           <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-2 uppercase">
-            <span className="text-primary">THE KOMET</span> <span className="text-secondary">BOOK LIBRARY</span>
+            <span className="text-primary" data-edit-setting="browse-header:headingPrimary">
+              {setting(header, "headingPrimary")}
+            </span>{" "}
+            <span className="text-secondary" data-edit-setting="browse-header:headingSecondary">
+              {setting(header, "headingSecondary")}
+            </span>
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl">Explore original stories from the World of Kane: Crime Saga, Kosmic Myths, Street Legends, and Everything In Between.</p>
+          <p className="text-lg text-muted-foreground max-w-2xl" data-edit-setting="browse-header:intro">
+            {setting(header, "intro")}
+          </p>
         </div>
 
         {/* Search and Filters (Client Component) */}
