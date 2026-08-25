@@ -1,3 +1,4 @@
+import { findSection, getPublishedPage, setting, type PageDocument } from "@/lib/page-content"
 import type { Metadata } from "next"
 import Image from "next/image"
 import { createStaticClient } from "@/lib/supabase/server"
@@ -46,7 +47,13 @@ const CATEGORY_LABEL: Record<string, string> = {
     accessory: "Accessories",
 }
 
-export default async function MoreFunkPage() {
+export default async function MoreFunkPage({ previewDocument }: {
+    /** Supplied only by the admin draft preview. */
+    previewDocument?: PageDocument
+} = {}) {
+    const copyDoc = previewDocument ?? (await getPublishedPage("morefunk"))
+    const header = findSection(copyDoc, "morefunk-header")
+
     // Public catalog, cookie-free — the marketing host never creates a session.
     const supabase = createStaticClient()
 
@@ -70,12 +77,16 @@ export default async function MoreFunkPage() {
     return (
         <div className="container mx-auto max-w-6xl px-4 py-12 md:py-20">
             <h1 className="font-display text-5xl uppercase tracking-wider md:text-6xl">
-                <span className="text-primary">MORE FUNK</span>{" "}
-                <span className="text-secondary">COLLECTION</span>
+                <span className="text-primary" data-edit-setting="morefunk-header:headingPrimary">
+                    {setting(header, "headingPrimary") ?? "MORE FUNK"}
+                </span>{" "}
+                <span className="text-secondary" data-edit-setting="morefunk-header:headingSecondary">
+                    {setting(header, "headingSecondary") ?? "COLLECTION"}
+                </span>
             </h1>
-            <p className="mt-4 max-w-2xl text-muted-foreground">
-                Character-inspired candles, foam soaps, apparel and accessories. Tap any item to see
-                details and buy.
+            <p className="mt-4 max-w-2xl text-muted-foreground" data-edit-setting="morefunk-header:intro">
+                {setting(header, "intro") ??
+                    "Character-inspired candles, foam soaps, apparel and accessories."}
             </p>
 
             {error && (

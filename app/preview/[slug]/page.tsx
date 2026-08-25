@@ -51,12 +51,12 @@ function render(slug: string, document: PageDocument) {
             return <BrowsePage searchParams={NONE} previewDocument={document} />
         case "book-club":
             return <BookClubPage previewDocument={document} />
-        // These two carry no editable document yet: /contact is a form and
-        // /morefunk renders live products. They still preview as themselves.
+        // Both render live content of their own — a form, and the product
+        // catalogue — but their headings and intro copy are editable.
         case "contact":
-            return <ContactPage />
+            return <ContactPage previewDocument={document} />
         case "morefunk":
-            return <MoreFunkPage />
+            return <MoreFunkPage previewDocument={document} />
         default:
             return null
     }
