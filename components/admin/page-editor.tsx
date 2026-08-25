@@ -603,7 +603,13 @@ export function PageEditor({
                 </div>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            {/* Side by side from lg rather than xl. The admin sidebar already
+                takes 256px, so an xl breakpoint meant the preview dropped below
+                the fields on any window under about 1500px — which is where it
+                was actually being used. The editor column is given slightly less
+                room than the preview: its controls are fixed-height, the page
+                being previewed is not. */}
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
                 {/* ---- editor ---- */}
                 <div className="space-y-4">
                     {/* Categories are page furniture for /browse specifically:
@@ -766,7 +772,9 @@ export function PageEditor({
                 </div>
 
                 {/* ---- preview ---- */}
-                <div className="xl:sticky xl:top-20 xl:self-start">
+                {/* Sticky so the preview stays in view while scrolling a long
+                    page of fields — /characters has 35 blocks. */}
+                <div className="lg:sticky lg:top-20 lg:self-start">
                     <div className="mb-2 flex items-center justify-between">
                         <p className="text-xs uppercase tracking-widest text-muted-foreground">
                             Draft preview
