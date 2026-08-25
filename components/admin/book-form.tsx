@@ -22,6 +22,32 @@ interface BookFormProps {
 }
 
 export function BookForm({ initialData, isEdit }: BookFormProps) {
+    // Categories are rows now, not a constant, so a category added from the
+    // browse editor is immediately selectable here. Seeded with the old
+    // constant so the field is never empty while the request is in flight.
+    const [genres, setGenres] = useState<string[]>(
+        [...GENRES].filter((g) => g !== "All"),
+    )
+    useEffect(() => {
+        let cancelled = false
+        const load = async () => {
+            const supabase = createClient()
+            const { data, error } = await supabase
+                .from("book_genres")
+                .select("name")
+                .eq("is_active", true)
+                .order("sort_order")
+                .order("name")
+            if (cancelled) return
+            if (error) return console.error("Could not load categories:", error.message)
+            if (data?.length) setGenres(data.map((row: { name: string }) => row.name))
+        }
+        load()
+        return () => {
+            cancelled = true
+        }
+    }, [])
+
     const router = useRouter()
     const [isUploading, setIsUploading] = useState(false)
     const [isMounted, setIsMounted] = useState(false)
@@ -328,7 +354,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                         value={formData.genre}
                                         onChange={e => setFormData({ ...formData, genre: e.target.value })}
                                     >
-                                        {GENRES.filter(g => g !== "All").map(genre => (
+                                        {genres.map(genre => (
                                             <option key={genre} value={genre}>{genre}</option>
                                         ))}
                                     </select>

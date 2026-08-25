@@ -7,6 +7,7 @@ import { BrowseFilters } from "@/components/browse-filters"
 import { BrowsePagination } from "@/components/browse-pagination"
 import { DEFAULT_PER_PAGE, PER_PAGE_OPTIONS } from "@/lib/browse-options"
 import { getPublishedPage, findSection, setting, type PageDocument } from "@/lib/page-content"
+import { getActiveGenres } from "@/lib/genres"
 
 interface BrowsePageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -22,6 +23,7 @@ export default async function BrowsePage({ searchParams, previewDocument }: Brow
   const params = await searchParams
   const copyDoc = previewDocument ?? (await getPublishedPage("browse"))
   const header = findSection(copyDoc, "browse-header")
+  const genres = await getActiveGenres()
   const genre = (params.genre as string) || "All"
   const query = (params.q as string) || ""
   const sort = (params.sort as string) || "title"
@@ -155,7 +157,7 @@ export default async function BrowsePage({ searchParams, previewDocument }: Brow
         </div>
 
         {/* Search and Filters (Client Component) */}
-        <BrowseFilters />
+        <BrowseFilters genres={genres} />
 
         {ordered.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

@@ -3,11 +3,12 @@
 import { Search, SlidersHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { GENRES } from "@/lib/types/book"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTransition } from "react"
 
-export function BrowseFilters() {
+export function BrowseFilters({ genres = [] }: { genres?: string[] }) {
+    // "All" is a UI affordance, not a category, so it is not stored as one.
+    const options = ["All", ...genres]
     const router = useRouter()
     const searchParams = useSearchParams()
     const [isPending, startTransition] = useTransition()
@@ -68,7 +69,7 @@ export function BrowseFilters() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-                {GENRES.map((genre) => (
+                {options.map((genre) => (
                     <Button
                         key={genre}
                         variant={currentGenre === genre ? "default" : "outline"}

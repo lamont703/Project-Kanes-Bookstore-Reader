@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 import { saveDraft, publishPage, discardDraft } from "@/lib/page-editor"
+import { GenreManager } from "@/components/admin/genre-manager"
 import type { PageBlock, PageDocument, PageSection } from "@/lib/page-model"
 
 /**
@@ -605,6 +606,12 @@ export function PageEditor({
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 {/* ---- editor ---- */}
                 <div className="space-y-4">
+                    {/* Categories are page furniture for /browse specifically:
+                        they are its filter buttons. They are stored as rows, not
+                        in the page document, because the upload form needs them
+                        too and a book's category is a foreign key. */}
+                    {slug === "browse" && <GenreManager />}
+
                     <DndContext
                         // Explicit and stable: without it dnd-kit derives its
                         // aria-describedby ids from a counter that advances
