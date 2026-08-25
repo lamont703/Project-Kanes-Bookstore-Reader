@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Image from "next/image"
-import { ShoppingCart, Check } from "lucide-react"
+import { ShoppingCart, Check, Minus, Plus } from "lucide-react"
 
 import { BackLink } from "@/components/back-link"
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,7 @@ interface Variant {
     price: number
     is_in_stock: boolean
     size: string | null
+    stock_quantity?: number | null
 }
 
 interface Product {
@@ -35,6 +36,7 @@ interface Product {
  */
 export function ProductPurchase({ product, variants }: { product: Product; variants: Variant[] }) {
     const { addToCart } = useCart()
+    const [quantity, setQuantity] = React.useState(1)
     const [added, setAdded] = React.useState(false)
 
     const sized = variants.some((v) => v.size)
@@ -44,6 +46,23 @@ export function ProductPurchase({ product, variants }: { product: Product; varia
         inStock[0]?.id ?? null,
     )
     const selected = variants.find((v) => v.id === selectedId) ?? null
+
+    /**
+     * Most this variant can be bought in one go.
+     *
+     * 99 is the ceiling process-checkout enforces; a tracked variant is further
+     * capped at what is actually on hand, so the picker cannot offer a quantity
+     * the server will refuse.
+     */
+    const maxQuantity = Math.max(
+        1,
+        Math.min(99, selected?.stock_quantity ?? 99),
+    )
+
+    // Changing size changes the SKU, and the new one may have less stock.
+    React.useEffect(() => {
+        setQuantity((q) => Math.min(q, maxQuantity))
+    }, [maxQuantity])
 
     const handleAdd = () => {
         if (!selected || !selected.is_in_stock) return
@@ -55,7 +74,7 @@ export function ProductPurchase({ product, variants }: { product: Product; varia
             coverImage: product.coverImage ?? "",
             format: selected.format as BookFormat,
             size: selected.size,
-        })
+        }, quantity)
         setAdded(true)
         setTimeout(() => setAdded(false), 2000)
     }
@@ -139,6 +158,51 @@ export function ProductPurchase({ product, variants }: { product: Product; varia
                     )}
 
                     <Card className="mt-8 p-4">
+                        <div className="mb-4 flex items-center gap-3">
+                            <span className="text-sm text-muted-foreground">Quantity</span>
+                            <div className="flex items-center rounded-lg border border-border">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-label="Decrease quantity"
+                                    disabled={quantity <= 1}
+                                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                                >
+                                    <Minus className="size-4" />
+                                </Button>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={maxQuantity}
+                                    value={quantity}
+                                    aria-label="Quantity"
+                                    onChange={(e) => {
+                                        const n = Math.floor(Number(e.target.value))
+                                        // Ignore junk rather than resetting to 1 mid-typing.
+                                        if (!Number.isFinite(n)) return
+                                        setQuantity(Math.min(maxQuantity, Math.max(1, n)))
+                                    }}
+                                    className="w-14 border-x border-border bg-transparent px-2 py-1.5 text-center text-sm focus:outline-none"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-label="Increase quantity"
+                                    disabled={quantity >= maxQuantity}
+                                    onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
+                                >
+                                    <Plus className="size-4" />
+                                </Button>
+                            </div>
+                            {selected?.stock_quantity != null && selected.stock_quantity <= 10 && (
+                                <span className="text-xs text-yellow-500">
+                                    only {selected.stock_quantity} left
+                                </span>
+                            )}
+                        </div>
+
                         <Button
                             size="lg"
                             className="w-full"

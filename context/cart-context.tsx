@@ -17,7 +17,7 @@ export interface CartItem {
 
 interface CartContextType {
     items: CartItem[]
-    addToCart: (item: Omit<CartItem, "quantity">) => void
+    addToCart: (item: Omit<CartItem, "quantity">, quantity?: number) => void
     /** Keyed by variant, not by (book, format) — see the note on addToCart. */
     removeFromCart: (variantId: string) => void
     clearCart: () => void
@@ -60,7 +60,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
      * a single line. variantId is the real SKU and matches
      * cart_items.variant_id.
      */
-    const addToCart = (newItem: Omit<CartItem, "quantity">) => {
+    const addToCart = (newItem: Omit<CartItem, "quantity">, quantity = 1) => {
+        // Clamped to the same range process-checkout enforces, so the cart can
+        // never hold a quantity that checkout will reject.
+        const wanted = Math.min(99, Math.max(1, Math.floor(Number(quantity) || 1)))
+
         setItems((prev) => {
             const existing = prev.find((item) => item.variantId === newItem.variantId)
             if (existing) {
@@ -68,11 +72,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 if (newItem.format === "ebook") return prev
                 return prev.map((item) =>
                     item.variantId === newItem.variantId
-                        ? { ...item, quantity: item.quantity + 1 }
+                        ? { ...item, quantity: Math.min(99, item.quantity + wanted) }
                         : item
                 )
             }
-            return [...prev, { ...newItem, quantity: 1 }]
+            return [...prev, { ...newItem, quantity: newItem.format === "ebook" ? 1 : wanted }]
         })
     }
 

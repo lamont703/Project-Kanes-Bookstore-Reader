@@ -20,6 +20,8 @@ interface VariantRow {
     price: number | string
     is_in_stock: boolean
     size: string | null
+    /** Units on hand, or null when the variant is not inventory-tracked. */
+    stock_quantity: number | null
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,7 +37,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             cover_image_url,
             merch_category,
             status,
-            book_variants (id, format, price, is_in_stock, size)
+            book_variants (id, format, price, is_in_stock, size, stock_quantity)
         `)
         .eq("id", id)
         .eq("product_type", "merch")
