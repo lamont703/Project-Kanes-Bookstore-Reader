@@ -80,7 +80,7 @@ export async function updateSession(request: NextRequest) {
         ])
 
         const role = profileRes.data?.role
-        const sub = subRes.data
+        let sub = subRes.data
 
         const redirectTo = (path: string) => {
             const response = NextResponse.redirect(new URL(path, request.url))
@@ -90,48 +90,45 @@ export async function updateSession(request: NextRequest) {
             return response
         }
 
-        // Role checks below deliberately read the *real* role, never the View As
-        // target: an admin who steps into a member's view must still be able to
-        // walk back into /admin and leave it.
+        // During a View As session the site answers for the member being
+        // viewed — the admin panel included. Viewing as an employee has to show
+        // the employee's two-section panel, or the feature cannot answer the one
+        // question an employee raises: what does their screen actually look
+        // like?
+        //
+        // This cannot strand an admin. The way out is the banner on every page,
+        // and it posts to /api/admin/view-as, which does not start with /admin
+        // and so is never gated by anything below. Exiting is also allowed
+        // regardless of role — see the DELETE handler.
+        let effectiveRole = role
+        if (role === 'admin' && viewAsId) {
+            const admin = createAdminClient()
+            const [targetProfileRes, targetSubRes] = await Promise.all([
+                admin.from('users').select('role').eq('id', viewAsId).single(),
+                admin.from('user_subscriptions').select('plan, status').eq('user_id', viewAsId).maybeSingle()
+            ])
+            effectiveRole = targetProfileRes.data?.role ?? 'reader'
+            sub = targetSubRes.data
+        }
 
         // Employees reach only the two catalogue sections; anything else under
         // /admin bounces them to the one they do have. See lib/roles.ts.
         if (isAdminPage) {
-            const destination = adminRedirectFor(role, pathname)
+            const destination = adminRedirectFor(effectiveRole, pathname)
             if (destination) return redirectTo(destination)
         }
 
         // Drafts are site-page work, so previewing stays admin-only.
-        if (isPreviewPage && role !== 'admin') {
+        if (isPreviewPage && effectiveRole !== 'admin') {
             return redirectTo('/')
         }
 
-        // Premium check (Admins get access to premium pages too)
-        if (isPremiumPage) {
-            if (role === 'admin' && viewAsId) {
-                // Inside a View As session the gate belongs to the member being
-                // viewed. Getting bounced to /book-club is part of what a free
-                // member's screen actually does.
-                const admin = createAdminClient()
-                const [targetProfileRes, targetSubRes] = await Promise.all([
-                    admin.from('users').select('role').eq('id', viewAsId).single(),
-                    admin.from('user_subscriptions').select('plan, status').eq('user_id', viewAsId).maybeSingle()
-                ])
-
-                const targetRole = targetProfileRes.data?.role
-                const targetSub = targetSubRes.data
-                const targetIsPremium = targetSub?.plan === 'premium' && targetSub?.status === 'active'
-
-                if (targetRole !== 'admin' && !targetIsPremium) {
-                    return redirectTo('/book-club')
-                }
-            } else if (role !== 'admin') {
-                // Employees get no book-club bypass — the admin exemption here is
-                // about running the club, which is not their job.
-                const isPremium = sub?.plan === 'premium' && sub?.status === 'active'
-                if (!isPremium) {
-                    return redirectTo('/book-club')
-                }
+        // Premium check. Admins running the club get in regardless; employees do
+        // not, because that is not their job.
+        if (isPremiumPage && effectiveRole !== 'admin') {
+            const isPremium = sub?.plan === 'premium' && sub?.status === 'active'
+            if (!isPremium) {
+                return redirectTo('/book-club')
             }
         }
     }

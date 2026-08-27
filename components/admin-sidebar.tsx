@@ -95,9 +95,9 @@ export function AdminSidebar({ onClose, role = "admin" }: AdminSidebarProps) {
       {/* Footer */}
       <div className="p-4 border-t border-border space-y-3">
         {/* Borrow a member's point of view. Read-only — see lib/view-as/types.ts.
-            Admin only: /api/admin/view-as refuses anyone else, so showing the
-            picker to an employee would only ever produce an error. */}
-        {isAdmin && <ViewAsSelect onNavigate={onClose} />}
+            Gates itself on the real signed-in role: a genuine employee sees
+            nothing here, but an admin viewing as one still gets the exit. */}
+        <ViewAsSelect onNavigate={onClose} />
 
         <Button variant="outline" className="w-full bg-transparent border-border/50" asChild onClick={onClose}>
           <Link href="/">

@@ -1,31 +1,30 @@
 import { createClient } from "@/lib/supabase/server"
+import { getViewerContext } from "@/lib/view-as/server"
 import type { UserRole } from "@/lib/roles"
 
 /**
- * The signed-in user's role, for Server Components that need to decide what to
- * render rather than whether to allow.
+ * The role the screen should be rendered for.
  *
- * Access is gated in the middleware and in app/admin/layout.tsx; this is for the
- * softer question of which controls a page should offer — an employee reaching
- * /admin/books legitimately still must not be shown a delete button, because
- * RLS would refuse it (migration 20260826000001) and a button that always errors
- * is worse than no button.
+ * During a View As session that is the *viewed* member's role, not the admin's,
+ * so the admin panel shows what that person's panel shows — an employee's two
+ * sections, without the delete controls. Anything that needs the real signed-in
+ * role instead (there is nothing in the admin panel that does; exiting a view is
+ * handled outside it) should read the session directly.
  *
- * Reads the cookie-scoped client on purpose, so it answers for the real session
- * under RLS rather than bypassing it.
+ * Access is gated in lib/supabase/middleware.ts, which computes the same
+ * effective role. This is the render-side half of that answer.
  */
-export async function getCurrentRole(): Promise<UserRole> {
+export async function getEffectiveRole(): Promise<UserRole> {
+    const { viewingAs, realUser } = await getViewerContext()
+
+    if (viewingAs) return viewingAs.role
+    if (!realUser) return "reader"
+
     const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) return "reader"
-
     const { data } = await supabase
         .from("users")
         .select("role")
-        .eq("id", user.id)
+        .eq("id", realUser.id)
         .single()
 
     return (data?.role ?? "reader") as UserRole

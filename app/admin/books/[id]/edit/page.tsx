@@ -2,7 +2,7 @@ import { BookForm } from "@/components/admin/book-form"
 import { Edit3 } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
-import { getCurrentRole } from "@/lib/current-role"
+import { getEffectiveRole } from "@/lib/current-role"
 import { isAdminRole } from "@/lib/roles"
 
 export default async function EditBookPage({ params }: { params: Promise<{ id: string }> }) {
@@ -56,7 +56,7 @@ export default async function EditBookPage({ params }: { params: Promise<{ id: s
                 <p className="text-lg text-muted-foreground mt-2">Modify the metadata and assets for "{book.title}"</p>
             </div>
 
-            <BookForm isEdit initialData={book} canDelete={isAdminRole(await getCurrentRole())} />
+            <BookForm isEdit initialData={book} canDelete={isAdminRole(await getEffectiveRole())} />
         </div>
     )
 }

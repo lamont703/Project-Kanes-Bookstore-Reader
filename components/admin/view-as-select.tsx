@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useViewAs } from "@/context/view-as-context"
+import { useAuth } from "@/context/auth-context"
 import { useDebounce } from "@/hooks/use-debounce"
 import type { UserRole } from "@/lib/roles"
 
@@ -26,6 +27,10 @@ interface MemberOption {
  */
 export function ViewAsSelect({ onNavigate }: { onNavigate?: () => void }) {
     const { viewingAs, isSwitching, startViewAs, stopViewAs } = useViewAs()
+    // The real signed-in role, not the borrowed one: while viewing as an
+    // employee the panel renders as that employee, but only a real admin may
+    // start a new view.
+    const { realIsAdmin } = useAuth()
     const [isOpen, setIsOpen] = useState(false)
     const [query, setQuery] = useState("")
     const [members, setMembers] = useState<MemberOption[]>([])
@@ -76,8 +81,9 @@ export function ViewAsSelect({ onNavigate }: { onNavigate?: () => void }) {
         if (!result.ok) toast.error(result.error ?? "Could not start the view.")
     }
 
-    // Already impersonating: the sidebar is only reachable by re-entering /admin
-    // mid-session, so the useful control here is the way out.
+    // Already impersonating: the useful control is the way out, and it renders
+    // whatever rank the borrowed role has — viewing as an employee means the
+    // sidebar is the employee's, and it still has to offer the exit.
     if (viewingAs) {
         return (
             <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-2">
@@ -108,6 +114,8 @@ export function ViewAsSelect({ onNavigate }: { onNavigate?: () => void }) {
             </div>
         )
     }
+
+    if (!realIsAdmin) return null
 
     return (
         <div className="space-y-2">
