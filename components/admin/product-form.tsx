@@ -11,6 +11,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
+import { MerchCategoryManager } from "@/components/admin/merch-category-manager"
+import {
+    FALLBACK_MERCH_CATEGORIES,
+    type MerchCategoryRow,
+} from "@/lib/merch-categories"
 
 /**
  * Admin form for merchandise (candles, soap, apparel, accessories).
@@ -21,13 +26,14 @@ import { createClient } from "@/lib/supabase/client"
  * 20260811000001_extend_books_to_catalog.sql for why the catalog is one table.
  */
 
-export const MERCH_CATEGORIES = ["candle", "soap", "apparel", "accessory"] as const
-export type MerchCategory = (typeof MERCH_CATEGORIES)[number]
+/**
+ * Any category name in merch_categories. Was a union of four literals while the
+ * column was an enum; an admin can now add categories at runtime, so the type
+ * cannot enumerate them (migration 20260827000000).
+ */
+export type MerchCategory = string
 
 export const SIZES = ["xs", "s", "m", "l", "xl", "xxl", "xxxl"] as const
-
-/** Apparel is sold per size; everything else is a single SKU. */
-const isSized = (category: MerchCategory) => category === "apparel"
 
 export interface ExistingVariant {
     id: string
@@ -79,9 +85,32 @@ export function ProductForm({ product }: { product?: ExistingProduct }) {
 
     const [title, setTitle] = React.useState(product?.title ?? "")
     const [description, setDescription] = React.useState(product?.description ?? "")
+    const [categories, setCategories] = React.useState<MerchCategoryRow[]>(
+        FALLBACK_MERCH_CATEGORIES,
+    )
     const [category, setCategory] = React.useState<MerchCategory>(
         product?.merch_category ?? "candle",
     )
+    const [showCategoryManager, setShowCategoryManager] = React.useState(false)
+
+    const loadCategories = React.useCallback(async () => {
+        const { data } = await supabase
+            .from("merch_categories")
+            .select("name, label, sort_order, is_active, is_sized")
+            .order("sort_order")
+            .order("label")
+        if (data?.length) setCategories(data as MerchCategoryRow[])
+    }, [supabase])
+
+    React.useEffect(() => {
+        loadCategories()
+    }, [loadCategories])
+
+    /**
+     * Retired categories stay listed while a product still carries one, so
+     * editing an old product does not silently move it somewhere else.
+     */
+    const selectable = categories.filter((c) => c.is_active || c.name === category)
     const [status, setStatus] = React.useState<"draft" | "published">(product?.status ?? "draft")
     const [price, setPrice] = React.useState(unsized ? String(unsized.price) : "")
     const [inStock, setInStock] = React.useState(unsized ? unsized.is_in_stock : true)
@@ -93,7 +122,9 @@ export function ProductForm({ product }: { product?: ExistingProduct }) {
     const [preview, setPreview] = React.useState<string | null>(product?.cover_image_url ?? null)
     const [saving, setSaving] = React.useState(false)
 
-    const sized = isSized(category)
+    // Sizing travels with the category now rather than being a hardcoded
+    // `category === "apparel"`, which no custom category could ever satisfy.
+    const sized = categories.find((c) => c.name === category)?.is_sized ?? false
 
     function onPickImage(event: React.ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0]
@@ -277,17 +308,29 @@ export function ProductForm({ product }: { product?: ExistingProduct }) {
                             onChange={(e) => setCategory(e.target.value as MerchCategory)}
                             className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                         >
-                            {MERCH_CATEGORIES.map((c) => (
-                                <option key={c} value={c}>
-                                    {c[0].toUpperCase() + c.slice(1)}
+                            {selectable.map((c) => (
+                                <option key={c.name} value={c.name}>
+                                    {c.label}
+                                    {c.is_active ? "" : " (hidden)"}
                                 </option>
                             ))}
                         </select>
-                        {sized && (
-                            <p className="text-xs text-muted-foreground">
-                                Apparel is priced per size below.
-                            </p>
-                        )}
+                        <div className="flex items-center justify-between gap-2">
+                            {sized ? (
+                                <p className="text-xs text-muted-foreground">
+                                    Priced per size below.
+                                </p>
+                            ) : (
+                                <span />
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowCategoryManager((v) => !v)}
+                                className="text-xs text-primary underline-offset-2 hover:underline"
+                            >
+                                {showCategoryManager ? "Done" : "Add or edit categories"}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-2">
@@ -306,6 +349,15 @@ export function ProductForm({ product }: { product?: ExistingProduct }) {
                         </p>
                     </div>
                 </div>
+
+                {/* Opened from the link under the Category picker. Inline rather
+                    than on its own page: you find out you need a new category
+                    while filling this form in, not before. */}
+                {showCategoryManager && (
+                    <div className="mt-5 border-t border-border pt-5">
+                        <MerchCategoryManager onChanged={loadCategories} />
+                    </div>
+                )}
             </Card>
 
             <Card className="space-y-4 p-6">

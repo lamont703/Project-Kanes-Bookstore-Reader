@@ -28,12 +28,6 @@ interface ProductRow {
     book_variants: VariantRow[] | null
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-    candle: "Candles",
-    soap: "Foam Soap",
-    apparel: "Apparel",
-    accessory: "Accessories",
-}
 
 /** Lowest in-stock price, used for display and for price sorting. */
 function priceOf(variants: VariantRow[]): number | null {
@@ -67,6 +61,16 @@ export default async function AdminProductsPage({
     const page = Number.isFinite(requestedPage) && requestedPage >= 1 ? Math.floor(requestedPage) : 1
 
     const supabase = await createClient()
+
+    // Labels come from merch_categories, not a constant in this file, so a
+    // category an admin just added reads properly in the filters and the rows
+    // instead of showing its raw key (migration 20260827000000).
+    const { data: categoryRows } = await supabase
+        .from("merch_categories")
+        .select("name, label")
+    const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
+        (categoryRows ?? []).map((c: { name: string; label: string }) => [c.name, c.label]),
+    )
 
     // One query for the whole merch catalogue, then filter, sort and page in
     // memory.

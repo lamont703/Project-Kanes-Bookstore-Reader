@@ -40,12 +40,6 @@ function priceRange(variants: VariantRow[] | null): { low: number; high: number 
     return { low: Math.min(...prices), high: Math.max(...prices) }
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-    candle: "Candles",
-    soap: "Foam Soap",
-    apparel: "Apparel",
-    accessory: "Accessories",
-}
 
 export default async function MoreFunkPage({ previewDocument }: {
     /** Supplied only by the admin draft preview. */
@@ -56,6 +50,16 @@ export default async function MoreFunkPage({ previewDocument }: {
 
     // Public catalog, cookie-free — the marketing host never creates a session.
     const supabase = createStaticClient()
+
+    // Section headings come from merch_categories rather than a map in this
+    // file, so a category an admin adds is titled properly here instead of
+    // falling back to its raw key (migration 20260827000000).
+    const { data: categoryRows } = await supabase
+        .from("merch_categories")
+        .select("name, label")
+    const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
+        (categoryRows ?? []).map((c: { name: string; label: string }) => [c.name, c.label]),
+    )
 
     const { data, error } = await supabase
         .from("books")
