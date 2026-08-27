@@ -1,6 +1,5 @@
-import Image from "next/image"
 import type { PageBlock } from "@/lib/page-content"
-import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
+import { LightboxGallery } from "@/components/marketing/gallery-lightbox"
 
 /**
  * Renders imported marketing content in document order.
@@ -10,6 +9,9 @@ import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
  * Runs of consecutive images collapse into a responsive gallery grid — the
  * source pages (notably /characters) are long image sequences, and stacking
  * them one per row would be unreadable.
+ *
+ * This stays a Server Component. Only the gallery is interactive, and it lives
+ * in LightboxGallery, which owns the full-screen viewer its tiles open.
  */
 
 function Heading({ level, text, editId }: { level: number; text: string; editId?: string }) {
@@ -23,42 +25,19 @@ function Heading({ level, text, editId }: { level: number; text: string; editId?
     return <Tag className={`${cls} mt-10 first:mt-0`} data-edit-id={editId}>{text}</Tag>
 }
 
+/**
+ * A run of consecutive images.
+ *
+ * The tiles are square crops, so on /characters a thumbnail usually shows the
+ * middle of a portrait with the rest cut off — hence the full-screen viewer,
+ * which LightboxGallery provides. Blocks keep their data-edit-id so the admin
+ * page editor can still target each image.
+ */
 function Gallery({ images }: { images: Extract<PageBlock, { type: "image" }>[] }) {
-    if (images.length === 1) {
-        const img = images[0]
-        return (
-            <div className="my-8 overflow-hidden rounded-xl border border-border bg-card" data-edit-id={img.id}>
-                <Image
-                    src={img.src}
-                    alt={img.alt}
-                    width={1024}
-                    height={1024}
-                    className="h-auto w-full object-cover"
-                />
-            </div>
-        )
-    }
-    // Square boxes, not natural height: these pages mix aspect ratios
-    // (/characters ranges 0.67 to 1.0), so without a fixed box the rows come
-    // out ragged and nothing lines up.
     return (
-        <TileGrid className="my-8">
-            {images.map((img) => (
-                <div
-                    key={img.id}
-                    data-edit-id={img.id}
-                    className={`${TILE_BASIS} overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50`}
-                >
-                    <Image
-                        src={img.src}
-                        alt={img.alt}
-                        width={512}
-                        height={512}
-                        className="aspect-square w-full object-cover transition-transform duration-300 hover:scale-105"
-                    />
-                </div>
-            ))}
-        </TileGrid>
+        <LightboxGallery
+            images={images.map((img) => ({ id: img.id, src: img.src, alt: img.alt }))}
+        />
     )
 }
 
