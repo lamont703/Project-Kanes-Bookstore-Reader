@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Filter, MoreVertical, Loader2, ShieldAlert, ShieldCheck, Crown, UserX, Gift, Copy, Check } from "lucide-react"
+import { Search, Filter, MoreVertical, Loader2, ShieldAlert, ShieldCheck, Crown, UserX, Gift, Copy, Check, Library } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import {
   DropdownMenu,
@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { useDebounce } from "@/hooks/use-debounce"
 import type { UserRole } from "@/lib/roles"
+import { UserLibraryDialog } from "@/components/admin/user-library-dialog"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,15 @@ export default function AdminUsersPage() {
   const [newRole, setNewRole] = useState<UserRole>("reader")
   const [allBooks, setAllBooks] = useState<{ id: string, title: string }[]>([])
   const [selectedBookId, setSelectedBookId] = useState<string>("")
+
+  // Read-only library peek, separate from the edit dialog below.
+  const [libraryUser, setLibraryUser] = useState<AdminUser | null>(null)
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false)
+
+  const openLibrary = (user: AdminUser) => {
+    setLibraryUser(user)
+    setIsLibraryOpen(true)
+  }
 
   const [isMounted, setIsMounted] = useState(false)
   const supabase = useMemo(() => createClient(), [])
@@ -422,8 +432,14 @@ export default function AdminUsersPage() {
                         </span>
                       </td>
                       <td className="p-4 text-sm hidden sm:table-cell">
-                        <span className="font-medium">{user.booksOwned}</span>
-                        <span className="text-xs text-muted-foreground ml-1">Volumes</span>
+                        <button
+                          onClick={() => openLibrary(user)}
+                          title={`See what is in ${user.name}'s library`}
+                          className="group/lib flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:bg-primary/10"
+                        >
+                          <span className="font-medium group-hover/lib:text-primary">{user.booksOwned}</span>
+                          <span className="text-xs text-muted-foreground ml-1 group-hover/lib:text-primary">Volumes</span>
+                        </button>
                       </td>
                       <td className="p-4 text-xs text-muted-foreground hidden md:table-cell">
                         {user.lastActive
@@ -441,6 +457,10 @@ export default function AdminUsersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openLibrary(user)}>
+                            <Library className="w-4 h-4 mr-2" />
+                            View Library
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openManageDialog(user)}>
                             <Crown className="w-4 h-4 mr-2" />
                             Manage Subscription
@@ -465,6 +485,13 @@ export default function AdminUsersPage() {
           </table>
         </div>
       </Card>
+
+      <UserLibraryDialog
+        userId={libraryUser?.id ?? null}
+        userName={libraryUser?.name ?? ""}
+        open={isLibraryOpen}
+        onOpenChange={setIsLibraryOpen}
+      />
 
       {/* Manage User Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
