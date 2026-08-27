@@ -9,6 +9,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useCart } from "@/context/cart-context"
 import { Tablet, Book as BookIcon, CreditCard } from "lucide-react"
+import { formatPrice } from "@/lib/currency"
 
 interface BookCardProps {
   book: Book
@@ -53,7 +54,7 @@ export function BookCard({ book }: BookCardProps) {
           />
           {currentVariant && (
             <div className="absolute top-2 right-2 bg-secondary/90 backdrop-blur-sm text-secondary-foreground px-2 py-1 rounded text-sm font-bold">
-              ${currentVariant.price}
+              ${formatPrice(currentVariant.price)}
             </div>
           )}
         </div>
