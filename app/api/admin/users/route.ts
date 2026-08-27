@@ -3,6 +3,9 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL } from '@/lib/supabase/config'
+import type { UserRole } from '@/lib/roles'
+
+const VALID_ROLES: UserRole[] = ["reader", "employee", "admin"]
 
 // ─── Guard: verify the caller is an admin ──────────────────────────────────
 async function verifyAdmin(): Promise<{ user: any; error?: string }> {
@@ -272,6 +275,12 @@ export async function PATCH(request: NextRequest) {
 
     if (body.action === "set_role") {
         if (!body.role) return NextResponse.json({ error: "Missing role" }, { status: 400 })
+        // Whitelisted rather than passed through: `role` reaches an UPDATE on
+        // public.users, and only a full admin gets this far (verifyAdmin above),
+        // so the one thing left to check is that the value is a real role.
+        if (!VALID_ROLES.includes(body.role)) {
+            return NextResponse.json({ error: `Unknown role "${body.role}"` }, { status: 400 })
+        }
         const { error } = await admin.from("users").update({ role: body.role }).eq("id", body.userId)
         if (error) return NextResponse.json({ error: error.message }, { status: 500 })
         return NextResponse.json({ success: true, action: "set_role", role: body.role })

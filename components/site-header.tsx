@@ -19,7 +19,7 @@ import { useAuth } from "@/context/auth-context"
  */
 export function SiteHeader() {
     const { cartCount } = useCart()
-    const { user, signOut, isAdmin, isPremium, isReady } = useAuth()
+    const { user, signOut, isAdmin, isStaff, isPremium, isReady } = useAuth()
 
     const [isBouncing, setIsBouncing] = React.useState(false)
     const prevCartCount = React.useRef(cartCount)
@@ -46,7 +46,7 @@ export function SiteHeader() {
     return (
         <SiteNav
             mode="app"
-            viewer={{ isLoggedIn: !!user, isPremium: !!isPremium, isAdmin: !!isAdmin }}
+            viewer={{ isLoggedIn: !!user, isPremium: !!isPremium, isAdmin: !!isAdmin, isStaff: !!isStaff }}
             viewerReady={isReady}
             cartCount={cartCount}
             cartBounce={isBouncing}

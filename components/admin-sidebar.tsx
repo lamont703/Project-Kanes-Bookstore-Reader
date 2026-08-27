@@ -5,15 +5,20 @@ import { Home, BookOpen, Users, Calendar, MessageSquare, X, Star, ShoppingBag, S
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
+import { ViewAsSelect } from "@/components/admin/view-as-select"
+import { employeeCanAccess, isAdminRole, type UserRole } from "@/lib/roles"
 
 interface AdminSidebarProps {
   onClose?: () => void
+  /** Decides which sections appear. Defaults to admin so existing callers are unchanged. */
+  role?: UserRole
 }
 
-export function AdminSidebar({ onClose }: AdminSidebarProps) {
+export function AdminSidebar({ onClose, role = "admin" }: AdminSidebarProps) {
   const pathname = usePathname()
+  const isAdmin = isAdminRole(role)
 
-  const navItems = [
+  const allNavItems = [
     { href: "/admin", icon: Home, label: "Dashboard" },
     { href: "/admin/books", icon: BookOpen, label: "Catalog" },
     // Merchandise has its own list and form: books and merch share the `books`
@@ -29,6 +34,13 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
     { href: "/admin/users", icon: Users, label: "Users" },
   ]
 
+  // Employees see only the two catalogue sections. Filtering by the same
+  // predicate the middleware redirects on (lib/roles.ts) means the menu can
+  // never offer a link that would bounce.
+  const navItems = isAdmin
+    ? allNavItems
+    : allNavItems.filter((item) => employeeCanAccess(item.href))
+
   return (
     <div className="w-64 h-full border-r border-border bg-card/50 backdrop-blur-xl flex flex-col">
       {/* Logo & Close Button */}
@@ -43,7 +55,9 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
           />
           <div>
             <span className="font-display text-2xl tracking-wider text-primary block leading-none">KANE'S KOMETS</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-widest leading-none">Admin Panel</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest leading-none">
+              {isAdmin ? "Admin Panel" : "Catalog Team"}
+            </span>
           </div>
         </Link>
         {onClose && (
@@ -79,7 +93,12 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-3">
+        {/* Borrow a member's point of view. Read-only — see lib/view-as/types.ts.
+            Admin only: /api/admin/view-as refuses anyone else, so showing the
+            picker to an employee would only ever produce an error. */}
+        {isAdmin && <ViewAsSelect onNavigate={onClose} />}
+
         <Button variant="outline" className="w-full bg-transparent border-border/50" asChild onClick={onClose}>
           <Link href="/">
             <Home className="w-4 h-4 mr-2" />

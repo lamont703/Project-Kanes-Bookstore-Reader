@@ -8,6 +8,8 @@ import { ChevronLeft, ChevronRight, Settings, BookmarkIcon, Menu, X, StickyNote,
 import Link from "next/link"
 import Image from "next/image"
 import { createClient } from "@/lib/supabase/client"
+import { useViewAs } from "@/context/view-as-context"
+import { useViewAsGuard } from "@/hooks/use-view-as-guard"
 import { ReadingSettingsPanel } from "@/components/reading-settings-panel"
 import { ReadingSidebar } from "@/components/reading-sidebar"
 import { useParams } from "next/navigation"
@@ -42,6 +44,14 @@ export default function ReadPage() {
   const params = useParams()
   const bookId = params.id as string
   const supabase = useMemo(() => createClient(), [])
+
+  // The reader queries Supabase straight from the browser with the signed-in
+  // session, which during a View As session is still the admin's. Reads are
+  // redirected to /api/view-as/reader-state so the member's own progress,
+  // bookmarks and highlights are what shows, and writes are blocked outright —
+  // they would otherwise be saved against the admin. See lib/view-as/types.ts.
+  const { viewingAs } = useViewAs()
+  const blockedByViewAs = useViewAsGuard()
 
   // Data state
   const [pages, setPages] = useState<BookPage[]>([])
@@ -136,25 +146,45 @@ export default function ReadPage() {
         if (illustData) setBookIllustrations(illustData)
 
         // Fetch user progress
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const { data: progress } = await supabase
-            .from("reading_progress")
-            .select("current_page")
-            .eq("user_id", user.id)
-            .eq("book_id", bookId)
-            .maybeSingle()
+        if (viewingAs) {
+          const res = await fetch(`/api/view-as/reader-state?bookId=${bookId}`)
+          if (!res.ok) throw new Error("Could not load this member's reading state")
+          const state = await res.json()
 
-          if (progress?.current_page) {
-            const resumeIndex = pageData.findIndex((p: BookPage) => p.page_number === progress.current_page)
+          // book_pages is gated on user_library by RLS, which the admin bypasses.
+          // Refusing here is what the member's own screen would have done.
+          if (!state.owned) {
+            throw new Error(`${viewingAs.name} does not own this book`)
+          }
+
+          if (state.progress?.current_page) {
+            const resumeIndex = pageData.findIndex((p: BookPage) => p.page_number === state.progress.current_page)
             if (resumeIndex >= 0) setCurrentPageIndex(resumeIndex)
           }
 
-          const { data: userBookmarks } = await supabase.from("bookmarks").select("*").eq("user_id", user.id).eq("book_id", bookId)
-          if (userBookmarks) setBookmarks(userBookmarks.map((b: any) => ({ ...b, createdAt: new Date(b.created_at) })))
+          setBookmarks((state.bookmarks ?? []).map((b: any) => ({ ...b, createdAt: new Date(b.created_at) })))
+          setHighlights((state.highlights ?? []).map((h: any) => ({ ...h, createdAt: new Date(h.created_at) })))
+        } else {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            const { data: progress } = await supabase
+              .from("reading_progress")
+              .select("current_page")
+              .eq("user_id", user.id)
+              .eq("book_id", bookId)
+              .maybeSingle()
 
-          const { data: userHighlights } = await supabase.from("highlights").select("*").eq("user_id", user.id).eq("book_id", bookId)
-          if (userHighlights) setHighlights(userHighlights.map((h: any) => ({ ...h, createdAt: new Date(h.created_at) })))
+            if (progress?.current_page) {
+              const resumeIndex = pageData.findIndex((p: BookPage) => p.page_number === progress.current_page)
+              if (resumeIndex >= 0) setCurrentPageIndex(resumeIndex)
+            }
+
+            const { data: userBookmarks } = await supabase.from("bookmarks").select("*").eq("user_id", user.id).eq("book_id", bookId)
+            if (userBookmarks) setBookmarks(userBookmarks.map((b: any) => ({ ...b, createdAt: new Date(b.created_at) })))
+
+            const { data: userHighlights } = await supabase.from("highlights").select("*").eq("user_id", user.id).eq("book_id", bookId)
+            if (userHighlights) setHighlights(userHighlights.map((h: any) => ({ ...h, createdAt: new Date(h.created_at) })))
+          }
         }
       } catch (err: any) {
         console.error("[reader] Failed to load book:", err)
@@ -165,7 +195,7 @@ export default function ReadPage() {
     }
 
     loadBook()
-  }, [bookId])
+  }, [bookId, viewingAs])
 
 
   // ─── Sync settings & Progress ────────────────────────────────
@@ -174,6 +204,9 @@ export default function ReadPage() {
   }, [settings])
 
   const syncProgress = useCallback(async (pageIndex: number) => {
+    // Silent, not a toast: this fires on every page turn, and nagging once every
+    // five seconds for a background write nobody asked for is worse than nothing.
+    if (viewingAs) return
     if (progressDebounceRef.current) clearTimeout(progressDebounceRef.current)
     progressDebounceRef.current = setTimeout(async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -187,7 +220,7 @@ export default function ReadPage() {
         last_read_at: new Date().toISOString(),
       }, { onConflict: "user_id,book_id" })
     }, 5000)
-  }, [bookId, pages])
+  }, [bookId, pages, viewingAs])
 
   useEffect(() => {
     syncProgress(currentPageIndex)
@@ -276,6 +309,7 @@ export default function ReadPage() {
   }
 
   const handleSaveNote = async () => {
+    if (blockedByViewAs("Highlights are")) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -316,6 +350,7 @@ export default function ReadPage() {
   }
 
   const handleToggleBookmark = async () => {
+    if (blockedByViewAs("Bookmarks are")) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -332,6 +367,7 @@ export default function ReadPage() {
   }
 
   const handleSaveBookmark = async () => {
+    if (blockedByViewAs("Bookmarks are")) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -360,11 +396,13 @@ export default function ReadPage() {
   }
 
   const deleteHighlight = async (id: string) => {
+    if (blockedByViewAs("Highlights are")) return
     const { error } = await supabase.from("highlights").delete().eq("id", id)
     if (!error) setHighlights(highlights.filter(h => h.id !== id))
   }
 
   const deleteBookmark = async (id: string) => {
+    if (blockedByViewAs("Bookmarks are")) return
     const { error } = await supabase.from("bookmarks").delete().eq("id", id)
     if (!error) setBookmarks(bookmarks.filter(b => b.id !== id))
   }
@@ -461,7 +499,9 @@ export default function ReadPage() {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden bg-background">
+    // --view-as-bar is 0px unless an admin is viewing as a member, in which case
+    // the banner at the top of <body> has already taken that much height.
+    <div className="h-[calc(100dvh-var(--view-as-bar,0px))] flex flex-col overflow-hidden bg-background">
       <header className="border-b border-border bg-background/80 backdrop-blur z-50 flex-shrink-0">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">

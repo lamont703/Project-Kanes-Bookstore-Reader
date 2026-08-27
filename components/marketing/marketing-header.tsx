@@ -23,7 +23,7 @@ import { useCart } from "@/context/cart-context"
  */
 export function MarketingHeader() {
     const { cartCount } = useCart()
-    const { user, signOut, isAdmin, isPremium, isReady } = useAuth()
+    const { user, signOut, isAdmin, isStaff, isPremium, isReady } = useAuth()
 
     const handleSignOut = async () => {
         try {
@@ -37,7 +37,7 @@ export function MarketingHeader() {
     return (
         <SiteNav
             mode="marketing"
-            viewer={{ isLoggedIn: !!user, isPremium: !!isPremium, isAdmin: !!isAdmin }}
+            viewer={{ isLoggedIn: !!user, isPremium: !!isPremium, isAdmin: !!isAdmin, isStaff: !!isStaff }}
             viewerReady={isReady}
             cartCount={cartCount}
             onSignOut={user ? handleSignOut : undefined}

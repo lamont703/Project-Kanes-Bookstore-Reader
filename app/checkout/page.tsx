@@ -13,6 +13,7 @@ import { Check, Truck, Tag, Package, CreditCard, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { useViewAsGuard } from "@/hooks/use-view-as-guard"
 import { loadStripe } from "@stripe/stripe-js"
 import { Elements } from "@stripe/react-stripe-js"
 import { StripeCheckoutForm } from "@/components/checkout/stripe-checkout-form"
@@ -175,8 +176,13 @@ export default function CheckoutPage() {
     }
 
     // ── Place Order (via API) ───────────────────────────────
+    // An order placed from inside a View As session would charge the admin
+    // and land in the admin's library, not the member's.
+    const blockedByViewAs = useViewAsGuard()
+
     const handlePlaceOrder = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (blockedByViewAs("Checkout is")) return
         if (!validate()) return
 
         // Stripe USD minimum is $0.50. Prevent calling backend if we know it's too small.

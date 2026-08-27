@@ -274,3 +274,31 @@
     0 8px 16px rgba(0, 0, 0, 0.5);
   border-radius: 4px;
 }
+/* ── View As (read-only admin impersonation) ─────────────────────────────────
+   The bar itself is a normal sticky element at the very top of <body>, so it
+   reserves its own space instead of overlaying the page. The one thing it can
+   collide with is the site header, which is also sticky at top:0 — offsetting
+   that header by the bar's height keeps both pinned and both visible.
+   ------------------------------------------------------------------------- */
+body {
+  --view-as-bar: 0px;
+}
+
+body.view-as-active {
+  --view-as-bar: 2.75rem;
+}
+
+body.view-as-active header.sticky {
+  top: var(--view-as-bar);
+}
+
+/* A border around the whole viewport, so a borrowed view is obvious at a glance
+   even on a screen with no header and no chrome of its own. */
+body.view-as-active::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  pointer-events: none;
+  border: 2px solid oklch(0.85 0.18 95 / 0.55);
+}

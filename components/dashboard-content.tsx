@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { useViewAsGuard } from "@/hooks/use-view-as-guard"
 import {
     Dialog,
     DialogContent,
@@ -53,9 +54,13 @@ export function DashboardContent({
     const [subscription, setSubscription] = useState(initialSubscription)
     const [isCancelling, setIsCancelling] = useState(false)
     const [showCancelDialog, setShowCancelDialog] = useState(false)
+    // This screen shows the viewed member's library and subscription during a
+    // View As session, but every write below would still run as the admin.
+    const blockedByViewAs = useViewAsGuard()
 
     const handleCancelSubscription = async () => {
         if (isSaving || isCancelling) return // Block if another sequence is in progress
+        if (blockedByViewAs("Subscription changes are")) return
         setIsCancelling(true)
         try {
             const { data, error } = await supabase.functions.invoke('cancel-subscription', {
@@ -87,6 +92,7 @@ export function DashboardContent({
 
     const handleReactivateSubscription = async () => {
         if (isSaving || isCancelling) return // Block if another sequence is in progress
+        if (blockedByViewAs("Subscription changes are")) return
         setIsCancelling(true) // Reuse loading state
         try {
             const { error } = await supabase.functions.invoke('reactivate-subscription', {
@@ -118,6 +124,7 @@ export function DashboardContent({
     const handleSaveProfile = async (e: React.FormEvent) => {
         e.preventDefault()
         if (isSaving || isCancelling) return // Block if another sequence is in progress
+        if (blockedByViewAs("Profile changes are")) return
         setIsSaving(true)
 
         try {

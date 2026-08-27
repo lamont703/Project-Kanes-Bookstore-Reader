@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { AdminBooksContent } from "@/components/admin/admin-books-content"
+import { getCurrentRole } from "@/lib/current-role"
+import { isAdminRole } from "@/lib/roles"
 
 export default async function AdminBooksPage() {
   const supabase = await createClient()
@@ -30,9 +32,12 @@ export default async function AdminBooksPage() {
     price: b.book_variants?.find((v: any) => v.format === 'ebook')?.price || b.book_variants?.[0]?.price || 0
   }))
 
+  // Employees maintain the catalogue but never delete from it — see lib/roles.ts.
+  const canDelete = isAdminRole(await getCurrentRole())
+
   return (
     <div className="p-4 md:p-8 min-h-screen">
-      <AdminBooksContent initialBooks={initialBooks} />
+      <AdminBooksContent initialBooks={initialBooks} canDelete={canDelete} />
     </div>
   )
 }

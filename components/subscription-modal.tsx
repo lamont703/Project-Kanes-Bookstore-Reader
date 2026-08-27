@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Check, Loader2, Sparkles, Book as BookIcon, Shirt, Gift, Tag, CreditCard, Crown, Users } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { useViewAsGuard } from "@/hooks/use-view-as-guard"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -48,6 +49,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     const [clientSecret, setClientSecret] = useState<string | null>(null)
     const [showAuthPrompt, setShowAuthPrompt] = useState(false)
     const { user } = useAuth()
+    const blockedByViewAs = useViewAsGuard()
 
     // Books fetched from Supabase
     const [availableBooks, setAvailableBooks] = useState<DbBook[]>([])
@@ -148,6 +150,10 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
             setShowAuthPrompt(true)
             return
         }
+
+        // Subscribing from inside a View As session would bill the admin and
+        // upgrade the admin's account, not the member's.
+        if (blockedByViewAs("Subscribing is")) return
 
         if (step === 1) {
             if (!validateStep1()) return

@@ -19,9 +19,11 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/supabase/config'
 interface BookFormProps {
     initialData?: any
     isEdit?: boolean
+    /** Whether this viewer may delete the book. False for employees — see lib/roles.ts. */
+    canDelete?: boolean
 }
 
-export function BookForm({ initialData, isEdit }: BookFormProps) {
+export function BookForm({ initialData, isEdit, canDelete = true }: BookFormProps) {
     // Categories are rows now, not a constant, so a category added from the
     // browse editor is immediately selectable here. Seeded with the old
     // constant so the field is never empty while the request is in flight.
@@ -236,6 +238,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
     }
 
     const handleDelete = async () => {
+        if (!canDelete) return
         if (!initialData?.id) return
 
         const loadingToast = toast.loading(`Commencing cosmic purge for "${formData.title}"...`)
@@ -570,7 +573,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                 </Button>
                             </div>
 
-                            {isEdit && (
+                            {isEdit && canDelete && (
                                 <div className="pt-6 border-t border-border/50">
                                     <Button
                                         type="button"

@@ -33,9 +33,18 @@ import { toast } from "sonner"
 
 interface AdminBooksContentProps {
     initialBooks: any[]
+    /**
+     * Whether this viewer may delete books. False for employees.
+     *
+     * Deleting a book cascades into order_items, user_library and
+     * book_club_selections (migration 20260227200000), so RLS withholds it
+     * from employees — and a button that always errors is worse than no
+     * button. See lib/roles.ts.
+     */
+    canDelete?: boolean
 }
 
-export function AdminBooksContent({ initialBooks }: AdminBooksContentProps) {
+export function AdminBooksContent({ initialBooks, canDelete = true }: AdminBooksContentProps) {
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedGenre, setSelectedGenre] = useState("All")
     const [sortOrder, setSortOrder] = useState<"title" | "price">("title")
@@ -52,7 +61,7 @@ export function AdminBooksContent({ initialBooks }: AdminBooksContentProps) {
     }
 
     const confirmDelete = async () => {
-        if (!bookToDelete || isPurging) return
+        if (!canDelete || !bookToDelete || isPurging) return
 
         setIsPurging(true)
         const loadingToast = toast.loading(`Commencing cosmic purge for "${bookToDelete.title}"...`)
@@ -240,14 +249,16 @@ export function AdminBooksContent({ initialBooks }: AdminBooksContentProps) {
                                                         <Edit className="w-4 h-4" />
                                                     </Link>
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 hover:text-destructive hover:bg-destructive/10"
-                                                    onClick={() => handleDeleteClick(book)}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
+                                                {canDelete && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 hover:text-destructive hover:bg-destructive/10"
+                                                        onClick={() => handleDeleteClick(book)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

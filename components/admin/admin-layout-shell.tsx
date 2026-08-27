@@ -3,13 +3,20 @@
 import type React from "react"
 import { useState } from "react"
 import { AdminSidebar } from "@/components/admin-sidebar"
-import { Toaster } from "sonner"
+import type { UserRole } from "@/lib/roles"
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import Image from "next/image"
 
-export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
+export function AdminLayoutShell({
+  children,
+  role,
+}: {
+  children: React.ReactNode
+  /** Decides which nav entries and which destructive controls appear. */
+  role: UserRole
+}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
@@ -27,7 +34,7 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
         fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
       `}>
-        <AdminSidebar onClose={() => setIsSidebarOpen(false)} />
+        <AdminSidebar role={role} onClose={() => setIsSidebarOpen(false)} />
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -54,7 +61,6 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <Toaster position="top-right" theme="dark" />
     </div>
   )
 }

@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useViewAs } from "@/context/view-as-context"
+import { isStaffRole } from "@/lib/roles"
 import { type User, type Session, type AuthChangeEvent } from "@supabase/supabase-js"
 
 interface AuthContextType {
@@ -10,6 +12,8 @@ interface AuthContextType {
     profile: any | null
     subscription: any | null
     isAdmin: boolean
+    /** Admin or employee — anyone who belongs in the admin panel. See lib/roles.ts. */
+    isStaff: boolean
     isPremium: boolean
     isLoading: boolean
     /**
@@ -23,6 +27,14 @@ interface AuthContextType {
      * made the header reveal My Library first and Discussions/Events/Admin after.
      */
     isReady: boolean
+    /**
+     * The viewer's own role, ignoring any "View As" session.
+     *
+     * isAdmin answers "what should this screen show", which is the impersonated
+     * member's answer while a view is active. This answers "who is actually
+     * signed in", which is what anything offering a way back into /admin needs.
+     */
+    realIsAdmin: boolean
     signOut: () => Promise<void>
 }
 
@@ -40,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [entitlementsFor, setEntitlementsFor] = useState<string | null>(null)
     const [supabase] = useState(() => createClient())
     const lastUserIdRef = useRef<string | null>(null)
+    const { viewingAs, isReady: viewAsReady } = useViewAs()
 
     useEffect(() => {
         // The draft preview renders the whole app inside a same-origin iframe,
@@ -138,12 +151,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    const isAdmin = profile?.role === 'admin'
-    const isPremium = subscription?.plan === 'premium' && subscription?.status === 'active'
-    const isReady = !isLoading && (user ? entitlementsFor === user.id : true)
+    const realIsAdmin = profile?.role === 'admin'
+    const realIsPremium = subscription?.plan === 'premium' && subscription?.status === 'active'
+
+    // While an admin is viewing as a member, every entitlement-driven surface —
+    // the account menu, the premium gates in the nav — has to answer for that
+    // member, or the admin sees links the member does not have. The session
+    // itself is untouched: `user` is still the admin, which is why writes made
+    // from inside a view are still the admin's. See lib/view-as/types.ts.
+    const isAdmin = viewingAs ? viewingAs.role === 'admin' : realIsAdmin
+    const isStaff = viewingAs ? isStaffRole(viewingAs.role) : isStaffRole(profile?.role)
+    const isPremium = viewingAs ? viewingAs.isPremium : realIsPremium
+    const isReady = viewAsReady && !isLoading && (user ? entitlementsFor === user.id : true)
 
     return (
-        <AuthContext.Provider value={{ user, session, profile, subscription, isAdmin, isPremium, isLoading, isReady, signOut }}>
+        <AuthContext.Provider value={{ user, session, profile, subscription, isAdmin, isStaff, isPremium, isLoading, isReady, realIsAdmin, signOut }}>
             {children}
         </AuthContext.Provider>
     )

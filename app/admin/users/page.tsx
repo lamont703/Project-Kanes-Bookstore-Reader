@@ -31,6 +31,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { useDebounce } from "@/hooks/use-debounce"
+import type { UserRole } from "@/lib/roles"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ interface AdminUser {
   id: string
   name: string
   email: string
-  role: "reader" | "admin"
+  role: UserRole
   isBanned: boolean
   joinDate: string
   lastActive: string | null
@@ -96,7 +97,7 @@ export default function AdminUsersPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [newPlan, setNewPlan] = useState<"free" | "premium">("free")
-  const [newRole, setNewRole] = useState<"reader" | "admin">("reader")
+  const [newRole, setNewRole] = useState<UserRole>("reader")
   const [allBooks, setAllBooks] = useState<{ id: string, title: string }[]>([])
   const [selectedBookId, setSelectedBookId] = useState<string>("")
 
@@ -374,6 +375,9 @@ export default function AdminUsersPage() {
                         {user.role === "admin" && (
                           <span className="text-[9px] font-bold uppercase tracking-widest text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20">Admin</span>
                         )}
+                        {user.role === "employee" && (
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-sky-400 bg-sky-400/10 px-1.5 py-0.5 rounded border border-sky-400/20">Employee</span>
+                        )}
                         {user.isBanned && (
                           <span className="text-[9px] font-bold uppercase tracking-widest text-destructive bg-destructive/10 px-1.5 py-0.5 rounded border border-destructive/20">Banned</span>
                         )}
@@ -500,19 +504,22 @@ export default function AdminUsersPage() {
               <Label htmlFor="role" className="text-xs uppercase tracking-widest text-yellow-500 font-bold flex items-center gap-1.5">
                 <ShieldAlert className="w-3.5 h-3.5" /> Admin Role
               </Label>
-              <Select value={newRole} onValueChange={(v) => setNewRole(v as "reader" | "admin")}>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as UserRole)}>
                 <SelectTrigger id="role" className="w-full bg-background/50 border-border/50 h-12">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="reader">Reader (Standard)</SelectItem>
+                  <SelectItem value="employee">Employee (Catalog Only)</SelectItem>
                   <SelectItem value="admin">Admin (Full Access)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-[10px] text-muted-foreground mt-1">
                 {newRole === "admin"
                   ? "⚠️ Admins have unrestricted access to all data and admin panels."
-                  : "Standard reader — no admin privileges."}
+                  : newRole === "employee"
+                    ? "Books and merchandise only — add, edit and publish, but never delete. No access to orders, customers, discussions, events or site pages."
+                    : "Standard reader — no admin privileges."}
               </p>
             </div>
 

@@ -25,6 +25,8 @@ export interface NavItem {
     requiresPremium?: boolean
     /** Only show for admins. */
     requiresAdmin?: boolean
+    /** Only show for staff — admins and employees. */
+    requiresStaff?: boolean
 }
 
 /** Primary navigation, shown on both hosts in this order. */
@@ -47,7 +49,9 @@ export const ACCOUNT_NAV: NavItem[] = [
     { label: "My Library", app: "/dashboard", requiresAuth: true },
     { label: "Discussions", app: "/book-club/discussions", requiresPremium: true },
     { label: "Events", app: "/book-club/events", requiresPremium: true },
-    { label: "Admin", app: "/admin", requiresAdmin: true },
+    // Staff, not admin: employees get the catalogue sections of the panel, so
+    // hiding the way in would leave them with no route to their own work.
+    { label: "Admin", app: "/admin", requiresStaff: true },
 ]
 
 /** Footer links, by column. */
@@ -100,6 +104,8 @@ export interface Viewer {
     isLoggedIn: boolean
     isPremium: boolean
     isAdmin: boolean
+    /** Admin or employee. Defaults to isAdmin for callers that predate the employee role. */
+    isStaff?: boolean
 }
 
 /**
@@ -117,6 +123,7 @@ export interface Viewer {
  */
 export function visibleAccountNav(_mode: NavMode, viewer: Viewer): NavItem[] {
     return ACCOUNT_NAV.filter((item) => {
+        if (item.requiresStaff) return viewer.isStaff ?? viewer.isAdmin
         if (item.requiresAdmin) return viewer.isAdmin
         if (item.requiresPremium) return viewer.isPremium || viewer.isAdmin
         if (item.requiresAuth) return viewer.isLoggedIn

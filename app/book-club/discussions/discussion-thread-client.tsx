@@ -10,6 +10,7 @@ import { useState, useTransition, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { useViewAsGuard } from "@/hooks/use-view-as-guard"
 import type { User } from "@supabase/supabase-js"
 
 // ─── DB Row Types ────────────────────────────────────────────────────────────
@@ -270,7 +271,12 @@ export default function DiscussionThreadClient({ topic, initialPosts, currentUse
         "Komet Explorer"
 
     // ── Post a top-level comment ──────────────────────────────────────────────
+    // currentUser is still the admin during a View As session, so a post or a
+    // vote from inside the view would be attributed to the admin.
+    const blockedByViewAs = useViewAsGuard()
+
     const handlePostComment = async () => {
+        if (blockedByViewAs("Posting is")) return
         if (!newComment.trim()) return
         setIsPosting(true)
 
@@ -305,6 +311,7 @@ export default function DiscussionThreadClient({ topic, initialPosts, currentUse
 
     // ── Post a reply ──────────────────────────────────────────────────────────
     const handlePostReply = async (parentId: string, content: string) => {
+        if (blockedByViewAs("Replying is")) return
         const { data, error } = await supabase
             .from("discussion_posts")
             .insert({
@@ -339,6 +346,7 @@ export default function DiscussionThreadClient({ topic, initialPosts, currentUse
 
     // ── Vote on a post ────────────────────────────────────────────────────────
     const handleVote = async (postId: string, type: "up" | "down") => {
+        if (blockedByViewAs("Voting is")) return
         const currentVote = userVotes[postId]
 
         // Toggle off if same vote

@@ -37,7 +37,7 @@ export async function handleUploadBook(
     const adminClient = createAdminClient();
     const authClient = createAuthClient(authHeader);
 
-    // ─── 0. Verify admin role ────────────────────────────────────
+    // ─── 0. Verify the caller may edit the catalogue ─────────────
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await authClient.auth.getUser(token);
 
@@ -59,12 +59,19 @@ export async function handleUploadBook(
 
     if (profileError) {
         console.error(`[upload-book] Failed to fetch profile: ${profileError.message}`);
-        throw { ...ErrorCodes.INTERNAL_ERROR, message: "Failed to verify admin status" };
+        throw { ...ErrorCodes.INTERNAL_ERROR, message: "Failed to verify catalogue access" };
     }
 
-    if (profile?.role !== "admin") {
+    // Admins and employees both maintain the catalogue (see lib/roles.ts and
+    // migration 20260826000001). The role is still read server-side from
+    // public.users with the service-role client, exactly as before — this is not
+    // relaxed to "any authenticated caller". The function writes to Storage with
+    // elevated privileges, so an unauthorised caller could fill the buckets.
+    const CATALOGUE_ROLES = ["admin", "employee"];
+
+    if (!CATALOGUE_ROLES.includes(profile?.role)) {
         console.warn(`[upload-book] Access denied for user ${user.id} (role: ${profile?.role})`);
-        throw { ...ErrorCodes.FORBIDDEN, message: "Only admins can upload books" };
+        throw { ...ErrorCodes.FORBIDDEN, message: "Only admins and employees can upload books" };
     }
 
     // ─── 1. Extract and validate metadata from form ──────────────
