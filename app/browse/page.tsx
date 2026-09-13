@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { BrowseFilters } from "@/components/browse-filters"
 import { BrowsePagination } from "@/components/browse-pagination"
 import { DEFAULT_PER_PAGE, PER_PAGE_OPTIONS } from "@/lib/browse-options"
-import { getPublishedPage, findSection, setting, type PageDocument } from "@/lib/page-content"
+import { getPublishedPage, findSection, isHidden, setting, type PageDocument } from "@/lib/page-content"
 import { getActiveGenres } from "@/lib/genres"
 
 interface BrowsePageProps {
@@ -142,19 +142,21 @@ export default async function BrowsePage({ searchParams, previewDocument }: Brow
 
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
-        <div className="mb-8 text-center md:text-left">
-          <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-2 uppercase">
-            <span className="text-primary" data-edit-setting="browse-header:headingPrimary">
-              {setting(header, "headingPrimary")}
-            </span>{" "}
-            <span className="text-secondary" data-edit-setting="browse-header:headingSecondary">
-              {setting(header, "headingSecondary")}
-            </span>
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl" data-edit-setting="browse-header:intro">
-            {setting(header, "intro")}
-          </p>
-        </div>
+        {!isHidden(header) && (
+          <div data-edit-section="browse-header" className="mb-8 text-center md:text-left">
+            <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-2 uppercase">
+              <span className="text-primary" data-edit-setting="browse-header:headingPrimary">
+                {setting(header, "headingPrimary")}
+              </span>{" "}
+              <span className="text-secondary" data-edit-setting="browse-header:headingSecondary">
+                {setting(header, "headingSecondary")}
+              </span>
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl" data-edit-setting="browse-header:intro">
+              {setting(header, "intro")}
+            </p>
+          </div>
+        )}
 
         {/* Search and Filters (Client Component) */}
         <BrowseFilters genres={genres} />

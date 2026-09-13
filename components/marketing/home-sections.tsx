@@ -7,6 +7,7 @@ import { PageHero } from "@/components/marketing/page-hero"
 import {
     getPublishedPage,
     findSection,
+    isHidden,
     sectionImages,
     setting,
     type PageDocument,
@@ -113,7 +114,10 @@ function Gallery({
  */
 function FeatureImage({ image }: { image: { id: string; src: string; alt: string } }) {
     return (
-        <div className="mx-auto mt-8 max-w-3xl overflow-hidden rounded-xl border border-border bg-card">
+        <div
+            data-edit-id={image.id}
+            className="mx-auto mt-8 max-w-3xl overflow-hidden rounded-xl border border-border bg-card"
+        >
             <Image
                 src={image.src}
                 alt={image.alt}
@@ -157,7 +161,9 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
             {/* Hero — full-bleed background, matching kanesbookstore.com. The
                 source art is landscape (1536x1024) for desktop and portrait
                 (1024x1536) for narrow screens, so PageHero is given both. */}
+            {!isHidden(hero) && (
             <PageHero
+                editSection="home-hero"
                 image={setting(hero, "image") ?? HERO_BG}
                 imagePortrait={setting(hero, "imagePortrait") ?? HERO_BG_PORTRAIT}
             >
@@ -177,15 +183,18 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
                     </Button>
                 </div>
             </PageHero>
+            )}
 
             {/* Video + More About Us — one section directly below the hero, in
                 the source site's order: video, eyebrow, statement, join CTA. */}
+            {!isHidden(video) && (
             <section data-edit-section="home-video" className="border-b border-border">
                 <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                     <HeroVideo
                         src={setting(video, "videoSrc") ?? HERO_VIDEO}
                         poster={setting(video, "poster") ?? HERO_POSTER}
                         caption={setting(video, "caption") ?? ""}
+                        editSetting="home-video:poster"
                     />
 
                     <div className="mx-auto mt-14 max-w-3xl">
@@ -207,9 +216,10 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
                     </div>
                 </div>
             </section>
+            )}
 
             {/* Our books */}
-            {books.length > 0 && (
+            {books.length > 0 && !isHidden(booksSection) && (
                 <section data-edit-section="home-books" className="border-b border-border">
                     <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                         <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
@@ -231,6 +241,7 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
             )}
 
             {/* More funk */}
+            {!isHidden(funkSection) && (
             <section data-edit-section="home-funk" className="border-b border-border">
                 <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                     <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
@@ -249,9 +260,10 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
                     </div>
                 </div>
             </section>
+            )}
 
             {/* Characters */}
-            {characters.length > 0 && (
+            {characters.length > 0 && !isHidden(charactersSection) && (
                 <section data-edit-section="home-characters" className="border-b border-border">
                     <div className="container mx-auto max-w-6xl px-4 py-16 text-center md:py-20">
                         <p className="font-display text-sm uppercase tracking-[0.35em] text-secondary">
@@ -276,6 +288,7 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
                 the source page places it — block 54, immediately before the final
                 CTA. Already part of the content import, so it is served locally
                 rather than hotlinked from the LeadConnector CDN. */}
+            {!isHidden(closing) && (
             <section data-edit-section="home-closing">
                 <div className="container mx-auto max-w-3xl px-4 py-20 text-center">
                     <h2 className="font-display text-4xl uppercase tracking-wider md:text-5xl">
@@ -290,6 +303,7 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
                             alt={setting(closing, "imageAlt") ?? ""}
                             width={800}
                             height={533}
+                            data-edit-setting="home-closing:image"
                             className="h-auto w-full object-cover"
                         />
                     </div>
@@ -301,6 +315,7 @@ export async function HomeSections({ document }: { document?: PageDocument } = {
                     </Button>
                 </div>
             </section>
+            )}
         </>
     )
 }

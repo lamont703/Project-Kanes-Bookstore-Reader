@@ -1,4 +1,4 @@
-import { findSection, getPublishedPage, setting, type PageDocument } from "@/lib/page-content"
+import { findSection, getPublishedPage, isHidden, setting, type PageDocument } from "@/lib/page-content"
 import type { Metadata } from "next"
 import { ContactForm } from "@/components/marketing/contact-form"
 import { apexUrl } from "@/lib/hosts"
@@ -22,18 +22,22 @@ export default async function ContactPage({ previewDocument }: {
 
     return (
         <div className="container mx-auto max-w-3xl px-4 py-12 md:py-20">
-            <h1 className="font-display text-5xl uppercase tracking-wider md:text-6xl">
-                <span className="text-primary" data-edit-setting="contact-header:headingPrimary">
-                    {setting(header, "headingPrimary") ?? "CONTACT"}
-                </span>{" "}
-                <span className="text-secondary" data-edit-setting="contact-header:headingSecondary">
-                    {setting(header, "headingSecondary") ?? "US"}
-                </span>
-            </h1>
-            <p className="mt-4 text-muted-foreground" data-edit-setting="contact-header:intro">
-                {setting(header, "intro") ??
-                    "Questions about a book, an order, or the Komet Book Club? Send us a note."}
-            </p>
+            {!isHidden(header) && (
+                <div data-edit-section="contact-header">
+                    <h1 className="font-display text-5xl uppercase tracking-wider md:text-6xl">
+                        <span className="text-primary" data-edit-setting="contact-header:headingPrimary">
+                            {setting(header, "headingPrimary") ?? "CONTACT"}
+                        </span>{" "}
+                        <span className="text-secondary" data-edit-setting="contact-header:headingSecondary">
+                            {setting(header, "headingSecondary") ?? "US"}
+                        </span>
+                    </h1>
+                    <p className="mt-4 text-muted-foreground" data-edit-setting="contact-header:intro">
+                        {setting(header, "intro") ??
+                            "Questions about a book, an order, or the Komet Book Club? Send us a note."}
+                    </p>
+                </div>
+            )}
 
             <div className="mt-10">
                 <ContactForm />

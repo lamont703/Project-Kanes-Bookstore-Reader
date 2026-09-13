@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Trash2, Loader2, Eye, EyeOff, Shirt } from "lucide-react"
+import { Plus, Trash2, Loader2, Eye, EyeOff, Shirt, ChevronUp, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,17 @@ import { slugifyCategory, type MerchCategoryRow } from "@/lib/merch-categories"
  * category; that is surfaced rather than swallowed, and hiding is suggested
  * instead. Hiding removes a category from the pickers without invalidating the
  * products already filed under it.
+ *
+ * Every control here is also page content: /morefunk groups its products into
+ * one section per category, so the label is that section's heading, the order is
+ * the order the sections appear in, and hiding one takes its section off the
+ * page. Editing them is deliberately kept here on the product form rather than
+ * duplicated into the More Funk page editor, so there is one place a category is
+ * created and renamed.
  */
+/** `busy` holds a category name; this stands in for "the whole list is moving". */
+const ORDER_BUSY = "\u0000order"
+
 export function MerchCategoryManager({ onChanged }: { onChanged?: () => void }) {
     const supabase = React.useMemo(() => createClient(), [])
     const [rows, setRows] = React.useState<(MerchCategoryRow & { productCount: number })[]>([])
@@ -30,6 +40,9 @@ export function MerchCategoryManager({ onChanged }: { onChanged?: () => void }) 
     const [busy, setBusy] = React.useState<string | null>(null)
     const [newLabel, setNewLabel] = React.useState("")
     const [newSized, setNewSized] = React.useState(false)
+    // Labels mid-edit, keyed by category. Held apart from `rows` so a reload
+    // landing while someone is typing does not yank the text out from under them.
+    const [labelDrafts, setLabelDrafts] = React.useState<Record<string, string>>({})
 
     const load = React.useCallback(async () => {
         const [{ data: cats, error }, { data: products }] = await Promise.all([
@@ -102,6 +115,61 @@ export function MerchCategoryManager({ onChanged }: { onChanged?: () => void }) 
         refresh()
     }
 
+    /**
+     * Commit a renamed label.
+     *
+     * Only `label` moves. `name` is the key products are filed under and a
+     * foreign key besides, so renaming "Foam Soap" to "Foam Soaps" retitles the
+     * section without touching a single product.
+     */
+    async function commitLabel(row: MerchCategoryRow) {
+        const draft = labelDrafts[row.name]
+        setLabelDrafts(({ [row.name]: _dropped, ...rest }) => rest)
+        const label = (draft ?? "").trim()
+        if (!draft || label === row.label) return
+        if (!label) return toast.error("A category needs a name")
+        await patch(row, { label })
+    }
+
+    /**
+     * Move a category one place up or down.
+     *
+     * Rewrites the whole list to 1..n rather than swapping the two values: the
+     * column has no uniqueness or contiguity guarantee, so seeded gaps and
+     * duplicate zeros are otherwise inherited forever and later moves no-op.
+     */
+    async function move(index: number, delta: number) {
+        const target = index + delta
+        if (target < 0 || target >= rows.length) return
+
+        const next = [...rows]
+        ;[next[index], next[target]] = [next[target], next[index]]
+        // Optimistic: without this the row visibly springs back until the
+        // reload lands.
+        setRows(next.map((r, i) => ({ ...r, sort_order: i + 1 })))
+
+        setBusy(ORDER_BUSY)
+        const writeOrder = async (row: MerchCategoryRow, position: number) => {
+            if (row.sort_order === position) return null
+            const { error } = await supabase
+                .from("merch_categories")
+                .update({ sort_order: position })
+                .eq("name", row.name)
+            return error
+        }
+        const results = await Promise.all(next.map((row, i) => writeOrder(row, i + 1)))
+        setBusy(null)
+
+        const failed = results.find((error) => error !== null)
+        if (failed) {
+            toast.error(`Could not reorder: ${failed.message}`)
+            // The optimistic order is now a lie; go back to what the table says.
+            load()
+            return
+        }
+        refresh()
+    }
+
     async function remove(row: MerchCategoryRow & { productCount: number }) {
         setBusy(row.name)
         const { error } = await supabase.from("merch_categories").delete().eq("name", row.name)
@@ -123,25 +191,60 @@ export function MerchCategoryManager({ onChanged }: { onChanged?: () => void }) 
         <Card className="p-4">
             <h3 className="font-semibold">Merchandise categories</h3>
             <p className="mb-4 mt-1 text-xs text-muted-foreground">
-                These are the Category options here and the filters on the shop. Mark a category
-                sized when its products are sold per size, like apparel. Hiding one keeps existing
-                products valid but removes it from both.
+                Categories fill the Category picker on the product form and group the More Funk
+                page into sections — the name here is that section&apos;s heading, and the order
+                here is the order the sections appear in. Mark a category sized when its products
+                sell per size, like apparel. Hiding one keeps existing products valid but takes it
+                off both.
             </p>
 
             {loading ? (
                 <p className="text-sm text-muted-foreground">Loading…</p>
             ) : (
                 <div className="space-y-2">
-                    {rows.map((row) => (
+                    {rows.map((row, index) => (
                         <div
                             key={row.name}
                             className="flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2"
                         >
-                            <span
-                                className={`flex-1 truncate text-sm ${row.is_active ? "" : "text-muted-foreground line-through"}`}
-                            >
-                                {row.label}
-                            </span>
+                            <div className="flex shrink-0 flex-col">
+                                <button
+                                    type="button"
+                                    disabled={index === 0 || busy !== null}
+                                    onClick={() => move(index, -1)}
+                                    aria-label={`Move ${row.label} up`}
+                                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                                >
+                                    <ChevronUp className="size-3.5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={index === rows.length - 1 || busy !== null}
+                                    onClick={() => move(index, 1)}
+                                    aria-label={`Move ${row.label} down`}
+                                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                                >
+                                    <ChevronDown className="size-3.5" />
+                                </button>
+                            </div>
+                            <Input
+                                value={labelDrafts[row.name] ?? row.label}
+                                onChange={(e) =>
+                                    setLabelDrafts((d) => ({ ...d, [row.name]: e.target.value }))
+                                }
+                                onBlur={() => commitLabel(row)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") e.currentTarget.blur()
+                                    if (e.key === "Escape") {
+                                        setLabelDrafts(({ [row.name]: _dropped, ...rest }) => rest)
+                                        e.currentTarget.blur()
+                                    }
+                                }}
+                                aria-label={`${row.label} heading`}
+                                className={`h-8 flex-1 border-transparent bg-transparent text-sm hover:border-border focus:border-border ${
+                                    row.is_active ? "" : "text-muted-foreground line-through"
+                                }`}
+                            />
                             <span className="shrink-0 text-xs text-muted-foreground">
                                 {row.productCount} item{row.productCount === 1 ? "" : "s"}
                             </span>

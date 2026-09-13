@@ -1,5 +1,5 @@
 import { createStaticClient } from "@/lib/supabase/server"
-import type { PageBlock, PageDocument } from "@/lib/page-model"
+import { visibleSections, type PageBlock, type PageDocument } from "@/lib/page-model"
 
 /**
  * Server-side reads of page content.
@@ -43,6 +43,9 @@ export async function getPublishedPage(slug: string): Promise<PageDocument | nul
  * expect a flat list, so this keeps them a one-line change. Pages with real
  * section structure (the homepage) address sections by id instead.
  *
+ * Sections switched off in the editor contribute no blocks, which is what makes
+ * the visibility toggle work on the flat pages without touching their renderers.
+ *
  * Returns an empty list rather than throwing when a page is unseeded: a missing
  * paragraph is preferable to a 500, and the error is logged for the operator.
  */
@@ -52,10 +55,10 @@ export async function getPublishedBlocks(slug: string): Promise<PageBlock[]> {
         console.error(`getPublishedBlocks(${slug}): no published document — page content is unseeded`)
         return []
     }
-    return doc.sections.flatMap((section) => section.blocks)
+    return visibleSections(doc).flatMap((section) => section.blocks)
 }
 
 /** Flatten a document the caller already has, without a round trip. */
 export function blocksOf(doc: PageDocument | null | undefined): PageBlock[] {
-    return (doc?.sections ?? []).flatMap((section) => section.blocks)
+    return visibleSections(doc).flatMap((section) => section.blocks)
 }

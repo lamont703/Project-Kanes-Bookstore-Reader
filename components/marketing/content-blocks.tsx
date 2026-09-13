@@ -62,6 +62,19 @@ export function ContentBlocks({ blocks }: { blocks: PageBlock[] }) {
             rendered.push(
                 <Heading key={block.id} level={block.level} text={block.text} editId={block.id} />,
             )
+        } else if (block.type === "card") {
+            // A card is a titled paragraph. These pages have no card grid of
+            // their own, so it renders as its parts rather than as a tile —
+            // which is still the right shape, and beats the empty <p> an
+            // unhandled type used to produce.
+            rendered.push(
+                <div key={block.id} data-edit-id={block.id} className="mt-8">
+                    <h3 className="font-display text-xl tracking-wide uppercase text-foreground">
+                        {block.title}
+                    </h3>
+                    <p className="mt-2 leading-relaxed text-muted-foreground">{block.body}</p>
+                </div>,
+            )
         } else {
             rendered.push(
                 <p

@@ -5,17 +5,20 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, Plus, Trash2, Upload, Loader2, RotateCcw, Eye, MousePointerClick } from "lucide-react"
+import { GripVertical, Plus, Trash2, Upload, Loader2, RotateCcw, Eye, EyeOff, MousePointerClick } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { createClient } from "@/lib/supabase/client"
 import { saveDraft, publishPage, discardDraft } from "@/lib/page-editor"
 import { GenreManager } from "@/components/admin/genre-manager"
+import { MerchProductOrder } from "@/components/admin/merch-product-order"
 import type { PageBlock, PageDocument, PageSection } from "@/lib/page-model"
+import { youtubeId } from "@/lib/video-embed"
 
 /**
  * Dev-mode editor for a marketing page.
@@ -31,6 +34,35 @@ import type { PageBlock, PageDocument, PageSection } from "@/lib/page-model"
  */
 
 const IMAGE_SETTING_KEYS = ["image", "imagePortrait", "poster", "background"]
+
+/** Settings whose value is a video, and so needs saying what will actually play. */
+const VIDEO_SETTING_KEYS = ["videoSrc"]
+
+/**
+ * What to tell the admin about a video address, if anything.
+ *
+ * A YouTube link and a hosted file both work; anything else that is plainly a
+ * web page does not, and used to fail silently — the player rendered and simply
+ * never started. Saying so at the field is the only place it can be caught
+ * before Publish.
+ */
+function videoHint(value: string): { tone: "ok" | "warn"; text: string } | null {
+    const raw = value.trim()
+    if (!raw) return null
+    if (youtubeId(raw)) return { tone: "ok", text: "YouTube video — plays in an embedded player." }
+
+    // A path or a URL ending in a video file is the other supported shape.
+    if (/\.(mp4|webm|ogg|ogv|mov|m4v)(\?|#|$)/i.test(raw)) {
+        return { tone: "ok", text: "Video file — plays directly." }
+    }
+    if (/^https?:\/\//i.test(raw) || raw.startsWith("/")) {
+        return {
+            tone: "warn",
+            text: "This is not a YouTube link or a video file, so it will not play. Paste a YouTube URL, or a link ending in .mp4 or .webm.",
+        }
+    }
+    return null
+}
 
 function label(key: string) {
     return key
@@ -195,6 +227,21 @@ function BlockEditor({
                             className="text-xs"
                         />
                     </div>
+                ) : block.type === "card" ? (
+                    <div className="space-y-2" data-field-id={block.id}>
+                        <Input
+                            value={block.title}
+                            placeholder="Card title"
+                            onChange={(e) => onChange({ ...block, title: e.target.value })}
+                            className="font-medium"
+                        />
+                        <textarea
+                            className="min-h-16 w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            value={block.body}
+                            placeholder="What this benefit gives the member"
+                            onChange={(e) => onChange({ ...block, body: e.target.value })}
+                        />
+                    </div>
                 ) : (
                     <textarea
                         data-field-id={block.id}
@@ -247,11 +294,174 @@ interface Hotspot {
  * preview, which is what you want: in the editor a heading is something to
  * edit, not something to navigate away from.
  */
+/**
+ * Every image the preview can show, addressed the way the DOM marks it.
+ *
+ * Two kinds: a section setting (the hero art, the video poster) marked
+ * data-edit-setting="<section>:<key>", and an image block marked
+ * data-edit-id="<block>". Keying them the same way lets one pass handle both.
+ */
+function imageSources(doc: PageDocument): Map<string, string> {
+    const out = new Map<string, string>()
+    for (const section of doc.sections) {
+        for (const key of IMAGE_SETTING_KEYS) {
+            const value = section.settings[key]
+            if (typeof value === "string" && value) out.set(`setting:${section.id}:${key}`, value)
+        }
+        for (const block of section.blocks) {
+            if (block.type === "image" && block.src) out.set(`block:${block.id}`, block.src)
+        }
+    }
+    return out
+}
+
+/**
+ * Point one already-rendered element at a new image.
+ *
+ * The same setting can be any of three things in the DOM — an <img> (the
+ * closing image, the video poster still), a <video> whose poster attribute
+ * holds it, or a div carrying it as a CSS background (the hero art) — so the
+ * element decides how it is written rather than the caller.
+ *
+ * Clearing srcset matters: these are next/image renders, whose srcset lists
+ * /_next/image URLs for the OLD source. Leave it and the browser keeps picking
+ * a candidate from it and the swap silently does nothing.
+ *
+ * The element is tested by tagName rather than instanceof. These nodes come
+ * from the iframe's document, so they are instances of ITS HTMLImageElement,
+ * not this window's, and instanceof is false for every one of them — which sent
+ * every <img> down the background-image branch and quietly did nothing.
+ */
+function pointAtImage(el: HTMLElement, url: string) {
+    // What was last written here, so a re-run does not refetch an unchanged
+    // image. Comparing el.src is no good — the browser reports it resolved to
+    // an absolute URL, which never equals a stored relative path.
+    if (el.dataset.livePreviewSrc === url) return
+    el.dataset.livePreviewSrc = url
+
+    const setImg = (img: HTMLImageElement) => {
+        img.removeAttribute("srcset")
+        img.src = url
+    }
+
+    if (el.tagName === "IMG") return setImg(el as HTMLImageElement)
+    if (el.tagName === "VIDEO") {
+        ;(el as HTMLVideoElement).poster = url
+        return
+    }
+
+    // A wrapper around the image (the gallery tiles) or, failing that, an
+    // element carrying it as a CSS background (the hero art).
+    const img = el.querySelector("img")
+    if (img) return setImg(img)
+    el.style.backgroundImage = `url(${url})`
+}
+
+/**
+ * Reflect the unsaved draft inside the preview without a round trip.
+ *
+ * The preview is a server render of the last SAVED draft, so without this
+ * neither hiding a section nor replacing an image shows until Save — and those
+ * are the two edits whose whole point is seeing the result. The frame is
+ * same-origin, so rather than re-render it this reaches in and patches what
+ * changed.
+ *
+ * Visibility works off the elements a section owns. The homepage, the book club
+ * and the header pages each render a section into one container marked
+ * data-edit-section, so hiding that container is exact. The flat pages (about,
+ * characters, privacy policy) render one continuous run of blocks with no
+ * section element at all, so there the section's own blocks are hidden one by
+ * one — which is precisely what the published page drops, since blocksOf()
+ * filters those same blocks out.
+ *
+ * Images are patched as a DELTA against the document the frame was rendered
+ * from. Only a source the admin has changed since the last save is written, so
+ * the untouched majority keep the optimised /_next/image renders they were
+ * served with.
+ *
+ * Presentation only: the document is untouched, so Save and Publish still decide
+ * what visitors get, and a reloaded frame comes back agreeing with what was
+ * shown here.
+ */
+function useLivePreview(
+    frameRef: React.RefObject<HTMLIFrameElement | null>,
+    doc: PageDocument,
+    savedDoc: PageDocument,
+    liveKey: string,
+    refreshKey: number,
+) {
+    // Read the documents through refs so this re-runs when something the
+    // preview can show changes, not on every keystroke in a text field.
+    const docRef = React.useRef(doc)
+    docRef.current = doc
+    const savedRef = React.useRef(savedDoc)
+    savedRef.current = savedDoc
+
+    React.useEffect(() => {
+        const frame = frameRef.current
+        if (!frame) return
+
+        const apply = () => {
+            const d = frame.contentDocument
+            if (!d?.body) return
+
+            const current = docRef.current
+            const hidden = new Set(current.sections.filter((s) => s.hidden).map((s) => s.id))
+            // Block id -> owning section, for the pages that render blocks flat.
+            const owner = new Map<string, string>()
+            current.sections.forEach((s) => s.blocks.forEach((b) => owner.set(b.id, s.id)))
+
+            const wanted = imageSources(current)
+            const rendered = imageSources(savedRef.current)
+
+            d.querySelectorAll<HTMLElement>(
+                "[data-edit-section],[data-edit-id],[data-edit-setting]",
+            ).forEach((el) => {
+                const setting = el.dataset.editSetting
+                const blockId = el.dataset.editId
+                const sectionId =
+                    el.dataset.editSection ??
+                    (blockId ? owner.get(blockId) : undefined) ??
+                    setting?.split(":")[0]
+                if (!sectionId) return
+
+                if (hidden.has(sectionId)) {
+                    el.style.display = "none"
+                } else if (el.style.display === "none") {
+                    // Only clear what was switched off here. Writing "" over
+                    // everything would flatten display rules the page set itself.
+                    el.style.display = ""
+                }
+
+                const imageKey = setting ? `setting:${setting}` : blockId ? `block:${blockId}` : null
+                if (!imageKey) return
+                const url = wanted.get(imageKey)
+                if (url && url !== rendered.get(imageKey)) pointAtImage(el, url)
+            })
+        }
+
+        // The frame may already be loaded when this runs — after an edit it
+        // certainly is — so apply now and again whenever it reloads. The delayed
+        // pass covers hydration: React claims the markup shortly after load and
+        // can put back the source the server rendered.
+        apply()
+        const onLoad = () => {
+            apply()
+            window.setTimeout(apply, 300)
+        }
+        frame.addEventListener("load", onLoad)
+        return () => frame.removeEventListener("load", onLoad)
+        // refreshKey remounts the iframe, so the listener has to be re-attached
+        // to the new element even when nothing about the draft changed.
+    }, [frameRef, liveKey, refreshKey])
+}
+
 function useHotspots(
     frameRef: React.RefObject<HTMLIFrameElement | null>,
     scale: number,
     refreshKey: number,
     enabled: boolean,
+    liveKey: string,
 ) {
     const [spots, setSpots] = React.useState<Hotspot[]>([])
 
@@ -319,7 +529,10 @@ function useHotspots(
             win?.removeEventListener("scroll", schedule)
             win?.removeEventListener("resize", schedule)
         }
-    }, [frameRef, scale, refreshKey, enabled])
+        // liveKey: hiding a section moves everything below it, so the boxes
+        // have to be re-measured or they sit over the wrong elements until the
+        // next poll.
+    }, [frameRef, scale, refreshKey, enabled, liveKey])
 
     return spots
 }
@@ -342,12 +555,18 @@ function PreviewFrame({
     editing,
     onSelect,
     selected,
+    doc,
+    savedDoc,
 }: {
     src: string
     refreshKey: number
     editing: boolean
     onSelect: (key: string) => void
     selected: string | null
+    /** The live draft, so visibility and image edits show without a save. */
+    doc: PageDocument
+    /** What the frame was rendered from, so only real changes are patched. */
+    savedDoc: PageDocument
 }) {
     const wrapRef = React.useRef<HTMLDivElement>(null)
     const frameRef = React.useRef<HTMLIFrameElement>(null)
@@ -363,9 +582,19 @@ function PreviewFrame({
         return () => ro.disconnect()
     }, [])
 
+    // Everything the preview can reflect without a re-render: which sections are
+    // switched off, and where each image points. Derived as one string so the
+    // hooks re-run when one of those changes and not on every keystroke.
+    const liveKey = [
+        doc.sections.map((s) => `${s.id}:${s.hidden ? 1 : 0}`).join(","),
+        [...imageSources(doc)].map(([k, v]) => `${k}=${v}`).join(","),
+    ].join("|")
+
+    useLivePreview(frameRef, doc, savedDoc, liveKey, refreshKey)
+
     // Never scale up: on a narrow screen the pane is already full width.
     const scale = Math.min(1, box.width / PREVIEW_WIDTH)
-    const spots = useHotspots(frameRef, scale, refreshKey, editing)
+    const spots = useHotspots(frameRef, scale, refreshKey, editing, liveKey)
 
     return (
         <div
@@ -430,6 +659,15 @@ export function PageEditor({
     initialHasChanges: boolean
 }) {
     const [doc, setDoc] = React.useState<PageDocument>(initialDocument)
+    /**
+     * The document the preview iframe was rendered from — the last saved draft.
+     *
+     * Kept so the live patching below can push only what actually differs.
+     * Rewriting every image on each frame load would replace Next's optimised
+     * /_next/image sources with the raw originals, which on a page like
+     * /characters means refetching 34 full-size images for no reason.
+     */
+    const [savedDoc, setSavedDoc] = React.useState<PageDocument>(initialDocument)
     const [dirty, setDirty] = React.useState(false)
     const [hasChanges, setHasChanges] = React.useState(initialHasChanges)
     const [busy, setBusy] = React.useState<null | "save" | "publish" | "discard">(null)
@@ -476,12 +714,32 @@ export function PageEditor({
     const updateSection = (id: string, patch: Partial<PageSection>) =>
         edit({ ...doc, sections: doc.sections.map((s) => (s.id === id ? { ...s, ...patch } : s)) })
 
+    /**
+     * Switch a section on or off for visitors.
+     *
+     * Showing a section drops the flag rather than writing hidden: false.
+     * "Are there unpublished changes" is answered by comparing the two
+     * documents, so a section switched off and straight back on has to end up
+     * byte-identical to how it started — otherwise the page would sit on
+     * "unpublished changes" forever with nothing actually different in it.
+     */
+    const setSectionHidden = (id: string, hidden: boolean) =>
+        edit({
+            ...doc,
+            sections: doc.sections.map((s) => {
+                if (s.id !== id) return s
+                const { hidden: _was, ...rest } = s
+                return hidden ? { ...rest, hidden: true } : rest
+            }),
+        })
+
     async function handleSave() {
         setBusy("save")
         const res = await saveDraft(slug, doc)
         setBusy(null)
         if (!res.ok) return toast.error(`Save failed: ${res.error}`)
         setDirty(false)
+        setSavedDoc(doc)
         setHasChanges(true)
         setPreviewKey((k) => k + 1)
         toast.success("Draft saved")
@@ -498,6 +756,7 @@ export function PageEditor({
                 return toast.error(`Save failed: ${saved.error}`)
             }
             setDirty(false)
+            setSavedDoc(doc)
         }
         const res = await publishPage(slug)
         setBusy(null)
@@ -540,9 +799,11 @@ export function PageEditor({
         const block: PageBlock =
             type === "image"
                 ? { id: newId(), type: "image", src: "", alt: "" }
-                : type === "heading"
-                  ? { id: newId(), type: "heading", level: 2, text: "New heading" }
-                  : { id: newId(), type: "text", text: "New paragraph" }
+                : type === "card"
+                  ? { id: newId(), type: "card", title: "New card", body: "" }
+                  : type === "heading"
+                    ? { id: newId(), type: "heading", level: 2, text: "New heading" }
+                    : { id: newId(), type: "text", text: "New paragraph" }
         updateSection(sectionId, { blocks: [...section.blocks, block] })
     }
 
@@ -618,6 +879,25 @@ export function PageEditor({
                         too and a book's category is a foreign key. */}
                     {slug === "browse" && <GenreManager />}
 
+                    {/* The same for /morefunk, where the merchandise categories
+                        ARE the page's sections — their names are the headings and
+                        their order is the running order. Without this the editor
+                        could change the page's intro and nothing else, since
+                        everything below it is generated from these rows. */}
+                    {/* /morefunk builds its sections from the merchandise rows,
+                        so the running order of the products inside them cannot be
+                        reached through the page document. The categories that
+                        define the sections themselves are managed under
+                        Merchandise, on the product form, rather than duplicated
+                        here. */}
+                    {slug === "morefunk" && (
+                        <MerchProductOrder
+                            // Rows, not the draft document, so the preview only
+                            // picks a change up on a reload.
+                            onChanged={() => setPreviewKey((k) => k + 1)}
+                        />
+                    )}
+
                     <DndContext
                         // Explicit and stable: without it dnd-kit derives its
                         // aria-describedby ids from a counter that advances
@@ -636,8 +916,13 @@ export function PageEditor({
                             {doc.sections.map((section) => (
                                 <SortableRow key={section.id} id={section.id}>
                                     {(handle) => (
-                                        <Card className="mb-4 p-4" data-section-card={section.id}>
-                                            <div className="mb-3 flex items-center gap-2">
+                                        <Card
+                                            className={`mb-4 p-4 ${
+                                                section.hidden ? "border-dashed bg-muted/20" : ""
+                                            }`}
+                                            data-section-card={section.id}
+                                        >
+                                            <div className="mb-3 flex flex-wrap items-center gap-2">
                                                 {handle}
                                                 <Input
                                                     value={section.name}
@@ -649,22 +934,62 @@ export function PageEditor({
                                                 <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
                                                     {section.kind}
                                                 </span>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="ml-auto"
-                                                    onClick={() =>
-                                                        edit({
-                                                            ...doc,
-                                                            sections: doc.sections.filter((s) => s.id !== section.id),
-                                                        })
-                                                    }
-                                                    aria-label="Delete section"
-                                                >
-                                                    <Trash2 className="size-4 text-destructive" />
-                                                </Button>
+
+                                                {/* Visibility. Stored as a flag rather than by
+                                                    deleting the section, so switching it back on
+                                                    restores the copy and images untouched. Like
+                                                    every other edit here it only reaches visitors
+                                                    at Publish. */}
+                                                <div className="ml-auto flex items-center gap-2">
+                                                    <Switch
+                                                        id={`visible-${section.id}`}
+                                                        checked={!section.hidden}
+                                                        onCheckedChange={(on) =>
+                                                            setSectionHidden(section.id, !on)
+                                                        }
+                                                        aria-label={
+                                                            section.hidden
+                                                                ? "Show this section on the live site"
+                                                                : "Hide this section from the live site"
+                                                        }
+                                                    />
+                                                    <Label
+                                                        htmlFor={`visible-${section.id}`}
+                                                        className="flex cursor-pointer items-center gap-1 text-xs text-muted-foreground"
+                                                    >
+                                                        {section.hidden ? (
+                                                            <EyeOff className="size-3" />
+                                                        ) : (
+                                                            <Eye className="size-3" />
+                                                        )}
+                                                        {section.hidden ? "Hidden" : "Visible"}
+                                                    </Label>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            edit({
+                                                                ...doc,
+                                                                sections: doc.sections.filter(
+                                                                    (s) => s.id !== section.id,
+                                                                ),
+                                                            })
+                                                        }
+                                                        aria-label="Delete section"
+                                                    >
+                                                        <Trash2 className="size-4 text-destructive" />
+                                                    </Button>
+                                                </div>
                                             </div>
+
+                                            {section.hidden && (
+                                                <p className="mb-3 rounded-md border border-dashed border-border bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+                                                    Switched off — visitors will not see this
+                                                    section once you publish. Its content is kept
+                                                    and stays editable here.
+                                                </p>
+                                            )}
 
                                             {/* section settings: the headings, eyebrows and buttons
                                                 that used to be hardcoded in JSX */}
@@ -689,17 +1014,35 @@ export function PageEditor({
                                                                     }
                                                                 />
                                                             ) : (
-                                                                <Input
-                                                                    value={String(value ?? "")}
-                                                                    onChange={(e) =>
-                                                                        updateSection(section.id, {
-                                                                            settings: {
-                                                                                ...section.settings,
-                                                                                [key]: e.target.value,
-                                                                            },
-                                                                        })
-                                                                    }
-                                                                />
+                                                                <>
+                                                                    <Input
+                                                                        value={String(value ?? "")}
+                                                                        onChange={(e) =>
+                                                                            updateSection(section.id, {
+                                                                                settings: {
+                                                                                    ...section.settings,
+                                                                                    [key]: e.target.value,
+                                                                                },
+                                                                            })
+                                                                        }
+                                                                    />
+                                                                    {VIDEO_SETTING_KEYS.includes(key) &&
+                                                                        (() => {
+                                                                            const hint = videoHint(String(value ?? ""))
+                                                                            if (!hint) return null
+                                                                            return (
+                                                                                <p
+                                                                                    className={`text-xs ${
+                                                                                        hint.tone === "warn"
+                                                                                            ? "text-yellow-500"
+                                                                                            : "text-muted-foreground"
+                                                                                    }`}
+                                                                                >
+                                                                                    {hint.text}
+                                                                                </p>
+                                                                            )
+                                                                        })()}
+                                                                </>
                                                             )}
                                                         </div>
                                                     ))}
@@ -747,7 +1090,7 @@ export function PageEditor({
                                             </DndContext>
 
                                             <div className="mt-3 flex flex-wrap gap-2">
-                                                {(["heading", "text", "image"] as const).map((t) => (
+                                                {(["heading", "text", "image", "card"] as const).map((t) => (
                                                     <Button
                                                         key={t}
                                                         type="button"
@@ -802,7 +1145,8 @@ export function PageEditor({
                     </div>
                     {dirty && (
                         <p className="mb-2 text-xs text-yellow-500">
-                            Preview shows the last saved draft. Save to see these edits.
+                            Section visibility and images preview live. Text edits appear
+                            once you save.
                         </p>
                     )}
                     <PreviewFrame
@@ -811,6 +1155,8 @@ export function PageEditor({
                         editing={editing}
                         onSelect={selectFromPreview}
                         selected={selected}
+                        doc={doc}
+                        savedDoc={savedDoc}
                     />
                 </div>
             </div>

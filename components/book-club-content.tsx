@@ -1,6 +1,6 @@
 "use client"
 
-import { findSection, setting, type PageDocument } from "@/lib/page-model"
+import { findSection, sectionCards, sectionHidden, setting, type PageDocument } from "@/lib/page-model"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -26,6 +26,13 @@ interface BookClubContentProps {
 
 
 
+/**
+ * The benefits as they were before they became editable.
+ *
+ * Still the fallback, and only that: it is what an unseeded database renders,
+ * exactly as the copyOf() defaults below do for the headings. Once the section
+ * has card blocks these are never read.
+ */
 const bookClubBenefits = [
     {
         title: "Official Komet T-Shirt",
@@ -81,10 +88,31 @@ export function BookClubContent({
     const { user } = useAuth()
     const isMember = subscription?.plan === 'premium'
 
+    /**
+     * The benefit cards, from the page document when it has them.
+     *
+     * editId is what the page editor's click-to-edit overlay locates a card by;
+     * the fallback rows have none, because there is no field to jump to when the
+     * copy is coming from this file rather than the database.
+     */
+    const cards = sectionCards(findSection(copy ?? null, "bookclub-benefits"))
+    const benefits = cards.length
+        ? cards.map((c) => ({ id: c.id, editId: c.id, title: c.title, description: c.body }))
+        : bookClubBenefits.map((b, i) => ({
+              id: `fallback-${i}`,
+              editId: undefined,
+              title: b.title,
+              description: b.description,
+          }))
+
     return (
         <div className="animate-in fade-in duration-500">
             {/* Hero Section */}
-            <section className="relative overflow-hidden border-b border-border -mt-12 mb-12">
+            {!sectionHidden(copy, "bookclub-hero") && (
+            <section
+                data-edit-section="bookclub-hero"
+                className="relative overflow-hidden border-b border-border -mt-12 mb-12"
+            >
                 <div className="absolute inset-0 bg-gradient-to-b from-orange-600/10 via-background to-background" />
                 <div className="container relative mx-auto px-4 py-20 md:py-32">
                     <div className="max-w-4xl mx-auto text-center space-y-8">
@@ -139,6 +167,7 @@ export function BookClubContent({
                     </div>
                 </div>
             </section>
+            )}
 
             <div className="container mx-auto px-4">
                 {/* Current Selection */}
@@ -170,7 +199,8 @@ export function BookClubContent({
                 )}
 
                 {/* Benefits Grid */}
-                <section className="mb-16">
+                {!sectionHidden(copy, "bookclub-benefits") && (
+                <section data-edit-section="bookclub-benefits" className="mb-16">
                     <div className="mb-8 text-center">
                         <h2 className="font-display text-4xl md:text-5xl tracking-wider mb-2">
                             <span className="text-secondary" data-edit-setting="bookclub-benefits:headingPrimary">
@@ -182,8 +212,12 @@ export function BookClubContent({
                         </h2>
                     </div>
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {bookClubBenefits.map((benefit, index) => (
-                            <Card key={index} className="p-6 bg-card/50 backdrop-blur border-border">
+                        {benefits.map((benefit) => (
+                            <Card
+                                key={benefit.id}
+                                data-edit-id={benefit.editId}
+                                className="p-6 bg-card/50 backdrop-blur border-border"
+                            >
                                 <div className="flex items-start gap-4">
                                     <Check className="w-5 h-5 text-primary mt-1" />
                                     <div>
@@ -195,10 +229,14 @@ export function BookClubContent({
                         ))}
                     </div>
                 </section>
+                )}
 
                 {/* Eligible Books Display (Pick 2) */}
-                {eligibleBooks && eligibleBooks.length > 0 && (
-                    <section className="mb-24 px-6 py-16 rounded-3xl bg-secondary/5 border border-secondary/20 relative overflow-hidden">
+                {eligibleBooks && eligibleBooks.length > 0 && !sectionHidden(copy, "bookclub-free-books") && (
+                    <section
+                        data-edit-section="bookclub-free-books"
+                        className="mb-24 px-6 py-16 rounded-3xl bg-secondary/5 border border-secondary/20 relative overflow-hidden"
+                    >
                         <div className="absolute top-0 right-0 w-64 h-64 bg-secondary/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
 
                         <div className="relative text-center mb-16 max-w-2xl mx-auto">

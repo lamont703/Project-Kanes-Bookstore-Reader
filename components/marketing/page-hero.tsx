@@ -21,26 +21,37 @@ export function PageHero({
     image,
     imagePortrait,
     overlay = "bg-background/75",
+    editSection,
     children,
 }: {
     image: string
     imagePortrait?: string
     overlay?: string
+    /**
+     * Section id, when this hero IS an editable section. Stamps the marker the
+     * admin preview locates sections by, so the editor can show and hide it.
+     */
+    editSection?: string
     children: React.ReactNode
 }) {
     return (
         // min-h keeps short heroes (a title and nothing else) from cropping the
         // artwork to a sliver — bg-cover in a shallow box cuts heads off.
-        <section className="relative flex min-h-[360px] items-center overflow-hidden border-b border-border md:min-h-[460px]">
+        <section
+            data-edit-section={editSection}
+            className="relative flex min-h-[360px] items-center overflow-hidden border-b border-border md:min-h-[460px]"
+        >
             {imagePortrait && (
                 <div
                     aria-hidden="true"
+                    data-edit-setting={editSection && `${editSection}:imagePortrait`}
                     className="absolute inset-0 bg-cover bg-center bg-no-repeat md:hidden"
                     style={{ backgroundImage: `url(${imagePortrait})` }}
                 />
             )}
             <div
                 aria-hidden="true"
+                data-edit-setting={editSection && `${editSection}:image`}
                 className={cn(
                     "absolute inset-0 bg-cover bg-center bg-no-repeat md:bg-fixed motion-reduce:bg-scroll",
                     imagePortrait && "hidden md:block",
