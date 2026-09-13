@@ -259,10 +259,35 @@ async function handleSubscriptionInitialSuccess(supabase: any, paymentIntent: an
         const phoneLast4 = (phone || '0000').slice(-4)
         const promoCode = `KANE-${firstName}-${phoneLast4}`
 
-        // Use upsert to prevent unique constraint error on code if webhook retries
+        // The rate an admin has set for new codes, not a literal. Falls back to
+        // 35 — the rate this hardcoded before the setting existed — if the row is
+        // missing or unreadable, so a config problem issues a normal code rather
+        // than a 0% one or none at all. Service role, so RLS does not apply.
+        // See migration 20260913000001 and lib/app-settings.ts.
+        let discountPercent = 35
+        const { data: setting, error: settingError } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'dealer_discount_default')
+            .maybeSingle()
+
+        if (settingError) {
+            console.error('[stripe-webhook] Could not read dealer discount default, using 35:', settingError.message)
+        } else {
+            const configured = Number(setting?.value)
+            if (Number.isInteger(configured) && configured >= 0 && configured <= 100) {
+                discountPercent = configured
+            } else if (setting !== null && setting !== undefined) {
+                console.error('[stripe-webhook] dealer_discount_default is not a whole 0-100 percent, using 35:', setting?.value)
+            }
+        }
+
+        // Upsert so a webhook retry does not trip the unique constraint on code.
+        // onConflict updates, which means a retry re-applies the CURRENT default
+        // to an existing code — acceptable, and the same behaviour it had before.
         const { error: promoError } = await supabase.from('promo_codes').upsert({
             code: promoCode,
-            discount_percent: 35,
+            discount_percent: discountPercent,
             is_active: true,
             owner_id: user_id
         }, { onConflict: 'code' })

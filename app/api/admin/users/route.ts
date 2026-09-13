@@ -198,17 +198,23 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json() as {
         userId: string
-        action: "set_plan" | "ban" | "unban" | "set_role"
+        action: "set_plan" | "ban" | "unban" | "set_role" | "set_dealer_discount"
         plan?: "free" | "premium"
         role?: "reader" | "admin"
+        discountPercent?: number
     }
 
     if (!body.userId || !body.action) {
         return NextResponse.json({ error: "Missing userId or action" }, { status: 400 })
     }
 
-    // Prevent admin from acting on themselves
-    if (body.userId === caller.id) {
+    // Prevent admin from acting on themselves.
+    //
+    // Their own dealer rate is exempt: the guard exists so nobody can change
+    // their own access — plan, role, ban — and a discount percentage is none of
+    // those. Admins hold dealer codes like anyone else, and locking them out of
+    // the one row that is theirs would be arbitrary.
+    if (body.userId === caller.id && body.action !== "set_dealer_discount") {
         return NextResponse.json({ error: "You cannot modify your own account." }, { status: 400 })
     }
 
@@ -284,6 +290,43 @@ export async function PATCH(request: NextRequest) {
         const { error } = await admin.from("users").update({ role: body.role }).eq("id", body.userId)
         if (error) return NextResponse.json({ error: error.message }, { status: 500 })
         return NextResponse.json({ success: true, action: "set_role", role: body.role })
+    }
+
+    if (body.action === "set_dealer_discount") {
+        // Validated here rather than trusted from the form: this is a number
+        // that ends up subtracting real money at checkout. The database CHECK
+        // (migration 20260913000001) is the backstop; this is what turns a bad
+        // value into a readable message instead of a 500.
+        const percent = Number(body.discountPercent)
+        if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+            return NextResponse.json(
+                { error: "Discount must be a whole number between 0 and 100." },
+                { status: 400 },
+            )
+        }
+
+        const { data, error } = await admin
+            .from("promo_codes")
+            .update({ discount_percent: percent })
+            .eq("owner_id", body.userId)
+            .select("code, discount_percent")
+
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+        if (!data?.length) {
+            return NextResponse.json(
+                { error: "This member has no dealer code to update." },
+                { status: 404 },
+            )
+        }
+
+        // Existing codes only. The default for codes not yet issued is a
+        // separate setting (app/api/admin/settings), because changing one must
+        // not silently rewrite the other.
+        return NextResponse.json({
+            success: true,
+            action: "set_dealer_discount",
+            discountPercent: percent,
+        })
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 })

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Filter, MoreVertical, Loader2, ShieldAlert, ShieldCheck, Crown, UserX, Gift, Copy, Check, Library } from "lucide-react"
+import { Search, Filter, MoreVertical, Loader2, ShieldAlert, ShieldCheck, Crown, UserX, Gift, Copy, Check, Library, Percent } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import {
   DropdownMenu,
@@ -85,6 +85,170 @@ function DealerCodeCopy({ code }: { code: string }) {
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
+
+/**
+ * One dealer's discount, editable in place.
+ *
+ * Committed explicitly rather than on blur: this number comes off every order
+ * the code is used on, so a stray click should not change what a dealer charges.
+ * The field stays dirty and shows Save until it is confirmed or reverted.
+ */
+function DealerDiscountCell({
+    userId,
+    value,
+    onSaved,
+}: {
+    userId: string
+    value: number
+    onSaved: (percent: number) => void
+}) {
+    const [draft, setDraft] = useState(String(value))
+    const [saving, setSaving] = useState(false)
+
+    // Follow the server when it changes underneath us (a refetch, another edit),
+    // but never while the admin is mid-edit.
+    useEffect(() => {
+        if (!saving) setDraft(String(value))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value])
+
+    const dirty = draft.trim() !== String(value)
+
+    async function save() {
+        const percent = Number(draft)
+        if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+            toast.error("Discount must be a whole number between 0 and 100.")
+            return
+        }
+        setSaving(true)
+        const res = await fetch("/api/admin/users", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, action: "set_dealer_discount", discountPercent: percent }),
+        })
+        const json = await res.json()
+        setSaving(false)
+        if (!res.ok) {
+            toast.error(json.error ?? "Could not update the discount")
+            return
+        }
+        onSaved(percent)
+        toast.success(`Discount set to ${percent}% — it applies to their next order.`)
+    }
+
+    return (
+        <div className="flex items-center justify-center gap-1.5">
+            <Input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" && dirty) save()
+                    if (e.key === "Escape") setDraft(String(value))
+                }}
+                inputMode="numeric"
+                aria-label="Discount percent"
+                className="h-8 w-16 text-center font-display text-base"
+            />
+            <span className="text-sm text-muted-foreground">%</span>
+            {dirty && (
+                <Button type="button" size="sm" className="h-7 px-2 text-xs" disabled={saving} onClick={save}>
+                    {saving ? <Loader2 className="size-3 animate-spin" /> : "Save"}
+                </Button>
+            )}
+        </div>
+    )
+}
+
+/**
+ * The rate a dealer code is created at when the next one is issued.
+ *
+ * Separate from the per-dealer field on purpose, and says so: an operator
+ * changing "the dealer discount" almost always means one of these two things and
+ * would be badly surprised by the other.
+ */
+function DealerDefaultPanel() {
+    const [value, setValue] = useState<string>("")
+    const [saved, setSaved] = useState<number | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+
+    useEffect(() => {
+        let cancelled = false
+        fetch("/api/admin/settings")
+            .then((r) => r.json())
+            .then((j) => {
+                if (cancelled) return
+                if (typeof j.dealerDiscountDefault === "number") {
+                    setSaved(j.dealerDiscountDefault)
+                    setValue(String(j.dealerDiscountDefault))
+                }
+                setLoading(false)
+            })
+            .catch(() => setLoading(false))
+        return () => { cancelled = true }
+    }, [])
+
+    const dirty = saved !== null && value.trim() !== String(saved)
+
+    async function save() {
+        const percent = Number(value)
+        if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+            toast.error("Default discount must be a whole number between 0 and 100.")
+            return
+        }
+        setSaving(true)
+        const res = await fetch("/api/admin/settings", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: "dealer_discount_default", value: percent }),
+        })
+        const json = await res.json()
+        setSaving(false)
+        if (!res.ok) {
+            toast.error(json.error ?? "Could not save the default")
+            return
+        }
+        setSaved(percent)
+        toast.success(`New dealer codes will be issued at ${percent}%.`)
+    }
+
+    return (
+        <Card className="mb-4 flex flex-row flex-wrap items-center gap-3 p-4">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Percent className="size-4 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-semibold">Default for new dealer codes</h2>
+                <p className="text-xs text-muted-foreground">
+                    Applied when a code is issued to a new Book Club member. Codes already issued
+                    keep their own rate — change those in the Discount column below.
+                </p>
+            </div>
+            {loading ? (
+                <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : (
+                <div className="flex items-center gap-1.5">
+                    <Input
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && dirty) save()
+                            if (e.key === "Escape" && saved !== null) setValue(String(saved))
+                        }}
+                        inputMode="numeric"
+                        aria-label="Default discount percent for new dealer codes"
+                        className="h-9 w-20 text-center font-display text-base"
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                    <Button type="button" size="sm" disabled={!dirty || saving} onClick={save}>
+                        {saving ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
+                        Save
+                    </Button>
+                </div>
+            )}
+        </Card>
+    )
+}
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -327,6 +491,8 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      {filterType === "dealers" && <DealerDefaultPanel />}
+
       {/* Users Table */}
       <Card className="overflow-hidden bg-card/50 backdrop-blur border-border/50">
         <div className="overflow-x-auto -mx-4 px-4 pb-2 md:mx-0 md:px-0 md:pb-0">
@@ -402,7 +568,22 @@ export default function AdminUsersPage() {
                         <DealerCodeCopy code={user.dealerInfo?.code || ""} />
                       </td>
                       <td className="p-4 text-center">
-                        <span className="font-display text-lg text-primary">{user.dealerInfo?.discount}%</span>
+                        <DealerDiscountCell
+                          userId={user.id}
+                          value={user.dealerInfo?.discount ?? 0}
+                          onSaved={(percent) =>
+                            // Patch the row in place rather than refetching the
+                            // whole list: the table is paginated and filtered,
+                            // and a refetch would scroll the admin's work away.
+                            setUsers((prev) =>
+                              prev.map((u) =>
+                                u.id === user.id && u.dealerInfo
+                                  ? { ...u, dealerInfo: { ...u.dealerInfo, discount: percent } }
+                                  : u,
+                              ),
+                            )
+                          }
+                        />
                       </td>
                       <td className="p-4 text-center">
                         {user.dealerInfo?.isActive ? (
