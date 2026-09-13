@@ -105,7 +105,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         getInitialSession()
 
-        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
+        /**
+         * NOT async, and nothing Supabase is awaited inside it.
+         *
+         * supabase-js runs this callback while holding its auth lock
+         * ("lock:sb-<ref>-auth-token") and awaits whatever the callback returns.
+         * The previous version awaited fetchUserData here, which issues its own
+         * Supabase queries — so the lock stayed held for the length of those
+         * round trips, and any auth call made in the meantime waited on a lock
+         * the callback could not release until it finished.
+         *
+         * That is a deadlock whenever an auth operation is what triggered the
+         * event in the first place: the password-reset page calls setSession,
+         * setSession fires this, this waits on the network, and setSession never
+         * returns — every later auth call then fails with
+         * NavigatorLockAcquireTimeoutError after ten seconds, the AuthProvider's
+         * own session check included.
+         *
+         * Deferring with a zero timeout puts the fetch on a later task, after
+         * supabase-js has released the lock. The UI is unaffected: the state the
+         * fetch feeds was always populated a tick later anyway.
+         */
+        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
             const nextUserId = session?.user?.id || null
 
             // Log only if it's a real transition to avoid flooding
@@ -116,7 +137,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 lastUserIdRef.current = nextUserId
 
                 if (session?.user) {
-                    await fetchUserData(session.user.id)
+                    const userId = session.user.id
+                    setTimeout(() => { void fetchUserData(userId) }, 0)
                 } else {
                     setProfile(null)
                     setSubscription(null)
