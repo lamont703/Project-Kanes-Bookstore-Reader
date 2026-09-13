@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import type { UserRole } from "@/lib/roles"
 import { Menu } from "lucide-react"
@@ -19,8 +19,23 @@ export function AdminLayoutShell({
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
+  /**
+   * Mark <body> as admin so the light form fields reach dialogs and select
+   * menus too.
+   *
+   * Radix portals those to the end of <body>, outside this shell, and most of
+   * the admin's fields live inside a dialog — so scoping the styling to the
+   * wrapper alone would leave the busiest forms dark. The wrapper keeps its own
+   * class as well: that one is server-rendered, so the fields on the page are
+   * correct on first paint rather than after hydration.
+   */
+  useEffect(() => {
+    document.body.classList.add("admin-ui")
+    return () => document.body.classList.remove("admin-ui")
+  }, [])
+
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="admin-ui flex h-screen overflow-hidden bg-background">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div
