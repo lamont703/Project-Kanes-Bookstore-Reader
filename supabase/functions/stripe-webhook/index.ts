@@ -253,48 +253,117 @@ async function handleSubscriptionInitialSuccess(supabase: any, paymentIntent: an
     }
 
     // 5. Generate a Kane Dealer promo code
-    // Format: KANE-[FIRSTNAME]-[PHONE_LAST4]
+    //
+    // The sibling of lib/dealer-codes.ts, which does the same job when an admin
+    // grants membership by hand. Two runtimes — this is Deno, that is Node — so
+    // they cannot share a module; keep them in step by hand.
     try {
-        const firstName = (full_name || 'MEMBER').split(' ')[0].toUpperCase()
-        const phoneLast4 = (phone || '0000').slice(-4)
-        const promoCode = `KANE-${firstName}-${phoneLast4}`
+        // Already a dealer? Leave the code exactly as it is.
+        //
+        // This is also what makes a webhook retry safe. It used to be an upsert
+        // on the code, which never tripped the unique constraint but re-applied
+        // the CURRENT default rate to an existing code — so a retry could
+        // silently overwrite a rate an admin had set by hand.
+        const { data: existingOwn, error: existingOwnError } = await supabase
+            .from('promo_codes')
+            .select('code')
+            .eq('owner_id', user_id)
+            .limit(1)
 
-        // The rate an admin has set for new codes, not a literal. Falls back to
-        // 35 — the rate this hardcoded before the setting existed — if the row is
-        // missing or unreadable, so a config problem issues a normal code rather
-        // than a 0% one or none at all. Service role, so RLS does not apply.
-        // See migration 20260913000001 and lib/app-settings.ts.
-        let discountPercent = 35
-        const { data: setting, error: settingError } = await supabase
-            .from('app_settings')
-            .select('value')
-            .eq('key', 'dealer_discount_default')
-            .maybeSingle()
-
-        if (settingError) {
-            console.error('[stripe-webhook] Could not read dealer discount default, using 35:', settingError.message)
-        } else {
-            const configured = Number(setting?.value)
-            if (Number.isInteger(configured) && configured >= 0 && configured <= 100) {
-                discountPercent = configured
-            } else if (setting !== null && setting !== undefined) {
-                console.error('[stripe-webhook] dealer_discount_default is not a whole 0-100 percent, using 35:', setting?.value)
-            }
+        if (existingOwnError) {
+            throw new Error(`Could not check for an existing code: ${existingOwnError.message}`)
         }
 
-        // Upsert so a webhook retry does not trip the unique constraint on code.
-        // onConflict updates, which means a retry re-applies the CURRENT default
-        // to an existing code — acceptable, and the same behaviour it had before.
-        const { error: promoError } = await supabase.from('promo_codes').upsert({
-            code: promoCode,
-            discount_percent: discountPercent,
-            is_active: true,
-            owner_id: user_id
-        }, { onConflict: 'code' })
+        if (existingOwn && existingOwn.length > 0) {
+            console.log(`[stripe-webhook] ${user_id} already holds ${existingOwn[0].code}; leaving it alone`)
+        } else {
+            // Non-alphanumerics are stripped so a name like "O'Brien" cannot
+            // produce a code with punctuation nobody can read out over a phone.
+            const rawName = full_name || 'MEMBER'
+            const firstName =
+                rawName.trim().split(/\s+/)[0].toUpperCase().replace(/[^A-Z0-9]/g, '') || 'MEMBER'
+            const phoneLast4 = (phone || '').replace(/\D/g, '').slice(-4).padStart(4, '0')
+            const base = `KANE-${firstName}-${phoneLast4}`
 
-        if (promoError) console.error('[stripe-webhook] Failed to update/insert promo code:', promoError)
+            // The rate an admin has set for new codes, not a literal. Falls back to
+            // 35 — the rate this hardcoded before the setting existed — if the row is
+            // missing or unreadable, so a config problem issues a normal code rather
+            // than a 0% one or none at all. Service role, so RLS does not apply.
+            // See migration 20260913000001 and lib/app-settings.ts.
+            let discountPercent = 35
+            const { data: setting, error: settingError } = await supabase
+                .from('app_settings')
+                .select('value')
+                .eq('key', 'dealer_discount_default')
+                .maybeSingle()
+
+            if (settingError) {
+                console.error('[stripe-webhook] Could not read dealer discount default, using 35:', settingError.message)
+            } else {
+                const configured = Number(setting?.value)
+                if (Number.isInteger(configured) && configured >= 0 && configured <= 100) {
+                    discountPercent = configured
+                } else if (setting !== null && setting !== undefined) {
+                    console.error('[stripe-webhook] dealer_discount_default is not a whole 0-100 percent, using 35:', setting?.value)
+                }
+            }
+
+            /**
+             * KANE-{FIRSTNAME}-{PHONE_LAST4} is NOT unique in practice: two
+             * production members and three on staging all resolve to
+             * KANE-LAMONT-5711, because a shared first name and a shared phone
+             * are ordinary. `code` carries a UNIQUE constraint, so the upsert
+             * this used to do rewrote the existing row's owner_id — handing one
+             * member's code, and its accumulated total_uses, to another.
+             *
+             * Append -2, -3 … and INSERT instead, so a collision can never take
+             * a code away from whoever earned it. The loop re-reads the family
+             * each attempt, which is what makes two simultaneous signups with
+             * the same name and number resolve rather than one of them failing.
+             */
+            let promoCode: string | null = null
+            for (let attempt = 0; attempt < 3 && promoCode === null; attempt++) {
+                const { data: taken, error: takenError } = await supabase
+                    .from('promo_codes')
+                    .select('code')
+                    .like('code', `${base}%`)
+
+                if (takenError) throw new Error(`Could not check code availability: ${takenError.message}`)
+
+                const used = new Set((taken ?? []).map((r: { code: string }) => r.code))
+                let candidate = base
+                for (let n = 2; used.has(candidate) && n <= 50; n++) candidate = `${base}-${n}`
+                if (used.has(candidate)) throw new Error(`Could not find a free code based on ${base}`)
+
+                const { error: insertError } = await supabase.from('promo_codes').insert({
+                    code: candidate,
+                    discount_percent: discountPercent,
+                    is_active: true,
+                    owner_id: user_id
+                })
+
+                if (!insertError) {
+                    promoCode = candidate
+                } else if (insertError.code === '23505') {
+                    // Someone took it between the read and the write. Look again.
+                    console.warn(`[stripe-webhook] ${candidate} was taken mid-flight; retrying`)
+                } else {
+                    throw new Error(`Could not create the dealer code: ${insertError.message}`)
+                }
+            }
+
+            if (promoCode === null) {
+                console.error(`[stripe-webhook] Gave up issuing a dealer code for ${user_id} based on ${base}`)
+            } else {
+                console.log(`[stripe-webhook] Issued ${promoCode} at ${discountPercent}% to ${user_id}`)
+            }
+        }
     } catch (e) {
-        console.error('Failed to generate promo code string:', e)
+        // Never fatal: the subscription and library grant above have already
+        // landed, and a member without a code is recoverable from the admin
+        // panel. Failing the webhook here would make Stripe retry the whole
+        // fulfilment instead.
+        console.error('[stripe-webhook] Failed to issue a dealer code:', e)
     }
 
     // 6. Trigger Welcome Email
