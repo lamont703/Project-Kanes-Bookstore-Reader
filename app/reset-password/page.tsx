@@ -18,19 +18,35 @@ const MIN_PASSWORD_LENGTH = 8
 /**
  * Set a new password after following a reset link.
  *
- * By the time anyone gets here /auth/callback has exchanged the emailed code for
- * a real session, so this is just an authenticated password change — no token is
- * handled, or even visible, on this page.
+ * Three shapes reach this page, and the FIRST is the one that matters:
  *
- * Reachable only with that session. Someone who simply navigates here is told to
- * request a link rather than shown a form that cannot work.
+ *   1. ?token_hash=...&type=recovery — what auth-email now sends. The token is
+ *      carried, not yet spent. Nothing is verified on load; verifyOtp runs when
+ *      the form is submitted.
+ *   2. A session cookie, from /auth/callback having exchanged a PKCE code.
+ *   3. Tokens in the URL fragment, from an admin-generated implicit link.
+ *
+ * Shape 1 exists because of shape 2's failure mode. The emailed link used to
+ * point at Supabase's /auth/v1/verify, which spends the one-time token on GET —
+ * and Gmail fetches links before the recipient sees them. In production on
+ * 2026-09-14 Google's scanner consumed the token and the member arrived to
+ * "link no longer valid", with no way through. Deferring the spend to form
+ * submission fixes it: scanners follow links, they do not fill in forms.
+ *
+ * 2 and 3 are kept so links already sitting in inboxes still work.
  */
 export default function ResetPasswordPage() {
     const router = useRouter()
     const supabase = useMemo(() => createClient(), [])
 
     const [checking, setChecking] = useState(true)
-    const [hasSession, setHasSession] = useState(false)
+    // "Can this page offer the form?" — true for a live session AND for a
+    // carried token that has not been checked yet. Not the same as "is signed
+    // in", which is why it is no longer called hasSession.
+    const [canReset, setCanReset] = useState(false)
+    // Present only for shape 1. Held in state rather than read from the URL at
+    // submit time because the URL is scrubbed as soon as it is read.
+    const [tokenHash, setTokenHash] = useState<string | null>(null)
     const [password, setPassword] = useState("")
     const [confirm, setConfirm] = useState("")
     const [saving, setSaving] = useState(false)
@@ -44,7 +60,7 @@ export default function ResetPasswordPage() {
         const settle = (ok: boolean) => {
             if (cancelled || settled) return
             settled = true
-            setHasSession(ok)
+            setCanReset(ok)
             setChecking(false)
         }
 
@@ -63,6 +79,26 @@ export default function ResetPasswordPage() {
          */
         async function resolve() {
             try {
+                /**
+                 * Shape 1, and deliberately first: a carried token.
+                 *
+                 * Nothing is verified here. Showing the form is not a claim that
+                 * the token is good — it is a promise not to spend it until
+                 * somebody proves they are a person by filling the form in. The
+                 * check happens in handleSubmit, and a bad token fails there.
+                 *
+                 * Scrubbed from the address bar immediately: it is a credential,
+                 * and leaving it puts it in history and in the Referer of every
+                 * link on the page.
+                 */
+                const query = new URLSearchParams(window.location.search)
+                const carried = query.get("token_hash")
+                if (carried && query.get("type") === "recovery") {
+                    setTokenHash(carried)
+                    window.history.replaceState(null, "", window.location.pathname)
+                    return settle(true)
+                }
+
                 // Implicit-shape link: adopt the tokens explicitly rather than
                 // leaving it to detectSessionInUrl, which the client is not
                 // going to do — @supabase/ssr runs in PKCE mode, where that only
@@ -131,6 +167,32 @@ export default function ResetPasswordPage() {
         }
 
         setSaving(true)
+
+        /**
+         * Spend the token now, not on page load.
+         *
+         * This is the moment a human has demonstrably acted. verifyOtp both
+         * validates the token and establishes the session that updateUser below
+         * needs, so the two calls are one flow rather than two checks.
+         */
+        if (tokenHash) {
+            const { error: otpError } = await supabase.auth.verifyOtp({
+                type: "recovery",
+                token_hash: tokenHash,
+            })
+
+            if (otpError) {
+                // The token, not the password, is what failed — expired, already
+                // used, or tampered with. Dropping back to the expired screen
+                // gives them the one useful action instead of an error above a
+                // form that can never succeed.
+                setSaving(false)
+                setTokenHash(null)
+                setCanReset(false)
+                return
+            }
+        }
+
         const { error: updateError } = await supabase.auth.updateUser({ password })
 
         if (updateError) {
@@ -168,7 +230,7 @@ export default function ResetPasswordPage() {
         )
     }
 
-    if (!hasSession) {
+    if (!canReset) {
         return (
             <div className="container mx-auto max-w-md px-4 py-16 md:py-24">
                 <h1 className="font-display text-4xl uppercase tracking-wider md:text-5xl">

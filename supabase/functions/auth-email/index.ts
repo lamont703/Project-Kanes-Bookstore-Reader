@@ -137,6 +137,57 @@ function compose(actionType: string, actionUrl: string, name: string) {
     }
 }
 
+/**
+ * Where the button in the email points.
+ *
+ * NOT Supabase's /auth/v1/verify, which is what {{ .ConfirmationURL }} builds
+ * and what this function used to send. That endpoint spends the one-time token
+ * on GET — and mail providers fetch every link in a message before the
+ * recipient ever sees it, to scan it for phishing.
+ *
+ * Observed in production on 2026-09-14: one reset produced TWO /verify hits.
+ * The first, from 172.253.234.213 (Google LLC), succeeded and logged the user
+ * in. The second, from the member's own address seconds later, failed with
+ * "One-time token not found". Gmail spent the token; the member got "link no
+ * longer valid" and had no way through.
+ *
+ * So a recovery link now lands on our own page carrying the token instead.
+ * Loading that page verifies nothing. The token is spent only when the member
+ * submits a new password, which a scanner does not do — it follows links, it
+ * does not fill in forms. See app/reset-password/page.tsx, which holds the
+ * other half of this.
+ *
+ * The other action types are unreachable today (mailer_autoconfirm is on and
+ * email change is not wired up) and are left on the old URL rather than given
+ * an untested landing page. If either is ever turned on, it needs the same
+ * treatment — the prefetch problem is not specific to recovery.
+ */
+function buildActionUrl(email_data: HookPayload['email_data']): string {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const verifyUrl =
+        `${supabaseUrl}/auth/v1/verify` +
+        `?token=${encodeURIComponent(email_data.token_hash)}` +
+        `&type=${encodeURIComponent(email_data.email_action_type)}` +
+        `&redirect_to=${encodeURIComponent(email_data.redirect_to || email_data.site_url)}`
+
+    if (email_data.email_action_type !== 'recovery') return verifyUrl
+
+    // redirect_to is the origin the reset was requested from, which is the one
+    // holding the member's session cookies. Falling back to site_url rather
+    // than assuming a hostname keeps this correct on previews and localhost.
+    let origin: string
+    try {
+        origin = new URL(email_data.redirect_to || email_data.site_url).origin
+    } catch {
+        console.error('[auth-email] redirect_to and site_url are both unusable; falling back to /verify')
+        return verifyUrl
+    }
+
+    return `${origin}/reset-password` +
+        `?token_hash=${encodeURIComponent(email_data.token_hash)}` +
+        `&type=recovery`
+}
+
 function renderHtml(c: ReturnType<typeof compose>, actionUrl: string): string {
     // Inline styles and a table: email clients strip stylesheets, and the plain
     // URL is repeated because some clients will not render the button.
@@ -187,15 +238,7 @@ Deno.serve(async (req: Request) => {
         const payload = JSON.parse(rawBody) as HookPayload
         const { user, email_data } = payload
 
-        // The same URL Supabase's own templates build as {{ .ConfirmationURL }}.
-        // Going through /auth/v1/verify is what marks the token used, so the link
-        // stays single-use exactly as it would have been.
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')
-        const actionUrl =
-            `${supabaseUrl}/auth/v1/verify` +
-            `?token=${encodeURIComponent(email_data.token_hash)}` +
-            `&type=${encodeURIComponent(email_data.email_action_type)}` +
-            `&redirect_to=${encodeURIComponent(email_data.redirect_to || email_data.site_url)}`
+        const actionUrl = buildActionUrl(email_data)
 
         const meta = user.user_metadata ?? {}
         const firstName = String(meta.first_name ?? meta.full_name ?? meta.display_name ?? '')

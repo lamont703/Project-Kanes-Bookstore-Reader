@@ -54,8 +54,16 @@ export const lookupContactByEmail = async (email: string) => {
         method: 'GET'
     })
 
-    // The API might return multiple if duplicates exist, but we take the first match
-    return response.contacts?.find((c: any) => c.email.toLowerCase() === email.toLowerCase()) || null
+    // The API might return multiple if duplicates exist, but we take the first match.
+    //
+    // c.email is optional-chained because GHL's `query=` is a FUZZY search: it
+    // can return a phone-only contact with a null email, and calling
+    // toLowerCase on that threw "Cannot read properties of null", taking down
+    // the whole lookup. Seen in production on 2026-09-14, where it failed a
+    // password reset before the send was even attempted. Every caller of this
+    // file is exposed to it, not just auth-email.
+    const wanted = email.toLowerCase()
+    return response.contacts?.find((c: any) => c?.email?.toLowerCase() === wanted) || null
 }
 
 export const lookupContactByPhone = async (phone: string) => {
