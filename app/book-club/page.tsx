@@ -75,12 +75,20 @@ export default async function BookClubPage({
   }
 
   // Fetch Eligible Book Club Books (for display)
+  //
+  // Ordered, which it was not: with no ORDER BY, Postgres returned these rows in
+  // whatever order suited it. That is not merely untidy — the section shows only
+  // the first few, so WHICH free pick got left out could change between requests.
+  // display_order is what the Book Club page editor writes; NULLS LAST then title
+  // keeps unarranged books in a stable, sensible place behind the arranged ones.
   const { data: eligibleBooks } = await supabase
     .from('books')
     .select('*')
     .eq('is_book_club_eligible', true)
     .eq('status', 'published')
     .eq('product_type', 'book')
+    .order('display_order', { ascending: true, nullsFirst: false })
+    .order('title', { ascending: true })
 
   // Fetch linked discussions for all books in selections
   const bookIds = processedSelections.map((s: any) => s.book_id)

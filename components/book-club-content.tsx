@@ -95,6 +95,21 @@ export function BookClubContent({
      * the fallback rows have none, because there is no field to jump to when the
      * copy is coming from this file rather than the database.
      */
+    /**
+     * The free picks actually put in front of a member.
+     *
+     * How many is a page setting rather than the hardcoded 5 it used to be, so
+     * the admin can show the whole eligible list or deliberately feature a few.
+     * A missing or nonsense value falls back to 5, which is what this rendered
+     * before the setting existed.
+     *
+     * The order comes from the query, which now sorts by display_order — the
+     * Book Club page editor writes that.
+     */
+    const rawLimit = Number(copyOf(copy, "bookclub-free-books", "displayCount", ""))
+    const freePickLimit = Number.isInteger(rawLimit) && rawLimit > 0 ? rawLimit : 5
+    const freePicks: any[] = (eligibleBooks ?? []).slice(0, freePickLimit)
+
     const cards = sectionCards(findSection(copy ?? null, "bookclub-benefits"))
     const benefits = cards.length
         ? cards.map((c) => ({ id: c.id, editId: c.id, title: c.title, description: c.body }))
@@ -232,7 +247,7 @@ export function BookClubContent({
                 )}
 
                 {/* Eligible Books Display (Pick 2) */}
-                {eligibleBooks && eligibleBooks.length > 0 && !sectionHidden(copy, "bookclub-free-books") && (
+                {freePicks.length > 0 && !sectionHidden(copy, "bookclub-free-books") && (
                     <section
                         data-edit-section="bookclub-free-books"
                         className="mb-24 px-6 py-16 rounded-3xl bg-secondary/5 border border-secondary/20 relative overflow-hidden"
@@ -251,7 +266,7 @@ export function BookClubContent({
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 md:gap-12 max-w-6xl mx-auto">
-                            {eligibleBooks.slice(0, 5).map((book: any) => (
+                            {freePicks.map((book: any) => (
                                 <div key={book.id} className="group relative">
                                     <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:-translate-y-2 border-2 border-transparent group-hover:border-secondary/50">
                                         <Image

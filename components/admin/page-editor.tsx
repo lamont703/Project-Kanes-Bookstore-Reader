@@ -17,6 +17,8 @@ import { createClient } from "@/lib/supabase/client"
 import { saveDraft, publishPage, discardDraft } from "@/lib/page-editor"
 import { GenreManager } from "@/components/admin/genre-manager"
 import { MerchProductOrder } from "@/components/admin/merch-product-order"
+import { BookClubFreePicks } from "@/components/admin/book-club-free-picks"
+import { findSection } from "@/lib/page-model"
 import type { PageBlock, PageDocument, PageSection } from "@/lib/page-model"
 import { youtubeId } from "@/lib/video-embed"
 
@@ -884,6 +886,20 @@ export function PageEditor({
                         their order is the running order. Without this the editor
                         could change the page's intro and nothing else, since
                         everything below it is generated from these rows. */}
+                    {/* The Free Books section is a live query for eligible books,
+                        not page content, so its running order cannot be reached
+                        through the document either. Display Count, which decides
+                        how many of them appear, IS a setting and sits with the
+                        section's other fields below. */}
+                    {slug === "book-club" && (
+                        <BookClubFreePicks
+                            displayCount={Number(
+                                findSection(doc, "bookclub-free-books")?.settings?.displayCount ?? NaN,
+                            )}
+                            onChanged={() => setPreviewKey((k) => k + 1)}
+                        />
+                    )}
+
                     {/* /morefunk builds its sections from the merchandise rows,
                         so the running order of the products inside them cannot be
                         reached through the page document. The categories that
