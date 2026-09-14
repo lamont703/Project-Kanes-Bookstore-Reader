@@ -424,3 +424,50 @@ body.view-as-active::after {
 .admin-ui [data-slot="select-separator"] {
   background-color: var(--admin-field-border);
 }
+
+/* ── Hero parallax ──────────────────────────────────────────────────────────
+ *
+ * background-attachment: fixed, applied ONLY where it actually works.
+ *
+ * PageHero used `md:bg-fixed`, which reads as "desktop gets parallax, mobile
+ * does not". Width is the wrong question. The reason to opt out is that iOS
+ * Safari sizes a fixed background against the viewport and does not reliably
+ * repaint it when the viewport changes — and an iPad is well over the md
+ * breakpoint while still being iOS Safari. So iPads took the desktop path,
+ * and entering Safari's full-screen/immersive mode resized the viewport and
+ * left the hero background painted as nothing. Shrinking the window back
+ * changed the viewport again, which forced the repaint and brought it back.
+ *
+ * The query asks the question actually being asked: is this a pointer-driven
+ * device with no touchscreen at all? Desktops and laptops match and keep the
+ * parallax. iPads, iPhones and Android tablets do not, whatever their width and
+ * whatever the browser claims in its user agent — which matters, because
+ * iPadOS requests desktop sites by default, so sniffing would not have caught
+ * it either.
+ *
+ * `any-pointer: coarse` is the part that earns its place. hover/pointer alone
+ * describe the PRIMARY input, so an iPad with a Magic Keyboard reports a fine
+ * pointer and would have taken the broken path again. any-pointer asks whether
+ * a touchscreen exists at all.
+ *
+ * Scroll is the default and the fallback: a browser that does not understand
+ * this query simply keeps it, losing the parallax but never the image. That is
+ * the right way round for a decoration whose failure mode is a blank hero.
+ */
+.hero-parallax {
+  background-attachment: scroll;
+}
+
+@media (hover: hover) and (pointer: fine) and (not (any-pointer: coarse)) {
+  .hero-parallax {
+    background-attachment: fixed;
+  }
+}
+
+/* Parallax is a common motion-sensitivity trigger. Last, so it wins over the
+ * rule above at equal specificity. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-parallax {
+    background-attachment: scroll;
+  }
+}

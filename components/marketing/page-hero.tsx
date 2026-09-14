@@ -4,11 +4,16 @@ import { cn } from "@/lib/utils"
  * Full-bleed hero with a photographic background, shared by the marketing pages.
  *
  * The background is a CSS layer rather than <picture> because the parallax needs
- * background-attachment, which only applies to CSS backgrounds. Desktop fixes it
- * to the viewport so it holds still while the section scrolls over it; mobile
- * scrolls normally, since iOS Safari renders background-attachment:fixed poorly —
- * it sizes against the document and stutters. motion-reduce opts out too, as
- * parallax is a common motion-sensitivity trigger.
+ * background-attachment, which only applies to CSS backgrounds. It holds still
+ * while the section scrolls over it.
+ *
+ * Which devices get that is decided by .hero-parallax in globals.css, on
+ * whether there is a real pointing device — NOT on width. iOS Safari does not
+ * reliably repaint a fixed background when the viewport changes, and an iPad is
+ * far wider than the md breakpoint while still being iOS Safari, so a width
+ * test handed iPads the broken path: entering Safari's full-screen mode left
+ * the hero blank until the window was resized again. Reduced motion opts out
+ * there too.
  *
  * Pass `imagePortrait` when a separate narrow-screen crop exists; without it the
  * single image is used at every width.
@@ -53,7 +58,7 @@ export function PageHero({
                 aria-hidden="true"
                 data-edit-setting={editSection && `${editSection}:image`}
                 className={cn(
-                    "absolute inset-0 bg-cover bg-center bg-no-repeat md:bg-fixed motion-reduce:bg-scroll",
+                    "hero-parallax absolute inset-0 bg-cover bg-center bg-no-repeat",
                     imagePortrait && "hidden md:block",
                 )}
                 style={{ backgroundImage: `url(${image})` }}
