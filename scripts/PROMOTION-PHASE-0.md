@@ -10,16 +10,23 @@ order and signup since. That is the gap these two steps close.
 
 ---
 
-## 1. Install a v17 client
+## 1. Put the client on PATH — nothing to install
 
-`pg_dump` is not on this machine, and production is 17.6. An older client refuses
-to dump a newer server, so the version matters.
+`which pg_dump` comes up empty, but only because Homebrew's `libpq` is keg-only.
+The tools are already here:
 
 ```bash
-brew install postgresql@17
-export PATH="$(brew --prefix postgresql@17)/bin:$PATH"
-pg_dump --version        # must print 17.x
+export PATH="/usr/local/opt/libpq/bin:$PATH"
+pg_dump --version        # PostgreSQL 18.4
 ```
+
+Client 18.4 against a 17.6 server is fine — a NEWER client reading an older
+server is supported. It is the reverse that fails, which is why the version is
+worth checking at all.
+
+Verified reachable on 2026-09-13: a direct `psql` to
+`db.kpafjhkrjipiyfjizyaw.supabase.co` returned `postgres | 17.6 | books=1038`.
+No pooler or IPv4 add-on needed.
 
 ---
 
@@ -109,7 +116,7 @@ edited a page or added a product. After that, fix forward.
 ## Order on the day
 
 ```
-1. install pg17 client        ── no production contact
+1. export PATH for libpq      ── nothing to install
 2. pg_dump + verify           ── read-only
 3. migrations (Phase 1)       ── first irreversible step
    └── if it fails: rollback-promotion.sql
