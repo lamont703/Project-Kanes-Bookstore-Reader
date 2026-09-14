@@ -6,32 +6,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { PER_PAGE_OPTIONS, DEFAULT_PER_PAGE } from "@/lib/browse-options"
+import { pageWindow } from "@/lib/pagination"
 
 /**
  * Shared pagination control. Used by /browse and the admin merchandise list —
  * basePath decides which route the links rewrite.
- *
- * Page numbers to render, collapsing long runs to ellipses.
- *
- * 435 books at 10 a page is 44 pages, so every number will not fit. Always show
- * the first and last, plus a window around the current page.
  */
-function pageWindow(current: number, total: number): (number | "gap")[] {
-    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-
-    const pages = new Set<number>([1, total, current, current - 1, current + 1])
-    if (current <= 3) [2, 3, 4].forEach((p) => pages.add(p))
-    if (current >= total - 2) [total - 3, total - 2, total - 1].forEach((p) => pages.add(p))
-
-    const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b)
-    const out: (number | "gap")[] = []
-    sorted.forEach((p, i) => {
-        if (i > 0 && p - sorted[i - 1] > 1) out.push("gap")
-        out.push(p)
-    })
-    return out
-}
-
 export function BrowsePagination({
     page,
     totalPages,
