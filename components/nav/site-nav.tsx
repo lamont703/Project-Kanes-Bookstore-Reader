@@ -8,7 +8,7 @@ import { Menu, X, ShoppingCart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { kometzUrl } from "@/lib/hosts"
+import { appUrl } from "@/lib/hosts"
 import {
     PRIMARY_NAV,
     resolveNavItem,
@@ -35,7 +35,7 @@ const LOGO = "/marketing/b9ed83bb-661ea792d03e91ccb4968534.webp"
 export interface SiteNavProps {
     mode: NavMode
     viewer: Viewer
-    /** Live cart count. Undefined on the apex, which cannot read the app's cart. */
+    /** Live cart count. Undefined until the cart context has resolved. */
     cartCount?: number
     /** Provided only by the app host, where signing out is possible. */
     onSignOut?: () => void
@@ -73,9 +73,12 @@ function NavSkeleton({ count = 3 }: { count?: number }) {
 
 /**
  * Same-origin hrefs use <Link> so navigation stays client-side; only genuinely
- * cross-origin ones use <a>. kometzUrl returns a relative path everywhere except
- * the apex, so most of these are same-origin and a plain <a> would force a full
- * document reload.
+ * cross-origin ones use <a>.
+ *
+ * Since the consolidation every nav destination is same-origin, so in practice
+ * this always takes the <Link> path. The check is kept rather than removed: it
+ * is one comparison, and it is what makes the component correct if a link ever
+ * points off-site again.
  */
 const isCrossOrigin = (href: string) => /^https?:\/\//.test(href)
 
@@ -138,11 +141,12 @@ export function SiteNav({
     const primary = PRIMARY_NAV.map((item) => resolveNavItem(item, mode))
     const account = visibleAccountNav(mode, viewer).map((item) => resolveNavItem(item, mode))
 
-    // The apex has no session, so it links to sign-in rather than offering to
-    // sign out. Home is the logo, and resolves per host.
-    const homeHref = mode === "marketing" ? "/" : "/"
-    const cartHref = mode === "marketing" ? kometzUrl("/cart") : "/cart"
-    const signInHref = mode === "marketing" ? kometzUrl("/login") : "/login"
+    // One origin since the consolidation, so these no longer differ by mode —
+    // appUrl returns the path unchanged. Kept as named constants because both
+    // the desktop and the mobile blocks below reference them.
+    const homeHref = "/"
+    const cartHref = appUrl("/cart")
+    const signInHref = appUrl("/login")
 
     const linkClass = (href: string) =>
         cn(
@@ -224,7 +228,7 @@ export function SiteNav({
                                     Sign In
                                 </SmartLink>
                                 <Button asChild size="sm" className="hidden sm:inline-flex">
-                                    <SmartLink href={kometzUrl("/book-club")}>Join The Club</SmartLink>
+                                    <SmartLink href={appUrl("/book-club")}>Join The Club</SmartLink>
                                 </Button>
                             </>
                         ) : (
@@ -267,27 +271,36 @@ export function SiteNav({
                                         onClick={() => setIsMenuOpen(false)}
                                     />
                                 ))}
-                            {mode === "marketing" && (
-                                <SmartLink
-                                    href={kometzUrl("/login")}
-                                    className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-                                >
-                                    Sign In
-                                </SmartLink>
-                            )}
-                            {mode === "marketing" ? (
-                                <Button asChild>
-                                    <SmartLink href={kometzUrl("/book-club")}>Join The Club</SmartLink>
-                                </Button>
-                            ) : viewer.isLoggedIn && onSignOut ? (
-                                <Button variant="outline" onClick={onSignOut}>
-                                    Sign Out
-                                </Button>
-                            ) : (
-                                <Button asChild variant="outline">
-                                    <Link href="/login">Sign In</Link>
-                                </Button>
-                            )}
+                            {/* Signed-in state is checked FIRST, exactly as the
+                                desktop block above does. The marketing branch
+                                used to win outright, so on a phone a signed-in
+                                member reading /about was shown "Sign In" and
+                                "Join The Club" with no way to sign out. That was
+                                survivable while these pages lived on a host with
+                                no session; on the consolidated site they are six
+                                of the most visited pages a member sees. */}
+                            {viewerReady &&
+                                (viewer.isLoggedIn && onSignOut ? (
+                                    <Button variant="outline" onClick={onSignOut}>
+                                        Sign Out
+                                    </Button>
+                                ) : mode === "marketing" ? (
+                                    <>
+                                        <SmartLink
+                                            href={signInHref}
+                                            className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+                                        >
+                                            Sign In
+                                        </SmartLink>
+                                        <Button asChild>
+                                            <SmartLink href={appUrl("/book-club")}>Join The Club</SmartLink>
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <Button asChild variant="outline">
+                                        <Link href={signInHref}>Sign In</Link>
+                                    </Button>
+                                ))}
                         </div>
                     </nav>
                 </div>

@@ -12,11 +12,10 @@ import { useCart } from "@/context/cart-context"
  * Reads the real session so the menu is state-aware: My Library, Discussions,
  * Events and Admin appear only when the viewer is entitled to them.
  *
- * Reading auth does NOT create a session, so the apex stays session-free — it
- * has no cookies, so this resolves to signed out and the gated entries are
- * hidden. On the app host, where the marketing routes also render, the same
- * header now matches the one on /browse instead of showing a signed-out menu to
- * a signed-in member.
+ * These pages once lived on a host with no cookies, where this always resolved
+ * to signed out. They are now part of the one site a member browses, so the
+ * menu here matches the one on /browse rather than showing a signed-out header
+ * to a signed-in member.
  *
  * The providers are mounted in the root layout, so both contexts are available
  * throughout this tree.

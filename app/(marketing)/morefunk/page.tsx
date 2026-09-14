@@ -2,14 +2,14 @@ import { findSection, getPublishedPage, isHidden, setting, type PageDocument } f
 import type { Metadata } from "next"
 import Image from "next/image"
 import { createStaticClient } from "@/lib/supabase/server"
-import { apexUrl, kometzUrl } from "@/lib/hosts"
+import { canonicalUrl, appUrl } from "@/lib/hosts"
 import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
 
 export const metadata: Metadata = {
     title: "More Funk | Kane's Komet Bookstore",
     description:
         "The More Funk collection — character-inspired candles, foam soaps, apparel and accessories from Kane's Komet Bookstore.",
-    alternates: { canonical: apexUrl("/morefunk") },
+    alternates: { canonical: canonicalUrl("/morefunk") },
 }
 
 // Merchandise changes when admin publishes; don't serve a stale build forever.
@@ -146,7 +146,7 @@ export default async function MoreFunkPage({ previewDocument }: {
                             return (
                                 <a
                                     key={product.id}
-                                    href={kometzUrl(`/product/${product.id}`)}
+                                    href={appUrl(`/product/${product.id}`)}
                                     className={`${TILE_BASIS} group rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/50`}
                                 >
                                     <div className="aspect-square overflow-hidden rounded-lg bg-muted">

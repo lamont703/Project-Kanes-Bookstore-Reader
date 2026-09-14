@@ -7,7 +7,7 @@ import { useCart } from "@/context/cart-context"
 import { useAuth } from "@/context/auth-context"
 
 /**
- * Header for the app host (kometz).
+ * Header for the application pages — everything outside app/(marketing).
  *
  * Thin wrapper: it wires the real session and cart into the shared SiteNav so
  * both hosts render one menu from one config (lib/navigation.ts). The export

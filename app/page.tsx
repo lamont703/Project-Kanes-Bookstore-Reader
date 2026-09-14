@@ -12,13 +12,12 @@ export const revalidate = 300
 /**
  * The application entry point.
  *
- * Renders the same homepage the marketing host serves — HomeSections is shared
- * — but wrapped in the app chrome, so a signed-in member keeps their session,
- * cart and account menu instead of being shown a signed-out header.
+ * The single homepage. HomeSections holds the body; this file supplies the app
+ * chrome around it.
  *
- * The apex reaches the identical body through a rewrite of "/" to /kanes-home
- * (see proxy.ts), which uses the session-free marketing layout. One homepage,
- * two sets of chrome, no host branching inside any component.
+ * There used to be a second one: the apex rewrote "/" to /kanes-home so the
+ * homepage could render in the marketing layout. The consolidation left one
+ * host, so that route is gone and /kanes-home now 308s here (proxy.ts).
  *
  * The previous landing page lives on in git history; it was replaced when the
  * imported kanesbookstore.com homepage became the entry point.

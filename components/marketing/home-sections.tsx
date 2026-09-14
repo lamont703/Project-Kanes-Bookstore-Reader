@@ -13,18 +13,16 @@ import {
     type PageDocument,
     type PageSection,
 } from "@/lib/page-content"
-import { APEX_PATHS, kometzUrl } from "@/lib/hosts"
 import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
 
 /**
- * The homepage body, shared by both hosts.
+ * The homepage body.
  *
- * `/` renders this everywhere — the apex reaches it by a rewrite to
- * /kanes-home, the app host through app/page.tsx. Only the surrounding chrome
- * differs: the app host wraps it in SiteHeader so a signed-in member keeps
- * their session and cart, while the apex uses the session-free marketing
- * layout. Keeping the body in one component means the entry point cannot drift
- * between hosts.
+ * `/` renders this, through app/page.tsx. It used to render on two hosts in two
+ * sets of chrome, which is why the body lives in a component of its own rather
+ * than in the page: it could not be allowed to drift between them. There is one
+ * host now, but the separation still earns its place — the admin preview at
+ * /preview/home renders the same component.
  *
  * Content comes from the database (see lib/page-content.ts), addressed by
  * section id. It previously came from a JSON file on disk and located each
@@ -38,15 +36,15 @@ import { TileGrid, TILE_BASIS } from "@/components/marketing/tile-grid"
  */
 
 /**
- * Resolve a stored call-to-action path for the host currently rendering.
+ * Resolve a stored call-to-action path.
  *
- * The homepage renders on both hosts, but only the marketing paths exist on the
- * apex. Anything the app owns (/browse, /book-club) has to become an absolute
- * link into kometz, or an apex visitor would land on a route that is not there.
+ * A plain fallback now. This used to decide whether the destination existed on
+ * the host rendering the page and rewrite it into an absolute kometz URL if
+ * not; since the 2026-09-14 consolidation every route is on this origin, so
+ * every CTA is a relative link.
  */
 function ctaHref(href: string | undefined, fallback: string): string {
-    const path = href ?? fallback
-    return (APEX_PATHS as readonly string[]).includes(path) ? path : kometzUrl(path)
+    return href ?? fallback
 }
 
 const HERO_VIDEO = "/marketing/video/kanes-hero.mp4"

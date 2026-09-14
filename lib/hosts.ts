@@ -1,94 +1,91 @@
 /**
- * Host topology.
+ * Host topology — one site, one origin.
  *
- * kanesbookstore.com (apex)  — public marketing only. No login, no cart, no
- *                              Supabase session is ever created here.
- * kometz.kanesbookstore.com  — the app: auth, cart, checkout, library, reader,
- *                              book club. Single auth origin, single commerce
- *                              origin.
+ * www.kanesbookstore.com serves everything: marketing, catalogue, auth, cart,
+ * checkout, library, reader, book club, admin.
  *
- * On the apex, a CTA into the app must be an absolute URL: those routes do not
- * exist there, so a relative link would go nowhere useful. EVERY OTHER host —
- * localhost, staging, previews, kometz itself — serves the whole application,
- * so links there must stay relative or the visitor is thrown out of the
- * environment they are in.
+ * It did not always. Until the 2026-09-14 consolidation the apex served six
+ * marketing paths and redirected everything else to kometz.kanesbookstore.com,
+ * which owned auth and commerce. That split is retired. kometz still resolves
+ * and now permanently redirects here (see proxy.ts) — Stripe, GoHighLevel and
+ * a year of bookmarks still point at it, so it is kept as a redirect rather
+ * than deleted.
  *
- * That is why in-page links default to RELATIVE and absolute is opt-in. The
- * previous default was the production origin, which meant a CTA in local dev
- * jumped to production, and the same click on staging left staging entirely.
+ * The practical consequence for components: in-page links are RELATIVE.
+ * There is no other host to reach, so an absolute URL would only add a DNS
+ * lookup and break local development and preview deployments, where the origin
+ * is neither of the production names.
  */
 
 /**
- * Absolute origin of the app host. Used by proxy.ts, which redirects apex
- * traffic across hosts and therefore always needs a real origin.
- */
-export const APP_HOST_ORIGIN =
-    process.env.NEXT_PUBLIC_KOMETZ_ORIGIN ?? "https://kometz.kanesbookstore.com"
-
-/**
- * Prefix for in-page links to app routes. Empty means "same origin", which is
- * correct everywhere except the apex. Set NEXT_PUBLIC_APP_LINK_ORIGIN to the
- * app host ONLY on the environment that serves kanesbookstore.com.
- */
-export const APP_LINK_ORIGIN = process.env.NEXT_PUBLIC_APP_LINK_ORIGIN ?? ""
-
-export const APEX_ORIGIN =
-    process.env.NEXT_PUBLIC_APEX_ORIGIN ?? "https://kanesbookstore.com"
-
-/**
- * Hostnames that serve the marketing site. Everything else gets the full app,
- * so staging.kanesbookstore.com and *.vercel.app previews stay testable.
+ * The canonical absolute origin. Used for <link rel="canonical">, for the
+ * redirect target out of retired hosts, and nowhere else — in-page links must
+ * stay relative so previews and localhost link to themselves.
  *
- * Overridable so a preview deployment can be made to behave like the apex
- * before DNS moves — set NEXT_PUBLIC_APEX_HOSTNAMES to a comma-separated list
- * (e.g. "staging.kanesbookstore.com") on that environment.
+ * www, not the bare apex: kanesbookstore.com is configured in Vercel as a 308
+ * to www, so pointing canonicals at the bare name would aim them at a redirect.
  */
-export const APEX_HOSTNAMES = new Set(
-    (process.env.NEXT_PUBLIC_APEX_HOSTNAMES ?? "kanesbookstore.com,www.kanesbookstore.com")
+export const SITE_ORIGIN =
+    process.env.NEXT_PUBLIC_SITE_ORIGIN ?? "https://www.kanesbookstore.com"
+
+/**
+ * Hostnames that no longer serve the site and are redirected to SITE_ORIGIN.
+ *
+ * Deliberately an explicit list rather than "anything that is not SITE_ORIGIN":
+ * localhost, staging.kanesbookstore.com and *.vercel.app previews all serve the
+ * full application under their own names and must never be redirected away.
+ */
+export const LEGACY_HOSTNAMES = new Set(
+    (process.env.NEXT_PUBLIC_LEGACY_HOSTNAMES ?? "kometz.kanesbookstore.com")
         .split(",")
         .map((h) => h.trim().toLowerCase())
         .filter(Boolean),
 )
 
-/** Internal route the apex "/" rewrites to. The app host keeps app/page.tsx. */
-export const APEX_HOME_ROUTE = "/kanes-home"
-
-export function isApexHost(hostname: string | null | undefined): boolean {
-    if (!hostname) return false
-    return APEX_HOSTNAMES.has(hostname.split(":")[0].toLowerCase())
+function hostnameOf(value: string | null | undefined): string {
+    return (value ?? "").split("://").pop()!.split("/")[0].split(":")[0].toLowerCase()
 }
 
 /**
- * Link to a route on the app host.
+ * Should this host be redirected to the canonical origin?
  *
- * Relative by default, so the visitor stays in whatever environment they are
- * browsing. Only the apex sets APP_LINK_ORIGIN and gets absolute URLs.
+ * Guards against the canonical host being listed as legacy — that would be an
+ * infinite redirect, and a typo in one environment variable should not be able
+ * to take the site down.
  */
-export function kometzUrl(path = "/"): string {
-    return `${APP_LINK_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`
+export function isLegacyHost(hostname: string | null | undefined): boolean {
+    const host = hostnameOf(hostname)
+    if (!host || host === hostnameOf(SITE_ORIGIN)) return false
+    return LEGACY_HOSTNAMES.has(host)
 }
 
-/** Absolute URL on the marketing host. */
-export function apexUrl(path = "/"): string {
-    return `${APEX_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`
+/**
+ * Link to a route on this site.
+ *
+ * Returns the path unchanged. It exists as a named seam: every cross-host link
+ * in the codebase used to go through here, and keeping the call sites means the
+ * consolidation is one edit in one file rather than a rename spread across the
+ * component tree — and reversible the same way.
+ */
+export function appUrl(path = "/"): string {
+    return path.startsWith("/") ? path : `/${path}`
 }
 
-/** Product detail lives on kometz — that is where purchase happens. */
+/** Absolute URL for canonical tags and anything that must name the origin. */
+export function canonicalUrl(path = "/"): string {
+    return `${SITE_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`
+}
+
+/** Product detail. */
 export function bookDetailUrl(bookId: string): string {
-    return kometzUrl(`/book/${bookId}`)
+    return appUrl(`/book/${bookId}`)
 }
 
-/** Paths the marketing host is allowed to serve. Anything else redirects to
- *  the app host. Keep in sync with the routes under app/(marketing). */
-export const APEX_PATHS = [
-    "/",
-    "/about",
-    "/characters",
-    "/contact",
-    "/morefunk",
-    "/privacy-policy",
-] as const
-
-export function isApexPath(pathname: string): boolean {
-    return (APEX_PATHS as readonly string[]).includes(pathname)
-}
+/**
+ * The retired marketing homepage route.
+ *
+ * The apex used to rewrite "/" to /kanes-home so the homepage could render in
+ * session-free chrome. With one host there is one homepage — app/page.tsx —
+ * and this path redirects to it (proxy.ts) so old links still land.
+ */
+export const RETIRED_HOME_ROUTE = "/kanes-home"
