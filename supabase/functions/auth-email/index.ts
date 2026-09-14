@@ -98,15 +98,23 @@ interface HookPayload {
     }
 }
 
-/** Wording per action type. Only recovery is in use today; the rest are honest defaults. */
+/**
+ * Wording per action type. Only recovery is in use today; the rest are honest
+ * defaults.
+ *
+ * Written with real characters, not HTML entities. `subject` is delivered as
+ * plain text, so an &rsquo; there reaches the inbox as those eight literal
+ * characters; the curly quote below is correct in the subject and in the HTML
+ * body alike.
+ */
 function compose(actionType: string, actionUrl: string, name: string) {
     const greeting = name ? `Hi ${name},` : 'Hi,'
 
     if (actionType === 'recovery') {
         return {
-            subject: 'Reset your Kane&rsquo;s Komets password',
+            subject: 'Reset your Kane’s Kometz password',
             heading: 'Reset your password',
-            body: `${greeting} someone asked to reset the password on your Kane&rsquo;s Komets account. Use the button below to choose a new one. The link works once and expires in an hour.`,
+            body: `${greeting} someone asked to reset the password on your Kane’s Kometz account. Use the button below to choose a new one. The link works once and expires in an hour.`,
             cta: 'Set a new password',
             footer: 'If this was not you, ignore this email — your password stays as it is.',
         }
@@ -115,13 +123,13 @@ function compose(actionType: string, actionUrl: string, name: string) {
         return {
             subject: 'Confirm your new email address',
             heading: 'Confirm your email',
-            body: `${greeting} confirm this address to finish changing the email on your Kane&rsquo;s Komets account.`,
+            body: `${greeting} confirm this address to finish changing the email on your Kane’s Kometz account.`,
             cta: 'Confirm email',
             footer: 'If this was not you, ignore this email — nothing changes.',
         }
     }
     return {
-        subject: 'Confirm your Kane&rsquo;s Komets account',
+        subject: 'Confirm your Kane’s Kometz account',
         heading: 'Confirm your account',
         body: `${greeting} use the button below to continue.`,
         cta: 'Continue',
