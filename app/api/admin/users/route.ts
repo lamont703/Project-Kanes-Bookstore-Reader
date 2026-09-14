@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { ensureDealerCode } from "@/lib/dealer-codes"
 import { SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL } from '@/lib/supabase/config'
 import type { UserRole } from '@/lib/roles'
 
@@ -232,6 +233,42 @@ export async function PATCH(request: NextRequest) {
                 started_at: new Date().toISOString(),
             }, { onConflict: "user_id" })
             if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+            /**
+             * Membership granted here has to carry a dealer code too.
+             *
+             * Buying membership goes through Stripe, and stripe-webhook issues
+             * the code as part of fulfilment. Granting it from this panel never
+             * touches Stripe, so no webhook fires and nothing issued a code —
+             * the member got book club access and was invisible in the Kane
+             * Dealers tab, which lists exactly the users holding a promo_codes
+             * row.
+             *
+             * Deliberately not fatal. The plan change above has already been
+             * written, and failing the request here would report failure for a
+             * membership that did in fact change hands. The outcome is returned
+             * instead, so the panel can say what happened either way.
+             */
+            const issued = await ensureDealerCode(admin, body.userId)
+
+            if ("error" in issued) {
+                console.error("[admin/users] dealer code not issued:", issued.error)
+                return NextResponse.json({
+                    success: true,
+                    action: "set_plan",
+                    plan: body.plan,
+                    dealerCodeError: issued.error,
+                })
+            }
+
+            return NextResponse.json({
+                success: true,
+                action: "set_plan",
+                plan: body.plan,
+                dealerCode: issued.result.code,
+                dealerDiscount: issued.result.discountPercent,
+                dealerCodeCreated: issued.result.created,
+            })
         } else {
             // Downgrade to free — update existing subscription
             const { error } = await admin.from("user_subscriptions").upsert({

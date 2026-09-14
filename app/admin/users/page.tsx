@@ -329,8 +329,12 @@ export default function AdminUsersPage() {
 
     const changes: Promise<Response>[] = []
 
+    // Whether results[0] below is the plan response. The array is built
+    // conditionally, so position alone does not say which call is which.
+    const planChanged = newPlan !== selectedUser.plan
+
     // Update plan if changed
-    if (newPlan !== selectedUser.plan) {
+    if (planChanged) {
       changes.push(
         fetch("/api/admin/users", {
           method: "PATCH",
@@ -362,13 +366,49 @@ export default function AdminUsersPage() {
         return
       }
 
-      // Optimistically update local state
+      /**
+       * Read back what the plan change actually did.
+       *
+       * Granting membership also issues a Kane dealer code, which is what puts
+       * the member in the Kane Dealers tab. That is worth saying out loud: it
+       * is a second thing happening off one toggle, and an admin who is not
+       * told has no reason to go looking for the code.
+       */
+      const planResult = planChanged ? await results[0].json().catch(() => null) : null
+
+      // Optimistically update local state, including the new code so the
+      // Dealers tab has it without a refetch.
       setUsers(prev => prev.map(u =>
         u.id === selectedUser.id
-          ? { ...u, plan: newPlan, role: newRole }
+          ? {
+              ...u,
+              plan: newPlan,
+              role: newRole,
+              dealerInfo: planResult?.dealerCode
+                ? {
+                    code: planResult.dealerCode,
+                    discount: planResult.dealerDiscount,
+                    isActive: true,
+                    totalUses: u.dealerInfo?.totalUses ?? 0,
+                  }
+                : u.dealerInfo,
+            }
           : u
       ))
-      toast.success(`${selectedUser.name} updated successfully.`)
+
+      if (planResult?.dealerCodeError) {
+        // The membership did change; only the code did not. Say both, so the
+        // admin knows what to retry and what not to.
+        toast.warning(
+          `${selectedUser.name} updated, but no dealer code was issued: ${planResult.dealerCodeError}`,
+        )
+      } else if (planResult?.dealerCodeCreated) {
+        toast.success(
+          `${selectedUser.name} updated. Dealer code ${planResult.dealerCode} issued at ${planResult.dealerDiscount}%.`,
+        )
+      } else {
+        toast.success(`${selectedUser.name} updated successfully.`)
+      }
       setIsDialogOpen(false)
     } catch {
       toast.error("Network error. Please try again.")

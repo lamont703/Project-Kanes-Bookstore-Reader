@@ -32,6 +32,20 @@ export default function CheckoutPage() {
     const [orderId, setOrderId] = useState<string | null>(null)
     const [clientSecret, setClientSecret] = useState<string | null>(null)
 
+    /**
+     * An order placed from inside a View As session would charge the admin and
+     * land in the admin's library, not the member's, so checkout asks this
+     * before submitting.
+     *
+     * Called HERE, with the other hooks, and not next to the submit handler
+     * that uses it. It sat below the `if (!isMounted)` early return further
+     * down, which meant the first render bailed out before reaching it and the
+     * render after mount did not — one more hook than the render before it.
+     * That is React error #310, and it threw on every single visit to this
+     * page, for everyone, taking checkout with it.
+     */
+    const blockedByViewAs = useViewAsGuard()
+
     useEffect(() => {
         setIsMounted(true)
     }, [])
@@ -176,10 +190,6 @@ export default function CheckoutPage() {
     }
 
     // ── Place Order (via API) ───────────────────────────────
-    // An order placed from inside a View As session would charge the admin
-    // and land in the admin's library, not the member's.
-    const blockedByViewAs = useViewAsGuard()
-
     const handlePlaceOrder = async (e: React.FormEvent) => {
         e.preventDefault()
         if (blockedByViewAs("Checkout is")) return
