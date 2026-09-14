@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/supabase/config'
 
 // ─── Types ──────────────────────────────────────────────────
 interface CheckoutItem {
@@ -33,8 +34,8 @@ export async function POST(request: NextRequest) {
         // ── 1. Authenticate the user ────────────────────────────
         const cookieStore = await cookies()
         const supabaseAuth = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            SUPABASE_URL,
+            SUPABASE_ANON_KEY,
             {
                 cookies: {
                     getAll() { return cookieStore.getAll() },

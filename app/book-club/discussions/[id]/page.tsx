@@ -2,16 +2,19 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { SiteHeader } from "@/components/site-header"
 import DiscussionThreadClient from "../discussion-thread-client"
-import { createClient } from "@/lib/supabase/server"
+import { getViewerContext } from "@/lib/view-as/server"
 import { redirect } from "next/navigation"
 
 export default async function DiscussionThreadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createClient()
+  // `userId` is the member being viewed during a View As session, `user` stays
+  // the real signed-in account — a post or a vote cast from inside a view is
+  // still the admin's, so DiscussionThreadClient blocks both. See
+  // lib/view-as/server.ts.
+  const { realUser: user, userId, db: supabase } = await getViewerContext()
 
   // Auth check
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect(`/login?redirect=/book-club/discussions/${id}`)
+  if (!user || !userId) redirect(`/login?redirect=/book-club/discussions/${id}`)
 
   // Fetch the topic
   const { data: topic, error: topicError } = await supabase
@@ -59,13 +62,13 @@ export default async function DiscussionThreadPage({ params }: { params: Promise
     .order("created_at", { ascending: true })
 
   // Fetch current user's votes for this topic's posts
-  const postIds = (posts ?? []).map(p => p.id)
+  const postIds = (posts ?? []).map((p: any) => p.id)
   let userVotes: Record<string, "up" | "down"> = {}
   if (postIds.length > 0) {
     const { data: votes } = await supabase
       .from("discussion_votes")
       .select("post_id, vote_type")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .in("post_id", postIds)
 
     for (const v of votes ?? []) {

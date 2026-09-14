@@ -1,0 +1,33 @@
+{
+  "slug": "about",
+  "source": "https://kanesbookstore.com/about",
+  "captured": "2026-08-11",
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "About Us"
+    },
+    {
+      "type": "text",
+      "text": "Since our launch, we've dedicated ourselves to bringing you the most eclectic and vibrant selection of Komet books and merchandise. Our collection of Komet Books are exclusively published by Emanuel and Bass Publishing, ensuring that every story you dive into is crafted with unparalleled creativity and imagination."
+    },
+    {
+      "type": "text",
+      "text": "At Kane's Komet Bookstore, We also stock KANE\u2019s handpicked selection of must reads outside of Emanuel and Bass Publishing and Books that enhance your mind beyond. Outside of our incredible Komet Books, we offer a variety of products to enhance your reading experience, including candles, bookmarks, playing cards, E-Komet Books, Komet cards, and an assortment of vibrant merchandise."
+    },
+    {
+      "type": "text",
+      "text": "Step into the world of Kane, where every visit promises to be an adventure filled with color, excitement, and a touch of funk. Stay tuned as we venture into the NFT realm, bringing our beloved characters and stories to life in new and innovative ways."
+    },
+    {
+      "type": "text",
+      "text": "Join Kane\u2019s Komet Bookclub!!!!!"
+    },
+    {
+      "type": "text",
+      "text": "\u201cHave A Kane Day\u201d"
+    }
+  ],
+  "broken_on_source": []
+}

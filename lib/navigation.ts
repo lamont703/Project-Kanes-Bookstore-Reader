@@ -1,0 +1,132 @@
+import { apexUrl, kometzUrl } from "@/lib/hosts"
+
+/**
+ * The single source of truth for site navigation across both hosts.
+ *
+ * kanesbookstore.com and kometz.kanesbookstore.com run the same Next app but
+ * differ in one structural way: the apex never creates a session, so it cannot
+ * own a cart or an auth action. Rather than maintain two menus, this config
+ * describes every destination once and records which host owns it. Session
+ * dependent items still appear on the apex — they resolve to absolute links
+ * into the app host instead of interactive widgets, so nothing is lost.
+ */
+
+export type NavMode = "marketing" | "app"
+
+export interface NavItem {
+    label: string
+    /** Path when rendered on the marketing host. Omit if the app host owns it. */
+    marketing?: string
+    /** Path when rendered on the app host. Omit if the marketing host owns it. */
+    app?: string
+    /** Only show when the viewer is signed in (app host only). */
+    requiresAuth?: boolean
+    /** Only show for premium members or admins. */
+    requiresPremium?: boolean
+    /** Only show for admins. */
+    requiresAdmin?: boolean
+    /** Only show for staff — admins and employees. */
+    requiresStaff?: boolean
+}
+
+/** Primary navigation, shown on both hosts in this order. */
+export const PRIMARY_NAV: NavItem[] = [
+    // Books goes to the app's real catalogue at /browse from every host, rather
+    // The marketing duplicates at /kometbooks and /komet-book-club have been
+    // retired: they showed imported GoHighLevel copy of pages the app already
+    // owns, so there were two versions of the same thing and only one was real.
+    { label: "Books", app: "/browse" },
+    // Book Club goes to the app's membership page — join flow, bundles, member
+    // benefits — not the app root, which now serves the marketing homepage on
+    // every host and would have made this a no-op link.
+    { label: "Book Club", app: "/book-club" },
+    { label: "Characters", marketing: "/characters", app: "/characters" },
+    { label: "More Funk", marketing: "/morefunk", app: "/morefunk" },
+]
+
+/** Account menu. Every entry is owned by the app host. */
+export const ACCOUNT_NAV: NavItem[] = [
+    { label: "My Library", app: "/dashboard", requiresAuth: true },
+    { label: "Discussions", app: "/book-club/discussions", requiresPremium: true },
+    { label: "Events", app: "/book-club/events", requiresPremium: true },
+    // Staff, not admin: employees get the catalogue sections of the panel, so
+    // hiding the way in would leave them with no route to their own work.
+    { label: "Admin", app: "/admin", requiresStaff: true },
+]
+
+/** Footer links, by column. */
+export const FOOTER_NAV = {
+    explore: [
+        { label: "Home", marketing: "/", app: "/" },
+        { label: "About", marketing: "/about", app: "/about" },
+        { label: "Characters", marketing: "/characters", app: "/characters" },
+        { label: "Contact", marketing: "/contact", app: "/contact" },
+        { label: "Privacy Policy", marketing: "/privacy-policy", app: "/privacy-policy" },
+    ] as NavItem[],
+    shop: [
+        { label: "Komet Books", app: "/browse" },
+        { label: "More Funk", marketing: "/morefunk", app: "/morefunk" },
+        { label: "Komet Book Club", app: "/book-club" },
+        { label: "Komet Book Library", app: "/dashboard" },
+    ] as NavItem[],
+}
+
+export interface ResolvedLink {
+    label: string
+    href: string
+    /** True when the link crosses to the other host and needs a plain anchor. */
+    external: boolean
+}
+
+/**
+ * Resolve an item for the host currently rendering it.
+ *
+ * Same-host destinations stay relative so client navigation works. Anything
+ * owned by the other host becomes an absolute URL — a relative link would keep
+ * the visitor on a host where the route does not belong.
+ */
+export function resolveNavItem(item: NavItem, mode: NavMode): ResolvedLink {
+    const own = mode === "marketing" ? item.marketing : item.app
+    if (own) return { label: item.label, href: own, external: false }
+
+    const other = mode === "marketing" ? item.app : item.marketing
+    const href = mode === "marketing" ? kometzUrl(other ?? "/") : apexUrl(other ?? "/")
+
+    // "external" means a genuinely different origin, not merely "owned by the
+    // other host". kometzUrl returns a RELATIVE path everywhere except the apex,
+    // so on dev, staging and the app host these destinations are same-origin and
+    // must use <Link> — marking them external rendered a plain <a> and forced a
+    // full document reload on every click.
+    return { label: item.label, href, external: /^https?:\/\//.test(href) }
+}
+
+export interface Viewer {
+    isLoggedIn: boolean
+    isPremium: boolean
+    isAdmin: boolean
+    /** Admin or employee. Defaults to isAdmin for callers that predate the employee role. */
+    isStaff?: boolean
+}
+
+/**
+ * Which account entries to show.
+ *
+ * Gated purely on the viewer, with no per-host special case. A signed-out
+ * visitor sees none of My Library, Discussions, Events or Admin; a signed-in
+ * one sees what their role allows.
+ *
+ * This works on the apex too, because there is no session there — the viewer
+ * always resolves to signed out, so the same rule hides the same entries. The
+ * previous version special-cased marketing mode and let My Library through to
+ * signed-out visitors, which is what surfaced a members-only link on the public
+ * site.
+ */
+export function visibleAccountNav(_mode: NavMode, viewer: Viewer): NavItem[] {
+    return ACCOUNT_NAV.filter((item) => {
+        if (item.requiresStaff) return viewer.isStaff ?? viewer.isAdmin
+        if (item.requiresAdmin) return viewer.isAdmin
+        if (item.requiresPremium) return viewer.isPremium || viewer.isAdmin
+        if (item.requiresAuth) return viewer.isLoggedIn
+        return true
+    })
+}

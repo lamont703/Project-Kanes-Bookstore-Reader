@@ -87,7 +87,7 @@ export default function CartPage() {
                         {/* Cart Items List */}
                         <div className="lg:col-span-2 space-y-6">
                             {items.map((item) => (
-                                <Card key={`${item.id}-${item.format}`} className="p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                                <Card key={item.variantId} className="p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                                     <div className="relative w-24 aspect-[2/3] bg-muted rounded overflow-hidden flex-shrink-0">
                                         <Image
                                             src={item.coverImage}
@@ -103,6 +103,11 @@ export default function CartPage() {
                                             <span className="text-[10px] font-bold uppercase py-0.5 px-2 bg-secondary/20 text-secondary rounded-full border border-secondary/30">
                                                 {item.format.replace('_', ' ')}
                                             </span>
+                                            {item.size && (
+                                                <span className="text-[10px] font-bold uppercase py-0.5 px-2 bg-muted text-muted-foreground rounded-full border border-border">
+                                                    {item.size}
+                                                </span>
+                                            )}
                                         </div>
                                         <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
                                         <p className="font-medium text-primary">${item.price.toFixed(2)}</p>
@@ -112,7 +117,7 @@ export default function CartPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        onClick={() => removeFromCart(item.id, item.format)}
+                                        onClick={() => removeFromCart(item.variantId)}
                                     >
                                         <Trash2 className="w-5 h-5" />
                                     </Button>

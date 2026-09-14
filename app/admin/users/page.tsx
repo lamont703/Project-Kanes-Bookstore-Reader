@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Filter, MoreVertical, Loader2, ShieldAlert, ShieldCheck, Crown, UserX, Gift, Copy, Check } from "lucide-react"
+import { Search, Filter, MoreVertical, Loader2, ShieldAlert, ShieldCheck, Crown, UserX, Gift, Copy, Check, Library, Percent } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import {
   DropdownMenu,
@@ -31,6 +31,8 @@ import {
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { useDebounce } from "@/hooks/use-debounce"
+import type { UserRole } from "@/lib/roles"
+import { UserLibraryDialog } from "@/components/admin/user-library-dialog"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +40,7 @@ interface AdminUser {
   id: string
   name: string
   email: string
-  role: "reader" | "admin"
+  role: UserRole
   isBanned: boolean
   joinDate: string
   lastActive: string | null
@@ -84,6 +86,170 @@ function DealerCodeCopy({ code }: { code: string }) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+/**
+ * One dealer's discount, editable in place.
+ *
+ * Committed explicitly rather than on blur: this number comes off every order
+ * the code is used on, so a stray click should not change what a dealer charges.
+ * The field stays dirty and shows Save until it is confirmed or reverted.
+ */
+function DealerDiscountCell({
+    userId,
+    value,
+    onSaved,
+}: {
+    userId: string
+    value: number
+    onSaved: (percent: number) => void
+}) {
+    const [draft, setDraft] = useState(String(value))
+    const [saving, setSaving] = useState(false)
+
+    // Follow the server when it changes underneath us (a refetch, another edit),
+    // but never while the admin is mid-edit.
+    useEffect(() => {
+        if (!saving) setDraft(String(value))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value])
+
+    const dirty = draft.trim() !== String(value)
+
+    async function save() {
+        const percent = Number(draft)
+        if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+            toast.error("Discount must be a whole number between 0 and 100.")
+            return
+        }
+        setSaving(true)
+        const res = await fetch("/api/admin/users", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, action: "set_dealer_discount", discountPercent: percent }),
+        })
+        const json = await res.json()
+        setSaving(false)
+        if (!res.ok) {
+            toast.error(json.error ?? "Could not update the discount")
+            return
+        }
+        onSaved(percent)
+        toast.success(`Discount set to ${percent}% — it applies to their next order.`)
+    }
+
+    return (
+        <div className="flex items-center justify-center gap-1.5">
+            <Input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" && dirty) save()
+                    if (e.key === "Escape") setDraft(String(value))
+                }}
+                inputMode="numeric"
+                aria-label="Discount percent"
+                className="h-8 w-16 text-center font-display text-base"
+            />
+            <span className="text-sm text-muted-foreground">%</span>
+            {dirty && (
+                <Button type="button" size="sm" className="h-7 px-2 text-xs" disabled={saving} onClick={save}>
+                    {saving ? <Loader2 className="size-3 animate-spin" /> : "Save"}
+                </Button>
+            )}
+        </div>
+    )
+}
+
+/**
+ * The rate a dealer code is created at when the next one is issued.
+ *
+ * Separate from the per-dealer field on purpose, and says so: an operator
+ * changing "the dealer discount" almost always means one of these two things and
+ * would be badly surprised by the other.
+ */
+function DealerDefaultPanel() {
+    const [value, setValue] = useState<string>("")
+    const [saved, setSaved] = useState<number | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+
+    useEffect(() => {
+        let cancelled = false
+        fetch("/api/admin/settings")
+            .then((r) => r.json())
+            .then((j) => {
+                if (cancelled) return
+                if (typeof j.dealerDiscountDefault === "number") {
+                    setSaved(j.dealerDiscountDefault)
+                    setValue(String(j.dealerDiscountDefault))
+                }
+                setLoading(false)
+            })
+            .catch(() => setLoading(false))
+        return () => { cancelled = true }
+    }, [])
+
+    const dirty = saved !== null && value.trim() !== String(saved)
+
+    async function save() {
+        const percent = Number(value)
+        if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+            toast.error("Default discount must be a whole number between 0 and 100.")
+            return
+        }
+        setSaving(true)
+        const res = await fetch("/api/admin/settings", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: "dealer_discount_default", value: percent }),
+        })
+        const json = await res.json()
+        setSaving(false)
+        if (!res.ok) {
+            toast.error(json.error ?? "Could not save the default")
+            return
+        }
+        setSaved(percent)
+        toast.success(`New dealer codes will be issued at ${percent}%.`)
+    }
+
+    return (
+        <Card className="mb-4 flex flex-row flex-wrap items-center gap-3 p-4">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Percent className="size-4 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-semibold">Default for new dealer codes</h2>
+                <p className="text-xs text-muted-foreground">
+                    Applied when a code is issued to a new Book Club member. Codes already issued
+                    keep their own rate — change those in the Discount column below.
+                </p>
+            </div>
+            {loading ? (
+                <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : (
+                <div className="flex items-center gap-1.5">
+                    <Input
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && dirty) save()
+                            if (e.key === "Escape" && saved !== null) setValue(String(saved))
+                        }}
+                        inputMode="numeric"
+                        aria-label="Default discount percent for new dealer codes"
+                        className="h-9 w-20 text-center font-display text-base"
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                    <Button type="button" size="sm" disabled={!dirty || saving} onClick={save}>
+                        {saving ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
+                        Save
+                    </Button>
+                </div>
+            )}
+        </Card>
+    )
+}
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -96,9 +262,18 @@ export default function AdminUsersPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [newPlan, setNewPlan] = useState<"free" | "premium">("free")
-  const [newRole, setNewRole] = useState<"reader" | "admin">("reader")
+  const [newRole, setNewRole] = useState<UserRole>("reader")
   const [allBooks, setAllBooks] = useState<{ id: string, title: string }[]>([])
   const [selectedBookId, setSelectedBookId] = useState<string>("")
+
+  // Read-only library peek, separate from the edit dialog below.
+  const [libraryUser, setLibraryUser] = useState<AdminUser | null>(null)
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false)
+
+  const openLibrary = (user: AdminUser) => {
+    setLibraryUser(user)
+    setIsLibraryOpen(true)
+  }
 
   const [isMounted, setIsMounted] = useState(false)
   const supabase = useMemo(() => createClient(), [])
@@ -135,6 +310,7 @@ export default function AdminUsersPage() {
     supabase.from("books")
       .select("id, title")
       .eq("status", "published")
+      .eq("product_type", "book")
       .order("title")
       .then(({ data }: { data: any }) => setAllBooks(data || []))
   }, [supabase])
@@ -315,6 +491,8 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      {filterType === "dealers" && <DealerDefaultPanel />}
+
       {/* Users Table */}
       <Card className="overflow-hidden bg-card/50 backdrop-blur border-border/50">
         <div className="overflow-x-auto -mx-4 px-4 pb-2 md:mx-0 md:px-0 md:pb-0">
@@ -373,6 +551,9 @@ export default function AdminUsersPage() {
                         {user.role === "admin" && (
                           <span className="text-[9px] font-bold uppercase tracking-widest text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20">Admin</span>
                         )}
+                        {user.role === "employee" && (
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-sky-400 bg-sky-400/10 px-1.5 py-0.5 rounded border border-sky-400/20">Employee</span>
+                        )}
                         {user.isBanned && (
                           <span className="text-[9px] font-bold uppercase tracking-widest text-destructive bg-destructive/10 px-1.5 py-0.5 rounded border border-destructive/20">Banned</span>
                         )}
@@ -387,7 +568,22 @@ export default function AdminUsersPage() {
                         <DealerCodeCopy code={user.dealerInfo?.code || ""} />
                       </td>
                       <td className="p-4 text-center">
-                        <span className="font-display text-lg text-primary">{user.dealerInfo?.discount}%</span>
+                        <DealerDiscountCell
+                          userId={user.id}
+                          value={user.dealerInfo?.discount ?? 0}
+                          onSaved={(percent) =>
+                            // Patch the row in place rather than refetching the
+                            // whole list: the table is paginated and filtered,
+                            // and a refetch would scroll the admin's work away.
+                            setUsers((prev) =>
+                              prev.map((u) =>
+                                u.id === user.id && u.dealerInfo
+                                  ? { ...u, dealerInfo: { ...u.dealerInfo, discount: percent } }
+                                  : u,
+                              ),
+                            )
+                          }
+                        />
                       </td>
                       <td className="p-4 text-center">
                         {user.dealerInfo?.isActive ? (
@@ -417,8 +613,14 @@ export default function AdminUsersPage() {
                         </span>
                       </td>
                       <td className="p-4 text-sm hidden sm:table-cell">
-                        <span className="font-medium">{user.booksOwned}</span>
-                        <span className="text-xs text-muted-foreground ml-1">Volumes</span>
+                        <button
+                          onClick={() => openLibrary(user)}
+                          title={`See what is in ${user.name}'s library`}
+                          className="group/lib flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:bg-primary/10"
+                        >
+                          <span className="font-medium group-hover/lib:text-primary">{user.booksOwned}</span>
+                          <span className="text-xs text-muted-foreground ml-1 group-hover/lib:text-primary">Volumes</span>
+                        </button>
                       </td>
                       <td className="p-4 text-xs text-muted-foreground hidden md:table-cell">
                         {user.lastActive
@@ -436,6 +638,10 @@ export default function AdminUsersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openLibrary(user)}>
+                            <Library className="w-4 h-4 mr-2" />
+                            View Library
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openManageDialog(user)}>
                             <Crown className="w-4 h-4 mr-2" />
                             Manage Subscription
@@ -460,6 +666,13 @@ export default function AdminUsersPage() {
           </table>
         </div>
       </Card>
+
+      <UserLibraryDialog
+        userId={libraryUser?.id ?? null}
+        userName={libraryUser?.name ?? ""}
+        open={isLibraryOpen}
+        onOpenChange={setIsLibraryOpen}
+      />
 
       {/* Manage User Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -499,19 +712,22 @@ export default function AdminUsersPage() {
               <Label htmlFor="role" className="text-xs uppercase tracking-widest text-yellow-500 font-bold flex items-center gap-1.5">
                 <ShieldAlert className="w-3.5 h-3.5" /> Admin Role
               </Label>
-              <Select value={newRole} onValueChange={(v) => setNewRole(v as "reader" | "admin")}>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as UserRole)}>
                 <SelectTrigger id="role" className="w-full bg-background/50 border-border/50 h-12">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="reader">Reader (Standard)</SelectItem>
+                  <SelectItem value="employee">Employee (Catalog Only)</SelectItem>
                   <SelectItem value="admin">Admin (Full Access)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-[10px] text-muted-foreground mt-1">
                 {newRole === "admin"
                   ? "⚠️ Admins have unrestricted access to all data and admin panels."
-                  : "Standard reader — no admin privileges."}
+                  : newRole === "employee"
+                    ? "Books and merchandise only — add, edit and publish, but never delete. No access to orders, customers, discussions, events or site pages."
+                    : "Standard reader — no admin privileges."}
               </p>
             </div>
 

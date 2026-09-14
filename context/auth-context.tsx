@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useViewAs } from "@/context/view-as-context"
+import { isStaffRole } from "@/lib/roles"
 import { type User, type Session, type AuthChangeEvent } from "@supabase/supabase-js"
 
 interface AuthContextType {
@@ -10,8 +12,29 @@ interface AuthContextType {
     profile: any | null
     subscription: any | null
     isAdmin: boolean
+    /** Admin or employee — anyone who belongs in the admin panel. See lib/roles.ts. */
+    isStaff: boolean
     isPremium: boolean
     isLoading: boolean
+    /**
+     * True once the viewer is fully known: the session check has finished AND,
+     * for a signed-in user, their profile and subscription have landed.
+     *
+     * isLoading alone is not enough. onAuthStateChange fires INITIAL_SESSION and
+     * clears isLoading on the no-transition path, which can win the race against
+     * the profile/subscription fetch still in flight from getInitialSession. In
+     * that window user is set but isAdmin/isPremium are still false, which is what
+     * made the header reveal My Library first and Discussions/Events/Admin after.
+     */
+    isReady: boolean
+    /**
+     * The viewer's own role, ignoring any "View As" session.
+     *
+     * isAdmin answers "what should this screen show", which is the impersonated
+     * member's answer while a view is active. This answers "who is actually
+     * signed in", which is what anything offering a way back into /admin needs.
+     */
+    realIsAdmin: boolean
     signOut: () => Promise<void>
 }
 
@@ -23,10 +46,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<any | null>(null)
     const [subscription, setSubscription] = useState<any | null>(null)
     const [isLoading, setIsLoading] = useState(true)
+    // The user id whose profile/subscription are currently loaded. Compared
+    // against the live user below so a stale or in-flight fetch never reads as
+    // resolved.
+    const [entitlementsFor, setEntitlementsFor] = useState<string | null>(null)
     const [supabase] = useState(() => createClient())
     const lastUserIdRef = useRef<string | null>(null)
+    const { viewingAs, isReady: viewAsReady } = useViewAs()
 
     useEffect(() => {
+        // The draft preview renders the whole app inside a same-origin iframe,
+        // so without this two Supabase clients in the same origin fight over the
+        // Navigator lock named for the auth token. Each waits the full ten
+        // seconds and both report NavigatorLockAcquireTimeoutError. The preview
+        // renders public marketing content and needs no session at all.
+        if (typeof window !== "undefined" && window.location.pathname.startsWith("/preview/")) {
+            setIsLoading(false)
+            return
+        }
+
         const fetchUserData = async (userId: string) => {
             const [profileRes, subRes] = await Promise.all([
                 supabase.from('users').select('*').eq('id', userId).single(),
@@ -34,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ])
             setProfile(profileRes.data)
             setSubscription(subRes.data)
+            setEntitlementsFor(userId)
         }
 
         const getInitialSession = async () => {
@@ -54,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setSession(null)
                     setProfile(null)
                     setSubscription(null)
+                    setEntitlementsFor(null)
                 }
             } catch (error) {
                 console.error("❌ Session check failed:", error)
@@ -65,7 +105,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         getInitialSession()
 
-        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
+        /**
+         * NOT async, and nothing Supabase is awaited inside it.
+         *
+         * supabase-js runs this callback while holding its auth lock
+         * ("lock:sb-<ref>-auth-token") and awaits whatever the callback returns.
+         * The previous version awaited fetchUserData here, which issues its own
+         * Supabase queries — so the lock stayed held for the length of those
+         * round trips, and any auth call made in the meantime waited on a lock
+         * the callback could not release until it finished.
+         *
+         * That is a deadlock whenever an auth operation is what triggered the
+         * event in the first place: the password-reset page calls setSession,
+         * setSession fires this, this waits on the network, and setSession never
+         * returns — every later auth call then fails with
+         * NavigatorLockAcquireTimeoutError after ten seconds, the AuthProvider's
+         * own session check included.
+         *
+         * Deferring with a zero timeout puts the fetch on a later task, after
+         * supabase-js has released the lock. The UI is unaffected: the state the
+         * fetch feeds was always populated a tick later anyway.
+         */
+        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
             const nextUserId = session?.user?.id || null
 
             // Log only if it's a real transition to avoid flooding
@@ -76,10 +137,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 lastUserIdRef.current = nextUserId
 
                 if (session?.user) {
-                    await fetchUserData(session.user.id)
+                    const userId = session.user.id
+                    setTimeout(() => { void fetchUserData(userId) }, 0)
                 } else {
                     setProfile(null)
                     setSubscription(null)
+                    setEntitlementsFor(null)
                 }
             } else if (session?.access_token !== session?.access_token) {
                 // Token refresh happened but user is the same
@@ -101,6 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSession(null)
             setProfile(null)
             setSubscription(null)
+            setEntitlementsFor(null)
 
             // Trigger Supabase sign out
             await supabase.auth.signOut()
@@ -109,11 +173,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    const isAdmin = profile?.role === 'admin'
-    const isPremium = subscription?.plan === 'premium' && subscription?.status === 'active'
+    const realIsAdmin = profile?.role === 'admin'
+    const realIsPremium = subscription?.plan === 'premium' && subscription?.status === 'active'
+
+    // While an admin is viewing as a member, every entitlement-driven surface —
+    // the account menu, the premium gates in the nav — has to answer for that
+    // member, or the admin sees links the member does not have. The session
+    // itself is untouched: `user` is still the admin, which is why writes made
+    // from inside a view are still the admin's. See lib/view-as/types.ts.
+    const isAdmin = viewingAs ? viewingAs.role === 'admin' : realIsAdmin
+    const isStaff = viewingAs ? isStaffRole(viewingAs.role) : isStaffRole(profile?.role)
+    const isPremium = viewingAs ? viewingAs.isPremium : realIsPremium
+    const isReady = viewAsReady && !isLoading && (user ? entitlementsFor === user.id : true)
 
     return (
-        <AuthContext.Provider value={{ user, session, profile, subscription, isAdmin, isPremium, isLoading, signOut }}>
+        <AuthContext.Provider value={{ user, session, profile, subscription, isAdmin, isStaff, isPremium, isLoading, isReady, realIsAdmin, signOut }}>
             {children}
         </AuthContext.Provider>
     )

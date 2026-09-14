@@ -67,6 +67,8 @@ interface OrderItem {
     } | null
 }
 
+export type FulfillmentStatus = "unfulfilled" | "shipped" | "fulfilled" | "returned"
+
 export interface AdminOrder {
     id: string
     user_id: string
@@ -82,6 +84,11 @@ export interface AdminOrder {
     shipping_state?: string | null
     shipping_zip?: string | null
     placed_at: string
+    has_physical_items?: boolean
+    fulfillment_status?: FulfillmentStatus
+    tracking_number?: string | null
+    tracking_carrier?: string | null
+    shipped_at?: string | null
     users: {
         email: string
         full_name?: string | null
@@ -184,12 +191,151 @@ function StatusBadge({ status }: { status: AdminOrder["status"] }) {
     )
 }
 
+const FULFILLMENT_CONFIG: Record<FulfillmentStatus, { label: string; className: string }> = {
+    unfulfilled: { label: "Not shipped", className: "bg-orange-500/10 text-orange-400 border border-orange-500/20" },
+    shipped: { label: "Shipped", className: "bg-blue-500/10 text-blue-400 border border-blue-500/20" },
+    fulfilled: { label: "Delivered", className: "bg-green-500/10 text-green-400 border border-green-500/20" },
+    returned: { label: "Returned", className: "bg-red-500/10 text-red-400 border border-red-500/20" },
+}
+
+/**
+ * Shipping controls for an order with something physical in it.
+ *
+ * Only rendered for physical orders: digital ones are marked fulfilled by the
+ * Stripe webhook the moment payment lands, so there is nothing here to act on.
+ */
+function ShipmentControls({
+    order,
+    onStatusUpdate,
+}: {
+    order: AdminOrder
+    onStatusUpdate: (id: string, updates: Partial<AdminOrder>) => Promise<void> | void
+}) {
+    const status: FulfillmentStatus = order.fulfillment_status ?? "unfulfilled"
+    const [carrier, setCarrier] = useState(order.tracking_carrier ?? "")
+    const [tracking, setTracking] = useState(order.tracking_number ?? "")
+    const [saving, setSaving] = useState(false)
+
+    const run = async (updates: Partial<AdminOrder>) => {
+        setSaving(true)
+        try {
+            await onStatusUpdate(order.id, updates)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const markShipped = async () => {
+        // A tracking number is the whole point of the record — without one the
+        // customer has no way to find the parcel.
+        if (!tracking.trim()) {
+            toast.error("Enter a tracking number before marking this shipped")
+            return
+        }
+        await run({
+            fulfillment_status: "shipped",
+            tracking_carrier: carrier.trim() || null,
+            tracking_number: tracking.trim(),
+            shipped_at: new Date().toISOString(),
+        })
+    }
+
+    const cfg = FULFILLMENT_CONFIG[status]
+
+    return (
+        <div className="border-b border-border/30 px-5 py-4">
+            <div className="flex flex-wrap items-center gap-3">
+                <h4 className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+                    <Truck className="w-3 h-3" /> Shipping
+                </h4>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase ${cfg.className}`}>
+                    {cfg.label}
+                </span>
+                {order.shipped_at && (
+                    <span className="text-[11px] text-muted-foreground">
+                        sent {formatDate(order.shipped_at)}
+                    </span>
+                )}
+            </div>
+
+            {status === "unfulfilled" ? (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Input
+                        placeholder="Carrier (USPS, UPS...)"
+                        value={carrier}
+                        onChange={(e) => setCarrier(e.target.value)}
+                        className="h-9 sm:max-w-44"
+                    />
+                    <Input
+                        placeholder="Tracking number"
+                        value={tracking}
+                        onChange={(e) => setTracking(e.target.value)}
+                        className="h-9 sm:max-w-64"
+                    />
+                    <Button size="sm" className="h-9" onClick={markShipped} disabled={saving}>
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Mark Shipped"}
+                    </Button>
+                </div>
+            ) : (
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                    {order.tracking_number && (
+                        <span className="text-xs text-muted-foreground">
+                            {order.tracking_carrier ? `${order.tracking_carrier} ` : ""}
+                            <span className="font-mono text-foreground">{order.tracking_number}</span>
+                        </span>
+                    )}
+                    {status === "shipped" && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            disabled={saving}
+                            onClick={() => run({ fulfillment_status: "fulfilled" })}
+                        >
+                            Mark Delivered
+                        </Button>
+                    )}
+                    {status !== "returned" && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 text-muted-foreground"
+                            disabled={saving}
+                            onClick={() => run({ fulfillment_status: "returned" })}
+                        >
+                            Mark Returned
+                        </Button>
+                    )}
+                    {/* This branch only runs for non-unfulfilled orders, so Undo
+                        is always available here. */}
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 text-muted-foreground"
+                        disabled={saving}
+                        onClick={() =>
+                            run({
+                                fulfillment_status: "unfulfilled",
+                                tracking_number: null,
+                                tracking_carrier: null,
+                                shipped_at: null,
+                            })
+                        }
+                    >
+                        Undo
+                    </Button>
+                </div>
+            )}
+        </div>
+    )
+}
+
 function OrderCard({
     order,
     onStatusUpdate,
 }: {
     order: AdminOrder
-    onStatusUpdate: (id: string, updates: Partial<AdminOrder>) => void
+    onStatusUpdate: (id: string, updates: Partial<AdminOrder>) => Promise<void> | void
 }) {
     const [expanded, setExpanded] = useState(false)
     const fullName = order.users?.full_name
@@ -200,10 +346,13 @@ function OrderCard({
         order.users?.email ||
         "Unknown Customer"
 
+    // Anything that is not an ebook has to be posted. This used to list
+    // paper_book and komet_card explicitly, which meant merch orders were never
+    // flagged as physical and never appeared in the shipping queue.
     const physicalItems = order.order_items.filter(
-        (i) => i.book_variants?.format === "paper_book" || i.book_variants?.format === "komet_card"
+        (i) => i.book_variants?.format && i.book_variants.format !== "ebook"
     )
-    const needsShipping = physicalItems.length > 0
+    const needsShipping = order.has_physical_items ?? physicalItems.length > 0
 
     return (
         <Card className="bg-card/50 backdrop-blur border-border/50 hover:border-primary/20 transition-all overflow-hidden">
@@ -221,9 +370,15 @@ function OrderCard({
                             </span>
                             <StatusBadge status={order.status} />
                             {needsShipping && (
-                                <span className="inline-flex items-center gap-1 text-[10px] text-secondary border border-secondary/20 bg-secondary/10 px-2 py-0.5 rounded-full">
+                                <span
+                                    className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full ${
+                                        FULFILLMENT_CONFIG[order.fulfillment_status ?? "unfulfilled"].className
+                                    }`}
+                                >
                                     <Truck className="w-2.5 h-2.5" />
-                                    <span className="hidden xs:inline">Physical</span>
+                                    <span className="hidden xs:inline">
+                                        {FULFILLMENT_CONFIG[order.fulfillment_status ?? "unfulfilled"].label}
+                                    </span>
                                 </span>
                             )}
                         </div>
@@ -279,6 +434,9 @@ function OrderCard({
             {/* ── Expanded Details ── */}
             {expanded && (
                 <div className="border-t border-border/30 bg-background/30">
+                    {needsShipping && (
+                        <ShipmentControls order={order} onStatusUpdate={onStatusUpdate} />
+                    )}
                     <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Items */}
                         <div>

@@ -22,3 +22,6 @@ yarn-error.log*
 supabase/.branches
 supabase/.temp
 supabase/.env        # Contains service_role_key — NEVER commit
+
+# Claude Code — share project settings/hooks, keep personal overrides local
+.claude/settings.local.json

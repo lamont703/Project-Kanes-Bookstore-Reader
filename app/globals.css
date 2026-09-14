@@ -274,3 +274,153 @@
     0 8px 16px rgba(0, 0, 0, 0.5);
   border-radius: 4px;
 }
+/* ── View As (read-only admin impersonation) ─────────────────────────────────
+   The bar itself is a normal sticky element at the very top of <body>, so it
+   reserves its own space instead of overlaying the page. The one thing it can
+   collide with is the site header, which is also sticky at top:0 — offsetting
+   that header by the bar's height keeps both pinned and both visible.
+   ------------------------------------------------------------------------- */
+body {
+  --view-as-bar: 0px;
+}
+
+body.view-as-active {
+  --view-as-bar: 2.75rem;
+}
+
+body.view-as-active header.sticky {
+  top: var(--view-as-bar);
+}
+
+/* A border around the whole viewport, so a borrowed view is obvious at a glance
+   even on a screen with no header and no chrome of its own. */
+body.view-as-active::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  pointer-events: none;
+  border: 2px solid oklch(0.85 0.18 95 / 0.55);
+}
+
+/* ---------------------------------------------------------------------------
+   Admin form fields.
+
+   The site's palette is near-black on near-black: shadcn's Input, Textarea and
+   Select trigger all render `bg-transparent` over a 0.05-lightness background,
+   which reads as a dark rectangle on a dark page. On the public marketing pages
+   that is the intended look, but the admin is a data-entry tool — every screen
+   is a form — and there a field you cannot see the edges of is a real problem.
+   So the admin, and only the admin, gets light fields with dark text.
+
+   These rules are deliberately UNLAYERED. Tailwind's utilities live in
+   `@layer utilities`, and unlayered CSS beats any layered rule whatever its
+   specificity, so this overrides `bg-transparent`, `bg-card` and the rest
+   without !important and without specificity games.
+
+   `.admin-ui` is on the admin shell AND, while the admin is mounted, on <body>.
+   The body copy is what reaches dialogs and select menus: Radix portals those to
+   the end of <body>, outside the shell, and most of the admin's fields live in
+   dialogs. The page editor's preview is an iframe — a separate document — so the
+   public pages it renders keep their own styling.
+   --------------------------------------------------------------------------- */
+
+.admin-ui {
+  /* A light warm grey rather than white. Near-white fields on a near-black page
+     are a lot of glare on a screen an admin sits in front of all day; dropping
+     the lightness from 0.97 to 0.90 takes the edge off while still reading as a
+     clearly light field. Text stays black against it at roughly 10:1, so nothing
+     is traded away for the comfort. Adjust the one value to taste — everything
+     below is derived from these four. */
+  --admin-field: oklch(0.9 0.003 90);
+  --admin-field-border: oklch(0.77 0.004 90);
+  --admin-field-text: oklch(0.2 0 0);
+  /* Dark enough to stay legible now that the field behind it is grey, light
+     enough to still read as a placeholder rather than a typed value. */
+  --admin-field-placeholder: oklch(0.44 0 0);
+}
+
+.admin-ui input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.admin-ui textarea,
+.admin-ui select,
+.admin-ui [data-slot="select-trigger"] {
+  background-color: var(--admin-field);
+  border-color: var(--admin-field-border);
+  color: var(--admin-field-text);
+  caret-color: var(--admin-field-text);
+}
+
+/* Placeholders stay grey. Black would read as a filled-in value. */
+.admin-ui input::placeholder,
+.admin-ui textarea::placeholder,
+.admin-ui [data-slot="select-trigger"][data-placeholder] {
+  color: var(--admin-field-placeholder);
+  opacity: 1;
+}
+
+/* Icons inside a field — the select chevron, a search glyph — are painted in
+   muted-foreground, which is light grey and vanishes on an off-white field. */
+.admin-ui [data-slot="select-trigger"] svg,
+.admin-ui [data-slot="select-trigger"] [data-slot="select-value"] {
+  color: var(--admin-field-text);
+}
+
+/* The native option list of a <select> follows the control's colours in some
+   browsers and its own in others; state both. */
+.admin-ui select option {
+  background-color: var(--admin-field);
+  color: var(--admin-field-text);
+}
+
+/* The file button inherits `file:text-foreground`, i.e. near-white — invisible
+   once the field behind it is light. */
+.admin-ui input[type="file"]::file-selector-button {
+  color: var(--admin-field-text);
+}
+
+/* Chrome paints its own pale blue over autofilled fields and keeps the text
+   near-white. The inset shadow is the long-standing way to hold the colour. */
+.admin-ui input:-webkit-autofill,
+.admin-ui input:-webkit-autofill:hover,
+.admin-ui input:-webkit-autofill:focus,
+.admin-ui textarea:-webkit-autofill,
+.admin-ui select:-webkit-autofill {
+  -webkit-text-fill-color: var(--admin-field-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--admin-field) inset;
+  box-shadow: 0 0 0 1000px var(--admin-field) inset;
+}
+
+/* Disabled fields still need to read as fields, just inert. */
+.admin-ui input:disabled,
+.admin-ui textarea:disabled,
+.admin-ui select:disabled,
+.admin-ui [data-slot="select-trigger"]:disabled {
+  background-color: oklch(0.82 0.003 90);
+  color: oklch(0.5 0 0);
+}
+
+/* The menu a Select opens is where the value is actually chosen, so it belongs
+   to the field: a light trigger over a black list reads as two components. Radix
+   portals this to <body>, which is exactly why the body carries the class.
+   Action menus (dropdown-menu, context menus) are deliberately NOT included —
+   they are commands, not values, and stay on the site's dark chrome. */
+.admin-ui [data-slot="select-content"] {
+  background-color: var(--admin-field);
+  border-color: var(--admin-field-border);
+  color: var(--admin-field-text);
+}
+
+.admin-ui [data-slot="select-item"],
+.admin-ui [data-slot="select-label"] {
+  color: var(--admin-field-text);
+}
+
+/* The highlight is the theme's yellow with near-black text, which already reads
+   correctly on a light panel — only the tick needs bringing down from white. */
+.admin-ui [data-slot="select-item-indicator"] svg {
+  color: var(--admin-field-text);
+}
+
+.admin-ui [data-slot="select-separator"] {
+  background-color: var(--admin-field-border);
+}

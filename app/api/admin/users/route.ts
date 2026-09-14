@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL } from '@/lib/supabase/config'
+import type { UserRole } from '@/lib/roles'
+
+const VALID_ROLES: UserRole[] = ["reader", "employee", "admin"]
 
 // ─── Guard: verify the caller is an admin ──────────────────────────────────
 async function verifyAdmin(): Promise<{ user: any; error?: string }> {
     const cookieStore = await cookies()
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
         {
             cookies: {
                 getAll() { return cookieStore.getAll() },
@@ -194,17 +198,23 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json() as {
         userId: string
-        action: "set_plan" | "ban" | "unban" | "set_role"
+        action: "set_plan" | "ban" | "unban" | "set_role" | "set_dealer_discount"
         plan?: "free" | "premium"
         role?: "reader" | "admin"
+        discountPercent?: number
     }
 
     if (!body.userId || !body.action) {
         return NextResponse.json({ error: "Missing userId or action" }, { status: 400 })
     }
 
-    // Prevent admin from acting on themselves
-    if (body.userId === caller.id) {
+    // Prevent admin from acting on themselves.
+    //
+    // Their own dealer rate is exempt: the guard exists so nobody can change
+    // their own access — plan, role, ban — and a discount percentage is none of
+    // those. Admins hold dealer codes like anyone else, and locking them out of
+    // the one row that is theirs would be arbitrary.
+    if (body.userId === caller.id && body.action !== "set_dealer_discount") {
         return NextResponse.json({ error: "You cannot modify your own account." }, { status: 400 })
     }
 
@@ -245,11 +255,11 @@ export async function PATCH(request: NextRequest) {
 
         // Trigger USER_BANNED event via email-ops Edge Function
         try {
-            await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/email-ops`, {
+            await fetch(`${SUPABASE_URL}/functions/v1/email-ops`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+                    "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
                 },
                 body: JSON.stringify({
                     event: "USER_BANNED",
@@ -271,9 +281,52 @@ export async function PATCH(request: NextRequest) {
 
     if (body.action === "set_role") {
         if (!body.role) return NextResponse.json({ error: "Missing role" }, { status: 400 })
+        // Whitelisted rather than passed through: `role` reaches an UPDATE on
+        // public.users, and only a full admin gets this far (verifyAdmin above),
+        // so the one thing left to check is that the value is a real role.
+        if (!VALID_ROLES.includes(body.role)) {
+            return NextResponse.json({ error: `Unknown role "${body.role}"` }, { status: 400 })
+        }
         const { error } = await admin.from("users").update({ role: body.role }).eq("id", body.userId)
         if (error) return NextResponse.json({ error: error.message }, { status: 500 })
         return NextResponse.json({ success: true, action: "set_role", role: body.role })
+    }
+
+    if (body.action === "set_dealer_discount") {
+        // Validated here rather than trusted from the form: this is a number
+        // that ends up subtracting real money at checkout. The database CHECK
+        // (migration 20260913000001) is the backstop; this is what turns a bad
+        // value into a readable message instead of a 500.
+        const percent = Number(body.discountPercent)
+        if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+            return NextResponse.json(
+                { error: "Discount must be a whole number between 0 and 100." },
+                { status: 400 },
+            )
+        }
+
+        const { data, error } = await admin
+            .from("promo_codes")
+            .update({ discount_percent: percent })
+            .eq("owner_id", body.userId)
+            .select("code, discount_percent")
+
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+        if (!data?.length) {
+            return NextResponse.json(
+                { error: "This member has no dealer code to update." },
+                { status: 404 },
+            )
+        }
+
+        // Existing codes only. The default for codes not yet issued is a
+        // separate setting (app/api/admin/settings), because changing one must
+        // not silently rewrite the other.
+        return NextResponse.json({
+            success: true,
+            action: "set_dealer_discount",
+            discountPercent: percent,
+        })
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 })

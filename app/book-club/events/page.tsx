@@ -2,42 +2,55 @@ import { Card } from "@/components/ui/card"
 import { Calendar, Clock, MapPin, Users, Video, Globe, Crown } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
 import { RsvpModal } from "./rsvp-modal"
-import { createClient } from "@/lib/supabase/server"
+import { getViewerContext } from "@/lib/view-as/server"
 import Image from "next/image"
 import { isEventPast } from "@/lib/book-club-utils"
 
 export default async function EventsPage() {
-  const supabase = await createClient()
+  // See lib/view-as/server.ts: during a View As session `userId` is the member
+  // being viewed and `db` is the service-role client.
+  const { realUser, userId, db: supabase, viewingAs } = await getViewerContext()
 
-  // Fetch events — RLS handles visibility (public events for guests, all for premium)
-  const { data: events, error } = await supabase
+  // Fetch events — RLS handles visibility (public events for guests, all for
+  // premium). The service-role client used during a View As session does not get
+  // that split for free, so it is re-applied by hand there.
+  let eventsQuery = supabase
     .from("book_club_events")
     .select("*")
     .order("date", { ascending: true })
 
+  if (viewingAs && !viewingAs.isPremium && viewingAs.role !== "admin") {
+    eventsQuery = eventsQuery.eq("is_public", true)
+  }
+
+  const { data: events, error } = await eventsQuery
+
   if (error) console.error("Error fetching events:", error)
 
-  const eventList = events ?? []
+  const eventList: any[] = events ?? []
   const upcomingEvents = eventList.filter(e => !isEventPast(e.date))
   const pastEvents = eventList.filter(e => isEventPast(e.date))
 
-  // Fetch the current user and their RSVPs (if logged in)
-  const { data: { user } } = await supabase.auth.getUser()
+  // RSVPs belong to whoever is being viewed; the user handed to RsvpModal stays
+  // the real signed-in one, because an RSVP made from inside a View As session
+  // would still be written as the admin. The modal blocks that outright.
   let userRsvpEventIds: Set<string> = new Set()
 
-  if (user) {
+  if (userId) {
     const eventIds = eventList.map(e => e.id)
     if (eventIds.length > 0) {
       const { data: rsvps } = await supabase
         .from("event_rsvps")
         .select("event_id")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .in("event_id", eventIds)
       for (const r of rsvps ?? []) {
         userRsvpEventIds.add(r.event_id)
       }
     }
   }
+
+  const user = realUser
 
   return (
     <div className="min-h-screen">

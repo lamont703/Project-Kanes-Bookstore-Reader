@@ -1,18 +1,42 @@
 import { SiteHeader } from "@/components/site-header"
+import { SiteFooter } from "@/components/nav/site-footer"
 import { BookCard } from "@/components/book-card"
 import type { Book } from "@/lib/types/book"
 import { createClient } from "@/lib/supabase/server"
 import { BrowseFilters } from "@/components/browse-filters"
+import { BrowsePagination } from "@/components/browse-pagination"
+import { DEFAULT_PER_PAGE, PER_PAGE_OPTIONS } from "@/lib/browse-options"
+import { getPublishedPage, findSection, isHidden, setting, type PageDocument } from "@/lib/page-content"
+import { getActiveGenres } from "@/lib/genres"
 
 interface BrowsePageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  /**
+   * Supplied only by the admin draft preview, which renders this very component
+   * so the preview cannot drift from the page. Everywhere else the published
+   * document is read, so a caller cannot make the live page show a draft.
+   */
+  previewDocument?: PageDocument
 }
 
-export default async function BrowsePage({ searchParams }: BrowsePageProps) {
+export default async function BrowsePage({ searchParams, previewDocument }: BrowsePageProps) {
   const params = await searchParams
+  const copyDoc = previewDocument ?? (await getPublishedPage("browse"))
+  const header = findSection(copyDoc, "browse-header")
+  const genres = await getActiveGenres()
   const genre = (params.genre as string) || "All"
   const query = (params.q as string) || ""
   const sort = (params.sort as string) || "title"
+
+  // Page size comes from the URL but is not trusted: only the offered options
+  // are honoured, so a hand-edited ?perPage=5000 cannot ask the database for
+  // the whole catalogue in one request.
+  const requestedPerPage = Number(params.perPage)
+  const perPage = (PER_PAGE_OPTIONS as readonly number[]).includes(requestedPerPage)
+    ? requestedPerPage
+    : DEFAULT_PER_PAGE
+  const requestedPage = Number(params.page)
+  const page = Number.isFinite(requestedPage) && requestedPage >= 1 ? Math.floor(requestedPage) : 1
 
   const supabase = await createClient()
 
@@ -22,8 +46,12 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     .select(`
       *,
       book_variants (*)
-    `)
+    `, { count: 'exact' })
     .eq('status', 'published')
+    // `books` is now a general catalog and also holds merchandise; this page
+    // renders book-shaped cards, so keep it to books. See migration
+    // 20260811000001_extend_books_to_catalog.sql.
+    .eq('product_type', 'book')
 
   // Apply server-side filters
   if (genre !== "All") {
@@ -35,15 +63,78 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     dbQuery = dbQuery.or(`title.ilike.%${query}%,author.ilike.%${query}%`)
   }
 
-  // Handle Sort
-  if (sort === 'title') {
-    dbQuery = dbQuery.order('title', { ascending: true })
-  } else if (sort === 'price-low') {
-    // Sorting by price is trickier because prices are in the variants table
-    // For now we'll sort alphabetically, but we can refine our SQL here
+  // Sorting.
+  //
+  // Two kinds. Title, author and newest are columns on books, so the database
+  // orders them and .range() pages the result — only one page ever comes back.
+  //
+  // Price and popularity are not: price lives in book_variants, a to-many
+  // relation Postgres cannot order parent rows by (which is why the price
+  // options originally did nothing), and units sold lives in order_items behind
+  // RLS. Both are resolved after the fetch, which means the whole matching set
+  // has to come back first — sorting one page would rank 12 books against each
+  // other rather than the catalogue.
+  //
+  // Title order is applied last in every case. It pages the title sort in the
+  // database and is the tiebreak everywhere else, so books level on price or
+  // sales keep a stable order instead of shuffling between requests.
+  const isPriceSort = sort === 'price-low' || sort === 'price-high'
+  const isSalesSort = sort === 'best-selling'
+  const needsFullSet = isPriceSort || isSalesSort
+
+  if (sort === 'author') {
+    // nullsFirst: false — a book with no author recorded belongs at the end of
+    // an author listing, not at the top of it.
+    dbQuery = dbQuery.order('author', { ascending: true, nullsFirst: false })
+  }
+  if (sort === 'newest') {
+    // created_at is when the book entered this catalogue. There is no
+    // publication-date column, so "new" means new to the shop — which is what a
+    // new-arrivals shelf means anyway.
+    dbQuery = dbQuery.order('created_at', { ascending: false })
+  }
+  dbQuery = dbQuery.order('title', { ascending: true })
+
+  // Fetch only the current page. Previously the whole catalogue came back on
+  // every request and was rendered in one grid.
+  //
+  // Price sorts are the exception: they need every matching row before the page
+  // can be chosen. The explicit upper bound keeps that honest — PostgREST caps
+  // rows anyway, and a silent truncation would quietly drop books from the sort.
+  const from = (page - 1) * perPage
+  const { data, error, count } = needsFullSet
+    ? await dbQuery.range(0, 999)
+    : await dbQuery.range(from, from + perPage - 1)
+
+  /**
+   * Units sold per book, for the popularity sort only.
+   *
+   * Through an RPC because order_items is owner-scoped: a shopper cannot read
+   * it, and should not be able to. book_sales_totals (migration
+   * 20260914000001) returns nothing but book ids and counts.
+   *
+   * Fetched only when that sort is active — every other visit to /browse should
+   * not pay for it.
+   */
+  let unitsByBook = new Map<string, number>()
+  if (isSalesSort) {
+    const { data: totals, error: totalsError } = await supabase.rpc('book_sales_totals')
+    if (totalsError) {
+      // Fall through to the title order rather than failing the page: a shopper
+      // who cannot sort by popularity is better served than one staring at an
+      // error, and the operator gets the reason in the log.
+      console.error('❌ book_sales_totals failed, falling back to title order:', totalsError.message)
+    } else {
+      unitsByBook = new Map(
+        (totals ?? []).map((row: { book_id: string; units: number }) => [row.book_id, Number(row.units)]),
+      )
+    }
   }
 
-  const { data, error } = await dbQuery
+  const total = count ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / perPage))
+  const rangeStart = total === 0 ? 0 : from + 1
+  const rangeEnd = Math.min(from + perPage, total)
 
   if (error) {
     console.error("❌ Supabase Error on Server:", error)
@@ -57,7 +148,21 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     coverImage: b.cover_image_url || "/placeholder.webp",
     genre: b.genre,
     description: b.description || "",
-    price: b.book_variants?.find((v: any) => v.format === 'ebook')?.price || b.book_variants?.[0]?.price || 0,
+    // Mirrors components/book-card.tsx: the ebook when it is in stock, else the
+    // first in-stock format. Sorting on any other value would order the list by
+    // a number the cards never display.
+    price: Number(
+      (() => {
+        const vs = b.book_variants ?? []
+        const inStock = vs.filter((v: any) => v.is_in_stock)
+        const pick =
+          inStock.find((v: any) => v.format === 'ebook') ??
+          inStock[0] ??
+          vs.find((v: any) => v.format === 'ebook') ??
+          vs[0]
+        return pick?.price ?? 0
+      })(),
+    ),
     variants: b.book_variants?.map((v: any) => ({
       id: v.id,
       format: v.format,
@@ -66,31 +171,51 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     })) || []
   }))
 
+  // Apply the sorts the database could not, then take the requested page.
+  // Array.prototype.sort is stable, so books that tie keep the title order the
+  // query already put them in.
+  const ordered = needsFullSet
+    ? [...books]
+        .sort((a, b) => {
+          if (isSalesSort) {
+            // Never sold counts as zero, which puts those books after every
+            // book that has sold and leaves them in title order among
+            // themselves.
+            return (unitsByBook.get(b.id) ?? 0) - (unitsByBook.get(a.id) ?? 0)
+          }
+          return sort === 'price-low' ? a.price - b.price : b.price - a.price
+        })
+        .slice(from, from + perPage)
+    : books
+
   return (
     <div className="min-h-screen">
       <SiteHeader />
 
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
-        <div className="mb-8 text-center md:text-left">
-          <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-2 uppercase">
-            <span className="text-primary">THE KOMET</span> <span className="text-secondary">BOOK LIBRARY</span>
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl">Explore original stories from the World of Kane: Crime Saga, Kosmic Myths, Street Legends, and Everything In Between.</p>
-        </div>
+        {!isHidden(header) && (
+          <div data-edit-section="browse-header" className="mb-8 text-center md:text-left">
+            <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-2 uppercase">
+              <span className="text-primary" data-edit-setting="browse-header:headingPrimary">
+                {setting(header, "headingPrimary")}
+              </span>{" "}
+              <span className="text-secondary" data-edit-setting="browse-header:headingSecondary">
+                {setting(header, "headingSecondary")}
+              </span>
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl" data-edit-setting="browse-header:intro">
+              {setting(header, "intro")}
+            </p>
+          </div>
+        )}
 
         {/* Search and Filters (Client Component) */}
-        <BrowseFilters />
+        <BrowseFilters genres={genres} />
 
-        <div className="mb-6">
-          <p className="text-sm text-muted-foreground">
-            Showing {books.length} {books.length === 1 ? "book" : "books"}
-          </p>
-        </div>
-
-        {books.length > 0 ? (
+        {ordered.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {books.map((book) => (
+            {ordered.map((book) => (
               <BookCard key={book.id} book={book} />
             ))}
           </div>
@@ -100,7 +225,18 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
             <p className="text-sm text-muted-foreground max-w-xs mx-auto mb-6">Your search criteria didn't yield any book signals from the galaxy.</p>
           </div>
         )}
+
+        <BrowsePagination
+          page={Math.min(page, totalPages)}
+          totalPages={totalPages}
+          perPage={perPage}
+          total={total}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+        />
       </div>
+
+      <SiteFooter mode="app" />
     </div>
   )
 }

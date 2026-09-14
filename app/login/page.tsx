@@ -130,7 +130,7 @@ function AuthContent() {
       <div className="text-center mb-8">
         <Link href="/" className="inline-flex items-center gap-3 mb-4">
           <Image
-            src="https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/YyXjhz49RRIC60sTREka/media/661ea792d03e91ccb4968534.png"
+            src="/marketing/b9ed83bb-661ea792d03e91ccb4968534.webp"
             alt="Kane's Komets Logo"
             width={40}
             height={40}
@@ -196,9 +196,17 @@ function AuthContent() {
                   <Input id="login-email" type="email" placeholder="you@komet.explorer" required value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground" htmlFor="login-password">
-                    PASSWORD
-                  </label>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <label className="text-sm font-medium text-muted-foreground" htmlFor="login-password">
+                      PASSWORD
+                    </label>
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                   <Input id="login-password" type="password" placeholder="••••••••" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} />
                 </div>
                 <Button className="w-full text-lg py-6 font-display tracking-wider" size="lg" disabled={isLoggingIn}>

@@ -7,20 +7,23 @@ import { Card } from "@/components/ui/card"
 import { Sparkles } from "lucide-react"
 import Image from "next/image"
 import { createClient, createStaticClient } from "@/lib/supabase/server"
+import { SUPABASE_URL } from '@/lib/supabase/config'
 
 // Book detail page is now fully dynamic to support user-specific state
 // caching is handled via Next.js fetch cache where applicable
 
 export async function generateStaticParams() {
   // Prevent build crash if env vars are missing during CI/CD or Vercel build
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (!SUPABASE_URL) {
     console.warn("⚠️ NEXT_PUBLIC_SUPABASE_URL is missing. Skipping generateStaticParams.")
     return []
   }
 
   try {
     const supabase = createStaticClient()
-    const { data: books } = await supabase.from('books').select('id')
+    // Books only — `books` also holds merchandise since the catalog migration,
+    // and merch has no book detail page.
+    const { data: books } = await supabase.from('books').select('id').eq('product_type', 'book')
 
     return books?.map((book) => ({
       id: book.id,
@@ -42,6 +45,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
       book_variants (*)
     `)
     .eq('id', id)
+    .eq('product_type', 'book')
     .single()
 
   if (error || !b) {

@@ -14,13 +14,42 @@ import { UploadCloud, FileText, ImageIcon, Loader, CheckCircle2, AlertCircle } f
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/supabase/config'
 
 interface BookFormProps {
     initialData?: any
     isEdit?: boolean
+    /** Whether this viewer may delete the book. False for employees — see lib/roles.ts. */
+    canDelete?: boolean
 }
 
-export function BookForm({ initialData, isEdit }: BookFormProps) {
+export function BookForm({ initialData, isEdit, canDelete = true }: BookFormProps) {
+    // Categories are rows now, not a constant, so a category added from the
+    // browse editor is immediately selectable here. Seeded with the old
+    // constant so the field is never empty while the request is in flight.
+    const [genres, setGenres] = useState<string[]>(
+        [...GENRES].filter((g) => g !== "All"),
+    )
+    useEffect(() => {
+        let cancelled = false
+        const load = async () => {
+            const supabase = createClient()
+            const { data, error } = await supabase
+                .from("book_genres")
+                .select("name")
+                .eq("is_active", true)
+                .order("sort_order")
+                .order("name")
+            if (cancelled) return
+            if (error) return console.error("Could not load categories:", error.message)
+            if (data?.length) setGenres(data.map((row: { name: string }) => row.name))
+        }
+        load()
+        return () => {
+            cancelled = true
+        }
+    }, [])
+
     const router = useRouter()
     const [isUploading, setIsUploading] = useState(false)
     const [isMounted, setIsMounted] = useState(false)
@@ -153,7 +182,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             // 2. Invoke the 'upload-book' Edge Function
             console.log("[BookForm] Preparing to invoke Edge Function...")
 
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+            const supabaseUrl = SUPABASE_URL
             if (!supabaseUrl) {
                 console.error("[BookForm] CRITICAL: NEXT_PUBLIC_SUPABASE_URL is missing!")
             }
@@ -183,12 +212,12 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
             console.log("[BookForm] Session found! Token length:", session.access_token.length)
             console.log("[BookForm] Invoking Edge Function at:", `${supabaseUrl}/functions/v1/upload-book`)
 
-            const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/upload-book`
+            const functionUrl = `${SUPABASE_URL}/functions/v1/upload-book`
             const response = await fetch(functionUrl, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${session.access_token}`,
-                    apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                    apikey: SUPABASE_ANON_KEY,
                 },
                 body: uploadData,
             })
@@ -209,6 +238,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
     }
 
     const handleDelete = async () => {
+        if (!canDelete) return
         if (!initialData?.id) return
 
         const loadingToast = toast.loading(`Commencing cosmic purge for "${formData.title}"...`)
@@ -327,7 +357,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                         value={formData.genre}
                                         onChange={e => setFormData({ ...formData, genre: e.target.value })}
                                     >
-                                        {GENRES.filter(g => g !== "All").map(genre => (
+                                        {genres.map(genre => (
                                             <option key={genre} value={genre}>{genre}</option>
                                         ))}
                                     </select>
@@ -543,7 +573,7 @@ export function BookForm({ initialData, isEdit }: BookFormProps) {
                                 </Button>
                             </div>
 
-                            {isEdit && (
+                            {isEdit && canDelete && (
                                 <div className="pt-6 border-t border-border/50">
                                     <Button
                                         type="button"

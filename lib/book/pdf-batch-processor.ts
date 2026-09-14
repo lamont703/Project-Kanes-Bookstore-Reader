@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { processPDF } from './pdf-processor';
+import { SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL } from '@/lib/supabase/config'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = SUPABASE_URL;
+const supabaseServiceKey = SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 /**

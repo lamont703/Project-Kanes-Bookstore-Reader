@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Check, Loader2, CalendarCheck } from "lucide-react"
+import { useViewAsGuard } from "@/hooks/use-view-as-guard"
 import { toast } from "sonner"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
@@ -43,6 +44,8 @@ export function RsvpModal({ eventId, eventTitle, isPublic, currentUser, alreadyR
         (currentUser?.user_metadata?.phone as string | undefined) ?? ""
     )
 
+    const blockedByViewAs = useViewAsGuard()
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
@@ -50,6 +53,10 @@ export function RsvpModal({ eventId, eventTitle, isPublic, currentUser, alreadyR
             toast.error("Please log in to RSVP for this event.")
             return
         }
+
+        // currentUser is the admin during a View As session, so this RSVP would
+        // land on the admin's account while the screen shows the member's.
+        if (blockedByViewAs("RSVPs are")) return
 
         if (!name.trim() || !email.trim()) {
             toast.error("Please fill in your name and email.")

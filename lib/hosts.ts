@@ -1,0 +1,94 @@
+/**
+ * Host topology.
+ *
+ * kanesbookstore.com (apex)  — public marketing only. No login, no cart, no
+ *                              Supabase session is ever created here.
+ * kometz.kanesbookstore.com  — the app: auth, cart, checkout, library, reader,
+ *                              book club. Single auth origin, single commerce
+ *                              origin.
+ *
+ * On the apex, a CTA into the app must be an absolute URL: those routes do not
+ * exist there, so a relative link would go nowhere useful. EVERY OTHER host —
+ * localhost, staging, previews, kometz itself — serves the whole application,
+ * so links there must stay relative or the visitor is thrown out of the
+ * environment they are in.
+ *
+ * That is why in-page links default to RELATIVE and absolute is opt-in. The
+ * previous default was the production origin, which meant a CTA in local dev
+ * jumped to production, and the same click on staging left staging entirely.
+ */
+
+/**
+ * Absolute origin of the app host. Used by proxy.ts, which redirects apex
+ * traffic across hosts and therefore always needs a real origin.
+ */
+export const APP_HOST_ORIGIN =
+    process.env.NEXT_PUBLIC_KOMETZ_ORIGIN ?? "https://kometz.kanesbookstore.com"
+
+/**
+ * Prefix for in-page links to app routes. Empty means "same origin", which is
+ * correct everywhere except the apex. Set NEXT_PUBLIC_APP_LINK_ORIGIN to the
+ * app host ONLY on the environment that serves kanesbookstore.com.
+ */
+export const APP_LINK_ORIGIN = process.env.NEXT_PUBLIC_APP_LINK_ORIGIN ?? ""
+
+export const APEX_ORIGIN =
+    process.env.NEXT_PUBLIC_APEX_ORIGIN ?? "https://kanesbookstore.com"
+
+/**
+ * Hostnames that serve the marketing site. Everything else gets the full app,
+ * so staging.kanesbookstore.com and *.vercel.app previews stay testable.
+ *
+ * Overridable so a preview deployment can be made to behave like the apex
+ * before DNS moves — set NEXT_PUBLIC_APEX_HOSTNAMES to a comma-separated list
+ * (e.g. "staging.kanesbookstore.com") on that environment.
+ */
+export const APEX_HOSTNAMES = new Set(
+    (process.env.NEXT_PUBLIC_APEX_HOSTNAMES ?? "kanesbookstore.com,www.kanesbookstore.com")
+        .split(",")
+        .map((h) => h.trim().toLowerCase())
+        .filter(Boolean),
+)
+
+/** Internal route the apex "/" rewrites to. The app host keeps app/page.tsx. */
+export const APEX_HOME_ROUTE = "/kanes-home"
+
+export function isApexHost(hostname: string | null | undefined): boolean {
+    if (!hostname) return false
+    return APEX_HOSTNAMES.has(hostname.split(":")[0].toLowerCase())
+}
+
+/**
+ * Link to a route on the app host.
+ *
+ * Relative by default, so the visitor stays in whatever environment they are
+ * browsing. Only the apex sets APP_LINK_ORIGIN and gets absolute URLs.
+ */
+export function kometzUrl(path = "/"): string {
+    return `${APP_LINK_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`
+}
+
+/** Absolute URL on the marketing host. */
+export function apexUrl(path = "/"): string {
+    return `${APEX_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`
+}
+
+/** Product detail lives on kometz — that is where purchase happens. */
+export function bookDetailUrl(bookId: string): string {
+    return kometzUrl(`/book/${bookId}`)
+}
+
+/** Paths the marketing host is allowed to serve. Anything else redirects to
+ *  the app host. Keep in sync with the routes under app/(marketing). */
+export const APEX_PATHS = [
+    "/",
+    "/about",
+    "/characters",
+    "/contact",
+    "/morefunk",
+    "/privacy-policy",
+] as const
+
+export function isApexPath(pathname: string): boolean {
+    return (APEX_PATHS as readonly string[]).includes(pathname)
+}

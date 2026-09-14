@@ -1,29 +1,22 @@
 import type React from "react"
-import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { AdminLayoutShell } from "@/components/admin/admin-layout-shell"
+import { getEffectiveRole } from "@/lib/current-role"
+import { isStaffRole } from "@/lib/roles"
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  
-  // 1. Check for basic user session
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  
-  if (authError || !user) {
-    redirect("/login?redirect=/admin")
-  }
+  // The *effective* role: the viewed member's during a View As session, so
+  // viewing as an employee shows the employee's panel rather than the admin's.
+  // The middleware computes the same thing from the same helpers, so the two
+  // sides cannot drift into disagreeing about who is allowed where.
+  //
+  // getEffectiveRole resolves the session itself and returns "reader" when there
+  // is none, which the staff check below turns away.
+  const role = await getEffectiveRole()
 
-  // 2. Verify admin role in database
-  const { data: profile, error: profileError } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single()
-
-  if (profileError || profile?.role !== "admin") {
+  if (!isStaffRole(role)) {
     redirect("/")
   }
 
-  // 3. Render the shell if authorized
-  return <AdminLayoutShell>{children}</AdminLayoutShell>
+  return <AdminLayoutShell role={role}>{children}</AdminLayoutShell>
 }

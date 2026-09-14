@@ -2,6 +2,8 @@ import { BookForm } from "@/components/admin/book-form"
 import { Edit3 } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
+import { getEffectiveRole } from "@/lib/current-role"
+import { isAdminRole } from "@/lib/roles"
 
 export default async function EditBookPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
@@ -14,6 +16,9 @@ export default async function EditBookPage({ params }: { params: Promise<{ id: s
             book_variants (*)
         `)
         .eq("id", id)
+        // This form is book-shaped (author, genre, PDF). Merch needs its own
+        // editor; see migration 20260811000001_extend_books_to_catalog.sql.
+        .eq("product_type", "book")
         .single()
 
     if (error || !b) {
@@ -51,7 +56,7 @@ export default async function EditBookPage({ params }: { params: Promise<{ id: s
                 <p className="text-lg text-muted-foreground mt-2">Modify the metadata and assets for "{book.title}"</p>
             </div>
 
-            <BookForm isEdit initialData={book} />
+            <BookForm isEdit initialData={book} canDelete={isAdminRole(await getEffectiveRole())} />
         </div>
     )
 }

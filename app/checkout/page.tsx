@@ -13,11 +13,14 @@ import { Check, Truck, Tag, Package, CreditCard, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { useViewAsGuard } from "@/hooks/use-view-as-guard"
 import { loadStripe } from "@stripe/stripe-js"
 import { Elements } from "@stripe/react-stripe-js"
 import { StripeCheckoutForm } from "@/components/checkout/stripe-checkout-form"
+import { STRIPE_PUBLISHABLE_KEY, assertStripeMode } from "@/lib/stripe-config"
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+assertStripeMode()
+const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY)
 
 export default function CheckoutPage() {
     const { items, clearCart } = useCart()
@@ -65,6 +68,7 @@ export default function CheckoutPage() {
         lastName: "",
         address: "",
         city: "",
+        state: "",
         zip: "",
         country: "United States",
     })
@@ -94,6 +98,7 @@ export default function CheckoutPage() {
             if (!formData.lastName) newErrors.lastName = true
             if (!formData.address || formData.address.length < 5) newErrors.address = true
             if (!formData.city) newErrors.city = true
+            if (!formData.state) newErrors.state = true
             if (!formData.zip || !/^\d{5}(-\d{4})?$/.test(formData.zip)) newErrors.zip = true
         }
 
@@ -171,8 +176,13 @@ export default function CheckoutPage() {
     }
 
     // ── Place Order (via API) ───────────────────────────────
+    // An order placed from inside a View As session would charge the admin
+    // and land in the admin's library, not the member's.
+    const blockedByViewAs = useViewAsGuard()
+
     const handlePlaceOrder = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (blockedByViewAs("Checkout is")) return
         if (!validate()) return
 
         // Stripe USD minimum is $0.50. Prevent calling backend if we know it's too small.
@@ -197,6 +207,7 @@ export default function CheckoutPage() {
                     lastName: formData.lastName,
                     address: formData.address,
                     city: formData.city,
+                    state: formData.state,
                     zip: formData.zip,
                     country: formData.country,
                 } : undefined,
@@ -335,7 +346,7 @@ export default function CheckoutPage() {
                                             className={errors.address ? "border-destructive/50 ring-destructive/20" : ""}
                                         />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                                         <div className="space-y-2">
                                             <Label htmlFor="city">City</Label>
                                             <Input
@@ -345,6 +356,17 @@ export default function CheckoutPage() {
                                                 value={formData.city}
                                                 onChange={e => updateFormData("city", e.target.value)}
                                                 className={errors.city ? "border-destructive/50 ring-destructive/20" : ""}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="state">State</Label>
+                                            <Input
+                                                id="state"
+                                                placeholder="GA"
+                                                required
+                                                value={formData.state}
+                                                onChange={e => updateFormData("state", e.target.value)}
+                                                className={errors.state ? "border-destructive/50 ring-destructive/20" : ""}
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -446,7 +468,7 @@ export default function CheckoutPage() {
 
                             <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-2">
                                 {items.map((item) => (
-                                    <div key={`${item.id}-${item.format}`} className="flex gap-4 items-start">
+                                    <div key={item.variantId} className="flex gap-4 items-start">
                                         <div className="relative w-12 aspect-[2/3] bg-muted rounded overflow-hidden flex-shrink-0">
                                             <Image
                                                 src={item.coverImage}
@@ -461,6 +483,11 @@ export default function CheckoutPage() {
                                                 <span className="text-[10px] font-bold uppercase py-0.5 px-1.5 bg-secondary/20 text-secondary rounded border border-secondary/30">
                                                     {item.format.replace('_', ' ')}
                                                 </span>
+                                                {item.size && (
+                                                    <span className="text-[10px] font-bold uppercase py-0.5 px-1.5 bg-muted text-muted-foreground rounded border border-border">
+                                                        {item.size}
+                                                    </span>
+                                                )}
                                                 <span className="text-muted-foreground">x{item.quantity}</span>
                                             </div>
                                         </div>

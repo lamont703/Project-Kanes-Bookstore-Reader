@@ -3,11 +3,12 @@
 import { Search, SlidersHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { GENRES } from "@/lib/types/book"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTransition } from "react"
 
-export function BrowseFilters() {
+export function BrowseFilters({ genres = [] }: { genres?: string[] }) {
+    // "All" is a UI affordance, not a category, so it is not stored as one.
+    const options = ["All", ...genres]
     const router = useRouter()
     const searchParams = useSearchParams()
     const [isPending, startTransition] = useTransition()
@@ -25,6 +26,10 @@ export function BrowseFilters() {
                 params.set(key, value)
             }
         })
+
+        // Any change to the result set invalidates the current offset. Without
+        // this, filtering while on page 30 lands on an empty page past the end.
+        params.delete("page")
 
         startTransition(() => {
             router.push(`/browse?${params.toString()}`, { scroll: false })
@@ -57,6 +62,12 @@ export function BrowseFilters() {
                         onChange={(e) => updateParams({ sort: e.target.value })}
                     >
                         <option value="title">Title: A-Z</option>
+                        <option value="author">Author: A-Z</option>
+                        <option value="best-selling">Most Purchased</option>
+                        {/* By date added to the catalogue — there is no
+                            publication-date column, so this is a new-arrivals
+                            shelf rather than a publishing calendar. */}
+                        <option value="newest">New Releases</option>
                         <option value="price-low">Price: Low to High</option>
                         <option value="price-high">Price: High to Low</option>
                     </select>
@@ -64,7 +75,7 @@ export function BrowseFilters() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-                {GENRES.map((genre) => (
+                {options.map((genre) => (
                     <Button
                         key={genre}
                         variant={currentGenre === genre ? "default" : "outline"}

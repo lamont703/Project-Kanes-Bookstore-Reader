@@ -88,6 +88,7 @@ export default function AdminBookClubPage() {
         .from('books')
         .select('id, title, author, cover_image_url')
         .eq('status', 'published')
+        .eq('product_type', 'book')
         .order('title')
 
       setAvailableBooks(books || [])
