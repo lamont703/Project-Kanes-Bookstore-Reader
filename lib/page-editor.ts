@@ -25,12 +25,13 @@ export interface PageSummary {
 /**
  * Public URLs a slug is served at, for cache revalidation.
  *
- * The homepage is reachable at more than one path: / on the app host, and /
- * plus /kanes-home on the apex. Revalidating only one would leave the others
- * serving the pre-publish copy for up to five minutes.
+ * One path each since the consolidation. The homepage used to need two — / on
+ * the app host and /kanes-home on the apex — and revalidating only one left the
+ * other serving the pre-publish copy for up to five minutes. /kanes-home is now
+ * a redirect with nothing of its own to cache.
  */
 function publicPaths(slug: string): string[] {
-    return slug === "home" ? ["/", "/kanes-home"] : [`/${slug}`]
+    return [slug === "home" ? "/" : `/${slug}`]
 }
 
 export async function listPages(): Promise<PageSummary[]> {

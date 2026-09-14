@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { ContentBlocks } from "@/components/marketing/content-blocks"
 import { blocksOf, getPublishedBlocks, type PageDocument } from "@/lib/page-content"
-import { apexUrl } from "@/lib/hosts"
+import { canonicalUrl } from "@/lib/hosts"
 
 // Content is editable at runtime, so this cannot be baked in permanently at
 // build time. Five minutes matches the other content-driven marketing pages;
@@ -11,7 +11,7 @@ export const revalidate = 300
 export const metadata: Metadata = {
     title: "Characters | Kane's Komet Bookstore",
     description: "Meet the Komet characters from the Kane's Komet Bookstore universe.",
-    alternates: { canonical: apexUrl("/characters") },
+    alternates: { canonical: canonicalUrl("/characters") },
 }
 
 export default async function CharactersPage({ previewDocument }: {

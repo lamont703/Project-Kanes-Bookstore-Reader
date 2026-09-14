@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { PolicyContent } from "@/components/marketing/policy-content"
 import { blocksOf, getPublishedBlocks, type PageDocument } from "@/lib/page-content"
-import { apexUrl } from "@/lib/hosts"
+import { canonicalUrl } from "@/lib/hosts"
 
 // Content is editable at runtime, so this cannot be baked in permanently at
 // build time. Five minutes matches the other content-driven marketing pages;
@@ -11,7 +11,7 @@ export const revalidate = 300
 export const metadata: Metadata = {
     title: "Privacy Policy | Kane's Komet Bookstore",
     description: "How Kane's Komet Bookstore collects, uses, and protects your information.",
-    alternates: { canonical: apexUrl("/privacy-policy") },
+    alternates: { canonical: canonicalUrl("/privacy-policy") },
 }
 
 export default async function PrivacyPolicyPage({ previewDocument }: {

@@ -2,10 +2,13 @@ import { MarketingHeader } from "@/components/marketing/marketing-header"
 import { SiteFooter } from "@/components/nav/site-footer"
 
 /**
- * Layout for the marketing routes served from kanesbookstore.com.
+ * Layout for the marketing routes.
  *
- * These pages are public and session-free by design — no auth or cart context
- * is mounted anywhere in this tree. See lib/hosts.ts for the host topology.
+ * These pages are public, but NOT session-free: the providers are mounted in
+ * the root layout, and MarketingHeader reads the real session and cart. It once
+ * was session-free, when these routes only ever rendered on an apex that had no
+ * cookies. They now render on the one host a signed-in member browses, so the
+ * header has to know who is looking at it. See lib/hosts.ts.
  * Visual language follows app/globals.css: font-display headings in
  * tracking-wider uppercase, primary (red) and secondary (yellow) accents.
  */

@@ -1,7 +1,7 @@
 import { findSection, getPublishedPage, isHidden, setting, type PageDocument } from "@/lib/page-content"
 import type { Metadata } from "next"
 import { ContactForm } from "@/components/marketing/contact-form"
-import { apexUrl } from "@/lib/hosts"
+import { canonicalUrl } from "@/lib/hosts"
 
 // Its heading and intro are editable, so this cannot be baked in permanently.
 // Publishing revalidates explicitly; this is the backstop.
@@ -10,7 +10,7 @@ export const revalidate = 300
 export const metadata: Metadata = {
     title: "Contact | Kane's Komet Bookstore",
     description: "Get in touch with Kane's Komet Bookstore.",
-    alternates: { canonical: apexUrl("/contact") },
+    alternates: { canonical: canonicalUrl("/contact") },
 }
 
 export default async function ContactPage({ previewDocument }: {

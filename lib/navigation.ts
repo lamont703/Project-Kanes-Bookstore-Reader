@@ -1,14 +1,17 @@
-import { apexUrl, kometzUrl } from "@/lib/hosts"
+import { canonicalUrl, appUrl } from "@/lib/hosts"
 
 /**
  * The single source of truth for site navigation across both hosts.
  *
- * kanesbookstore.com and kometz.kanesbookstore.com run the same Next app but
- * differ in one structural way: the apex never creates a session, so it cannot
- * own a cart or an auth action. Rather than maintain two menus, this config
- * describes every destination once and records which host owns it. Session
- * dependent items still appear on the apex — they resolve to absolute links
- * into the app host instead of interactive widgets, so nothing is lost.
+ * There is one host now. The two modes that remain, "marketing" and "app", no
+ * longer mean two origins — they mean two sets of chrome on the same site: the
+ * marketing pages keep a header that leads with "Join The Club", the rest of
+ * the app keeps one that leads with the account. Both read the real session.
+ *
+ * Every destination is therefore same-origin and relative. The marketing/app
+ * split in each NavItem survives because it still records which chrome owns a
+ * page, and because it is what a reader of this file needs to understand the
+ * header they are looking at.
  */
 
 export type NavMode = "marketing" | "app"
@@ -90,13 +93,12 @@ export function resolveNavItem(item: NavItem, mode: NavMode): ResolvedLink {
     if (own) return { label: item.label, href: own, external: false }
 
     const other = mode === "marketing" ? item.app : item.marketing
-    const href = mode === "marketing" ? kometzUrl(other ?? "/") : apexUrl(other ?? "/")
+    const href = mode === "marketing" ? appUrl(other ?? "/") : canonicalUrl(other ?? "/")
 
-    // "external" means a genuinely different origin, not merely "owned by the
-    // other host". kometzUrl returns a RELATIVE path everywhere except the apex,
-    // so on dev, staging and the app host these destinations are same-origin and
-    // must use <Link> — marking them external rendered a plain <a> and forced a
-    // full document reload on every click.
+    // "external" means a genuinely different origin. Since the consolidation
+    // nothing is: appUrl and every nav path are relative, so this is always
+    // false and every link renders as <Link>. Kept because getting it wrong is
+    // what once forced a full document reload on every click.
     return { label: item.label, href, external: /^https?:\/\//.test(href) }
 }
 

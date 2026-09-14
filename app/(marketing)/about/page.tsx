@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { ContentBlocks } from "@/components/marketing/content-blocks"
 import { PageHero } from "@/components/marketing/page-hero"
 import { blocksOf, getPublishedBlocks, type PageDocument } from "@/lib/page-content"
-import { apexUrl } from "@/lib/hosts"
+import { canonicalUrl } from "@/lib/hosts"
 
 // Content is editable at runtime, so this cannot be baked in permanently at
 // build time. Five minutes matches the other content-driven marketing pages;
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     title: "About | Kane's Komet Bookstore",
     description:
         "Kane's Komet Bookstore brings you an eclectic selection of Komet books, exclusively published by Emanuel and Bass Publishing, plus Kane's handpicked must-reads and merchandise.",
-    alternates: { canonical: apexUrl("/about") },
+    alternates: { canonical: canonicalUrl("/about") },
 }
 
 // Hero background lifted from kanesbookstore.com/about. Like the homepage's, it
