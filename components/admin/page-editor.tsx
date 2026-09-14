@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { saveDraft, publishPage, discardDraft } from "@/lib/page-editor"
 import { GenreManager } from "@/components/admin/genre-manager"
@@ -119,7 +120,10 @@ function ImageField({
 
     return (
         <div className="flex items-start gap-3">
-            <div className="size-20 shrink-0 overflow-hidden rounded border border-border bg-muted">
+            {/* Smaller on phones: at 80px, nested inside a block editor's drag
+                handle, delete button and three levels of padding, the URL field
+                beside it was left about 120 pixels. */}
+            <div className="size-14 shrink-0 overflow-hidden rounded border border-border bg-muted sm:size-20">
                 {value && (
                     // Not next/image: sources are user supplied at runtime and may
                     // point at any configured host.
@@ -264,16 +268,23 @@ function BlockEditor({
 /**
  * The draft preview pane.
  *
- * Renders the page at a real desktop width and scales it down to fit, rather
- * than letting a half-width pane render the site at its mobile breakpoints. An
- * admin checking a layout wants to see the layout visitors get, not a phone
- * rendering of it.
+ * On a pane at least MIN_SCALED_PANE wide it renders the page at a real desktop
+ * width and scales it down to fit, rather than letting a half-width pane render
+ * the site at its mobile breakpoints: an admin checking a layout there wants the
+ * layout visitors get, not a phone rendering of it.
+ *
+ * Below that width the reasoning inverts. Shrinking 1280px into a phone-sized
+ * pane lands at about 28%, which is not legible at any font size, so the frame
+ * renders at its own width instead and the site lays out at its real mobile
+ * breakpoints.
  *
  * The iframe's height is divided back out by the scale so the scaled result
  * fills the pane exactly — otherwise the frame is shorter than its container
  * and the page appears cut off partway down.
  */
 const PREVIEW_WIDTH = 1280
+
+
 
 interface Hotspot {
     key: string
@@ -559,6 +570,8 @@ function PreviewFrame({
     selected,
     doc,
     savedDoc,
+    active,
+    scaleToDesktop,
 }: {
     src: string
     refreshKey: number
@@ -569,6 +582,17 @@ function PreviewFrame({
     doc: PageDocument
     /** What the frame was rendered from, so only real changes are patched. */
     savedDoc: PageDocument
+    /**
+     * False while the mobile Edit tab is showing and this pane is display:none.
+     *
+     * A ResizeObserver is not delivered for an element that is not being
+     * rendered, so going back to the Preview tab left the measured width stale
+     * at zero and the frame stuck at its minimum. Re-measuring when this flips
+     * is what keeps the frame the width of its pane.
+     */
+    active: boolean
+    /** True from lg up, where the pane shows a scaled-down desktop render. */
+    scaleToDesktop: boolean
 }) {
     const wrapRef = React.useRef<HTMLDivElement>(null)
     const frameRef = React.useRef<HTMLIFrameElement>(null)
@@ -576,13 +600,13 @@ function PreviewFrame({
 
     React.useEffect(() => {
         const el = wrapRef.current
-        if (!el) return
+        if (!el || !active) return
         const measure = () => setBox({ width: el.clientWidth, height: el.clientHeight })
         measure()
         const ro = new ResizeObserver(measure)
         ro.observe(el)
         return () => ro.disconnect()
-    }, [])
+    }, [active])
 
     // Everything the preview can reflect without a re-render: which sections are
     // switched off, and where each image points. Derived as one string so the
@@ -594,8 +618,22 @@ function PreviewFrame({
 
     useLivePreview(frameRef, doc, savedDoc, liveKey, refreshKey)
 
-    // Never scale up: on a narrow screen the pane is already full width.
-    const scale = Math.min(1, box.width / PREVIEW_WIDTH)
+    /**
+     * Desktop render scaled down, or the pane rendered at its own size?
+     *
+     * Keyed off the VIEWPORT, not the pane. Keying it off the pane looked
+     * reasonable and was wrong: on a 1280px laptop the preview column is only
+     * about 460px, so a pane-width test flipped the desktop editor to mobile
+     * rendering too — the character grid went from four columns to two. The
+     * question being asked is "is this a phone", and the viewport is what knows.
+     *
+     * So desktop behaviour is exactly what it was. Only the stacked layout below
+     * lg, where a 1280px render would scale to about 28%, renders at pane width.
+     */
+    const frameWidth = scaleToDesktop ? PREVIEW_WIDTH : Math.max(box.width, 320)
+    // box.width is 0 while the pane is display:none — the other tab is showing.
+    // Guard it: a zero scale makes the height below Infinity.
+    const scale = box.width > 0 ? Math.min(1, box.width / frameWidth) : 1
     const spots = useHotspots(frameRef, scale, refreshKey, editing, liveKey)
 
     return (
@@ -609,7 +647,7 @@ function PreviewFrame({
                 src={src}
                 title="Draft preview"
                 style={{
-                    width: PREVIEW_WIDTH,
+                    width: frameWidth,
                     height: box.height / scale,
                     transform: `scale(${scale})`,
                     transformOrigin: "top left",
@@ -676,6 +714,30 @@ export function PageEditor({
     const [previewKey, setPreviewKey] = React.useState(0)
     const [editing, setEditing] = React.useState(true)
     const [selected, setSelected] = React.useState<string | null>(null)
+    /**
+     * Which half of the editor a phone is showing.
+     *
+     * Below lg the two columns stack, and /characters has 35 blocks — so the
+     * preview sat several screens below the fields that change it, which is the
+     * one place it is no use. A pair of tabs puts it one tap away. Ignored from
+     * lg up, where both are on screen at once.
+     */
+    const [mobilePane, setMobilePane] = React.useState<"edit" | "preview">("edit")
+
+    /**
+     * Whether the lg breakpoint is in force, matching the Tailwind classes that
+     * decide the layout. Needed because the preview has to re-measure itself
+     * when it stops being display:none, and only the viewport knows whether the
+     * tabs are doing any hiding at all.
+     */
+    const [isWide, setIsWide] = React.useState(false)
+    React.useEffect(() => {
+        const mq = window.matchMedia("(min-width: 1024px)")
+        const sync = () => setIsWide(mq.matches)
+        sync()
+        mq.addEventListener("change", sync)
+        return () => mq.removeEventListener("change", sync)
+    }, [])
 
     /**
      * Bring the field for a clicked preview element into view and focus it.
@@ -828,7 +890,7 @@ export function PageEditor({
     const previewSrc = `/preview/${slug}?v=${previewKey}`
 
     return (
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-3 py-6 sm:px-4 sm:py-8">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <p className="text-xs uppercase tracking-widest text-muted-foreground">Dev mode</p>
@@ -866,15 +928,49 @@ export function PageEditor({
                 </div>
             </div>
 
+            {/* Edit / Preview, phones only. Rendered as real buttons rather
+                than a Tabs component because the panels below are grid columns
+                that must stay side by side from lg up — a Tabs root would have
+                to be unwound at that breakpoint. */}
+            <div className="mb-4 grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted/30 p-1 lg:hidden">
+                {(["edit", "preview"] as const).map((pane) => (
+                    <button
+                        key={pane}
+                        type="button"
+                        onClick={() => setMobilePane(pane)}
+                        aria-pressed={mobilePane === pane}
+                        className={cn(
+                            "rounded-md px-3 py-2 text-sm font-medium capitalize transition-colors",
+                            mobilePane === pane
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground",
+                        )}
+                    >
+                        {pane === "edit" ? "Edit" : "Preview"}
+                    </button>
+                ))}
+            </div>
+
             {/* Side by side from lg rather than xl. The admin sidebar already
                 takes 256px, so an xl breakpoint meant the preview dropped below
                 the fields on any window under about 1500px — which is where it
                 was actually being used. The editor column is given slightly less
                 room than the preview: its controls are fixed-height, the page
-                being previewed is not. */}
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+                being previewed is not.
+
+                grid-cols-1 is NOT redundant with the single-column default, and
+                removing it breaks the whole editor on a phone. Without an
+                explicit template, the one column is an implicit `auto` track,
+                which is sized by its content's max-content width — and
+                overflow-hidden on the preview wrapper does not stop the 1280px
+                iframe inside it from contributing. Measured at a 386px viewport
+                the track computed to 1282px, so BOTH columns were 1282px wide
+                and every field was clipped off-screen by the admin shell's
+                overflow-x-hidden. minmax(0,1fr), which grid-cols-1 expands to,
+                caps that contribution at the available width. */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
                 {/* ---- editor ---- */}
-                <div className="space-y-4">
+                <div className={cn("min-w-0 space-y-4", mobilePane === "preview" && "hidden lg:block")}>
                     {/* Categories are page furniture for /browse specifically:
                         they are its filter buttons. They are stored as rows, not
                         in the page document, because the upload form needs them
@@ -945,7 +1041,10 @@ export function PageEditor({
                                                     onChange={(e) =>
                                                         updateSection(section.id, { name: e.target.value })
                                                     }
-                                                    className="h-8 max-w-56 font-semibold"
+                                                    // Full width on a phone, where sharing a
+                                                    // row with the badge and the visibility
+                                                    // controls left it unreadably narrow.
+                                                    className="h-8 w-full min-w-0 font-semibold sm:w-auto sm:max-w-56"
                                                 />
                                                 <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
                                                     {section.kind}
@@ -1133,12 +1232,17 @@ export function PageEditor({
                 {/* ---- preview ---- */}
                 {/* Sticky so the preview stays in view while scrolling a long
                     page of fields — /characters has 35 blocks. */}
-                <div className="lg:sticky lg:top-20 lg:self-start">
-                    <div className="mb-2 flex items-center justify-between">
+                <div
+                    className={cn(
+                        "min-w-0 lg:sticky lg:top-20 lg:self-start",
+                        mobilePane === "edit" && "hidden lg:block",
+                    )}
+                >
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs uppercase tracking-widest text-muted-foreground">
                             Draft preview
                         </p>
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1">
                             <Button
                                 variant={editing ? "default" : "ghost"}
                                 size="sm"
@@ -1173,6 +1277,10 @@ export function PageEditor({
                         selected={selected}
                         doc={doc}
                         savedDoc={savedDoc}
+                        // From lg up both columns are always on screen, so the
+                        // pane is only ever hidden by the phone tabs.
+                        active={mobilePane === "preview" || isWide}
+                        scaleToDesktop={isWide}
                     />
                 </div>
             </div>
