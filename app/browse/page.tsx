@@ -65,17 +65,34 @@ export default async function BrowsePage({ searchParams, previewDocument }: Brow
 
   // Sorting.
   //
-  // Price lives in book_variants, a to-many relation, so Postgres cannot order
-  // parent rows by it — which is why the price options previously did nothing.
-  // For those we fetch the whole matching set, sort it here, then slice the
-  // page. Sorting only the current page would order 12 books against each other
-  // rather than the catalogue.
+  // Two kinds. Title, author and newest are columns on books, so the database
+  // orders them and .range() pages the result — only one page ever comes back.
   //
-  // Title sorting stays in the database, where .range() can do the paging.
-  // Title order is always applied: it pages the title sort in the database, and
-  // for price sorts it is the tiebreak, so books at the same price keep a stable
-  // order instead of shuffling between requests.
+  // Price and popularity are not: price lives in book_variants, a to-many
+  // relation Postgres cannot order parent rows by (which is why the price
+  // options originally did nothing), and units sold lives in order_items behind
+  // RLS. Both are resolved after the fetch, which means the whole matching set
+  // has to come back first — sorting one page would rank 12 books against each
+  // other rather than the catalogue.
+  //
+  // Title order is applied last in every case. It pages the title sort in the
+  // database and is the tiebreak everywhere else, so books level on price or
+  // sales keep a stable order instead of shuffling between requests.
   const isPriceSort = sort === 'price-low' || sort === 'price-high'
+  const isSalesSort = sort === 'best-selling'
+  const needsFullSet = isPriceSort || isSalesSort
+
+  if (sort === 'author') {
+    // nullsFirst: false — a book with no author recorded belongs at the end of
+    // an author listing, not at the top of it.
+    dbQuery = dbQuery.order('author', { ascending: true, nullsFirst: false })
+  }
+  if (sort === 'newest') {
+    // created_at is when the book entered this catalogue. There is no
+    // publication-date column, so "new" means new to the shop — which is what a
+    // new-arrivals shelf means anyway.
+    dbQuery = dbQuery.order('created_at', { ascending: false })
+  }
   dbQuery = dbQuery.order('title', { ascending: true })
 
   // Fetch only the current page. Previously the whole catalogue came back on
@@ -85,9 +102,34 @@ export default async function BrowsePage({ searchParams, previewDocument }: Brow
   // can be chosen. The explicit upper bound keeps that honest — PostgREST caps
   // rows anyway, and a silent truncation would quietly drop books from the sort.
   const from = (page - 1) * perPage
-  const { data, error, count } = isPriceSort
+  const { data, error, count } = needsFullSet
     ? await dbQuery.range(0, 999)
     : await dbQuery.range(from, from + perPage - 1)
+
+  /**
+   * Units sold per book, for the popularity sort only.
+   *
+   * Through an RPC because order_items is owner-scoped: a shopper cannot read
+   * it, and should not be able to. book_sales_totals (migration
+   * 20260914000001) returns nothing but book ids and counts.
+   *
+   * Fetched only when that sort is active — every other visit to /browse should
+   * not pay for it.
+   */
+  let unitsByBook = new Map<string, number>()
+  if (isSalesSort) {
+    const { data: totals, error: totalsError } = await supabase.rpc('book_sales_totals')
+    if (totalsError) {
+      // Fall through to the title order rather than failing the page: a shopper
+      // who cannot sort by popularity is better served than one staring at an
+      // error, and the operator gets the reason in the log.
+      console.error('❌ book_sales_totals failed, falling back to title order:', totalsError.message)
+    } else {
+      unitsByBook = new Map(
+        (totals ?? []).map((row: { book_id: string; units: number }) => [row.book_id, Number(row.units)]),
+      )
+    }
+  }
 
   const total = count ?? 0
   const totalPages = Math.max(1, Math.ceil(total / perPage))
@@ -129,10 +171,20 @@ export default async function BrowsePage({ searchParams, previewDocument }: Brow
     })) || []
   }))
 
-  // Sort by the displayed price, then take the requested page.
-  const ordered = isPriceSort
+  // Apply the sorts the database could not, then take the requested page.
+  // Array.prototype.sort is stable, so books that tie keep the title order the
+  // query already put them in.
+  const ordered = needsFullSet
     ? [...books]
-        .sort((a, b) => (sort === 'price-low' ? a.price - b.price : b.price - a.price))
+        .sort((a, b) => {
+          if (isSalesSort) {
+            // Never sold counts as zero, which puts those books after every
+            // book that has sold and leaves them in title order among
+            // themselves.
+            return (unitsByBook.get(b.id) ?? 0) - (unitsByBook.get(a.id) ?? 0)
+          }
+          return sort === 'price-low' ? a.price - b.price : b.price - a.price
+        })
         .slice(from, from + perPage)
     : books
 

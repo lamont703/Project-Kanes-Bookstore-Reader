@@ -62,6 +62,12 @@ export function BrowseFilters({ genres = [] }: { genres?: string[] }) {
                         onChange={(e) => updateParams({ sort: e.target.value })}
                     >
                         <option value="title">Title: A-Z</option>
+                        <option value="author">Author: A-Z</option>
+                        <option value="best-selling">Most Purchased</option>
+                        {/* By date added to the catalogue — there is no
+                            publication-date column, so this is a new-arrivals
+                            shelf rather than a publishing calendar. */}
+                        <option value="newest">New Releases</option>
                         <option value="price-low">Price: Low to High</option>
                         <option value="price-high">Price: High to Low</option>
                     </select>
