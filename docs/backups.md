@@ -59,13 +59,41 @@ Actions). Nothing here belongs in the repo.
 
 | secret | where to get it |
 |---|---|
-| `SUPABASE_PROD_DB_URL` | Supabase → Project Settings → Database → Connection string (URI). Same value as `.env.local`. |
+| `SUPABASE_PROD_DB_URL` | **The pooler URI, not the direct one** — see below. Not the same value as `.env.local`. |
 | `SUPABASE_PROD_PROJECT_REF` | `kpafjhkrjipiyfjizyaw` |
 | `SUPABASE_PROD_REGION` | `us-east-1` |
 | `SUPABASE_S3_ACCESS_KEY_ID` | Supabase → Storage → S3 Access Keys → New access key |
 | `SUPABASE_S3_SECRET_ACCESS_KEY` | shown once, at the same moment |
 
 Five secrets, one key pair to create, no other vendor.
+
+### The database URL has to be the pooler
+
+`db.<ref>.supabase.co` has **no A record** — Supabase serves direct connections
+over IPv6 only, and GitHub Actions runners have no IPv6. A direct URL fails with:
+
+```
+pg_dump: error: connection to server at "db.….supabase.co"
+  (2600:1f18:…), port 5432 failed: Network unreachable
+```
+
+Use the pooler, which resolves on IPv4:
+
+```
+postgresql://postgres.kpafjhkrjipiyfjizyaw:<password>@aws-1-us-east-1.pooler.supabase.com:5432/postgres
+```
+
+Three things that are easy to get wrong:
+
+- The user is `postgres.<project-ref>`, not `postgres`.
+- The host is `aws-1-…` for this project. `aws-0-…` also resolves, but answers
+  `FATAL: (ENOTFOUND) tenant/user … not found` — projects are assigned to a
+  specific pooler.
+- Port **5432** (session mode). Port 6543 is transaction mode and will not
+  support `pg_dump`.
+
+`.env.local` keeps the direct URL, which is correct — it works from a laptop on
+an IPv6-capable network and is one hop shorter.
 
 The `kanes-backups` bucket already exists and is **private**. Keep it that way —
 the dump contains real customer names, emails, addresses and order history, and

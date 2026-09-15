@@ -51,6 +51,12 @@ jobs:
 
       # pg_dump must be at least as new as the 17.6 server. The runner ships an
       # older client, so use the official image rather than fighting apt.
+      # SUPABASE_PROD_DB_URL must be the POOLER string, not the direct one.
+      # db.<ref>.supabase.co has no A record — it is IPv6 only — and GitHub
+      # runners have no IPv6, so a direct connection fails with "Network
+      # unreachable". The pooler resolves on IPv4. Port 5432 (session mode),
+      # not 6543: transaction mode does not support what pg_dump needs.
+      # See docs/backups.md.
       - name: Dump the database
         env:
           DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
