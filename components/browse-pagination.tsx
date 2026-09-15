@@ -43,7 +43,19 @@ export function BrowsePagination({
             if (v === null) params.delete(k)
             else params.set(k, v)
         })
-        startTransition(() => router.push(`${basePath}?${params.toString()}`, { scroll: false }))
+        /**
+         * Scroll to the top, which is Next's default — `scroll: false` used to
+         * suppress it.
+         *
+         * Suppressing it meant clicking "Next" left the viewer exactly where
+         * they were: at the bottom of the page, beside the pagination control,
+         * looking at the end of a list they had not seen the start of. Every
+         * page after the first began in the middle of nowhere.
+         *
+         * It applies to the per-page selector too, and should: changing the
+         * page size restarts the list at page 1, so the top is where it begins.
+         */
+        startTransition(() => router.push(`${basePath}?${params.toString()}`))
     }
 
     return (

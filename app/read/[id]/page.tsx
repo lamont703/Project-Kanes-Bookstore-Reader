@@ -10,6 +10,7 @@ import Image from "next/image"
 import { createClient } from "@/lib/supabase/client"
 import { useViewAs } from "@/context/view-as-context"
 import { useViewAsGuard } from "@/hooks/use-view-as-guard"
+import { BackLink } from "@/components/back-link"
 import { ReadingSettingsPanel } from "@/components/reading-settings-panel"
 import { ReadingSidebar } from "@/components/reading-sidebar"
 import { useParams } from "next/navigation"
@@ -505,10 +506,22 @@ export default function ReadPage() {
       <header className="border-b border-border bg-background/80 backdrop-blur z-50 flex-shrink-0">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <Link href="/browse" className="flex items-center gap-2">
-              <Image src="/marketing/b9ed83bb-661ea792d03e91ccb4968534.webp" width={24} height={24} alt="log" className="w-6 h-6 rounded" />
-              <span className="font-display text-xl tracking-wider text-primary">KANE&apos;S KOMETS</span>
-            </Link>
+            {/* Way out of the reader.
+                The wordmark beside this has always linked to /browse, but a logo
+                reads as branding, not as an exit — a reader in a full-screen
+                book had no control that said "leave". BackLink returns them
+                wherever they actually came from (their library, the book's page)
+                and falls back to the library when there is no in-app history,
+                which is where a book they own lives. */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              <BackLink fallbackHref="/dashboard" label="Exit" className="mb-0" />
+              <Link href="/browse" className="flex items-center gap-2">
+                <Image src="/marketing/b9ed83bb-661ea792d03e91ccb4968534.webp" width={24} height={24} alt="log" className="w-6 h-6 rounded" />
+                {/* Hidden on the narrowest screens so the exit control and the
+                    reader's own tools both keep room. */}
+                <span className="hidden font-display text-xl tracking-wider text-primary sm:inline">KANE&apos;S KOMETS</span>
+              </Link>
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
