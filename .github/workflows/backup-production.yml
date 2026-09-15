@@ -119,13 +119,27 @@ jobs:
       # The half Supabase's own backups do not cover. Incremental: only changed
       # objects move. kanes-backups is deliberately absent from this list, so
       # the backup never starts backing itself up.
+      #
+      # --size-only, because rclone's default size+modtime comparison does not
+      # survive this round trip. Supabase's S3 does not return the modtime
+      # rclone wrote, so every run saw every file as changed. Small objects it
+      # patched cheaply ("Updated modification time in destination"), but the
+      # ~15 MB .docx files cannot be patched in place, so each night it moved
+      # all 93 MB of book-docs into storage-deleted and re-copied it — about
+      # 8 GB of churn over the 90-day retention window, for no change at all.
+      #
+      # The trade: a file replaced by different content of EXACTLY the same
+      # byte count is not noticed. These are UUID-keyed immutable media, so
+      # that is close to impossible, and the alternative was re-uploading a
+      # tenth of the library nightly. The database dump is unaffected either
+      # way — it gets a fresh filename every day.
       - name: Mirror Storage buckets
         run: |
           set -euo pipefail
           for b in book-covers book-pages book-pdfs book-illustrations book-docs page-images; do
             echo "::group::$b"
             rclone sync "supabase:$b" "supabase:${BACKUP_BUCKET}/storage/$b" \
-              --fast-list --transfers 16 --checkers 32 \
+              --size-only --fast-list --transfers 16 --checkers 32 \
               --backup-dir "supabase:${BACKUP_BUCKET}/storage-deleted/$b/${{ steps.stamp.outputs.date }}" \
               -v
             echo "::endgroup::"
