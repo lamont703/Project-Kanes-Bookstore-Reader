@@ -14,6 +14,21 @@ the thing none of that provides: give me back these two rows, now. Hence this.
 PITR would solve it too, at $100/month. This costs nothing and gives finer
 granularity; what it gives up is recency — up to 24 hours, versus seconds.
 
+## Where the copies live, and what that does not cover
+
+The destination is the private **`kanes-backups`** bucket in the production
+project. A deliberate trade: no second vendor, no card, no new account, and it
+fully covers the failure that actually happened — our own code deleting rows
+and files, which never touches that bucket.
+
+It does **not** survive losing the project: deletion, suspension, a billing
+lapse. For that the copy has to leave Supabase. See "Adding an off-site mirror"
+at the end.
+
+Staging is not an alternative, despite appearances. It is a **non-persistent
+branch** of production (`oplyizxbzmwdodctsnxv`, parent `kpafjhkrjipiyfjizyaw`),
+so it shares the blast radius and Supabase may tear it down.
+
 ## What runs
 
 `.github/workflows/backup-production.yml`, nightly at 07:40 UTC, and on demand
@@ -26,9 +41,9 @@ Six buckets are mirrored — `book-covers`, `book-pages`, `book-pdfs`,
 
 | what | where | retention |
 |---|---|---|
-| `pg_dump` of `public` + `storage` schemas | `r2:kanes-backups/database/db-YYYY-MM-DD.dump` | 30 days, plus the 1st of each month for a year |
-| every Storage bucket, mirrored | `r2:kanes-backups/storage/<bucket>/` | current state |
-| files deleted from Storage | `r2:kanes-backups/storage-deleted/<bucket>/<date>/` | 90 days |
+| `pg_dump` of `public` + `storage` schemas | `kanes-backups/database/db-YYYY-MM-DD.dump` | 30 days, plus the 1st of each month for a year |
+| every Storage bucket, mirrored | `kanes-backups/storage/<bucket>/` | current state |
+| files deleted from Storage | `kanes-backups/storage-deleted/<bucket>/<date>/` | 90 days |
 
 That third row is the one that would have saved the two book covers: `rclone
 sync` is told to MOVE vanished files aside rather than drop them, so deleting a
@@ -46,14 +61,15 @@ Actions). Nothing here belongs in the repo.
 |---|---|
 | `SUPABASE_PROD_DB_URL` | Supabase → Project Settings → Database → Connection string (URI). Same value as `.env.local`. |
 | `SUPABASE_PROD_PROJECT_REF` | `kpafjhkrjipiyfjizyaw` |
-| `SUPABASE_PROD_REGION` | `us-east-1` (confirmed for this project) |
-| `SUPABASE_S3_ACCESS_KEY_ID` / `SUPABASE_S3_SECRET_ACCESS_KEY` | Supabase → Storage → S3 Access Keys → New access key |
-| `R2_ACCOUNT_ID` | Cloudflare dashboard → R2 → account id in the endpoint URL |
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Cloudflare → R2 → Manage API Tokens → Create (Object Read & Write) |
+| `SUPABASE_PROD_REGION` | `us-east-1` |
+| `SUPABASE_S3_ACCESS_KEY_ID` | Supabase → Storage → S3 Access Keys → New access key |
+| `SUPABASE_S3_SECRET_ACCESS_KEY` | shown once, at the same moment |
 
-Then create an R2 bucket named **`kanes-backups`**. Leave it private — the dump
-contains real customer names, emails, addresses and order history. R2 encrypts
-at rest and charges nothing for egress, so pulling a backup down is free.
+Five secrets, one key pair to create, no other vendor.
+
+The `kanes-backups` bucket already exists and is **private**. Keep it that way —
+the dump contains real customer names, emails, addresses and order history, and
+a public bucket would put all of it one guessed URL away.
 
 ## Restore: one row (the case that bit us)
 
@@ -62,7 +78,7 @@ take the rows you want, insert those.
 
 ```bash
 # 1. Fetch the dump from the night before the damage.
-rclone copy r2:kanes-backups/database/db-2026-09-15.dump .
+rclone copy supabase:kanes-backups/database/db-2026-09-15.dump .
 
 # 2. Stand up a throwaway Postgres and load it.
 docker run -d --name scratch -e POSTGRES_PASSWORD=x -p 5433:5432 postgres:17-alpine
@@ -92,14 +108,14 @@ docker rm -f scratch
 
 ```bash
 # A whole bucket back to how it was:
-rclone copy r2:kanes-backups/storage/book-covers supabase:book-covers -v
+rclone copy supabase:kanes-backups/storage/book-covers supabase:book-covers -v
 
 # One book's files:
-rclone copy r2:kanes-backups/storage/book-covers/<book-id> \
+rclone copy supabase:kanes-backups/storage/book-covers/<book-id> \
             supabase:book-covers/<book-id> -v
 
 # Something deleted in the last 90 days:
-rclone copy r2:kanes-backups/storage-deleted/book-covers/2026-09-15/<book-id> \
+rclone copy supabase:kanes-backups/storage-deleted/book-covers/2026-09-15/<book-id> \
             supabase:book-covers/<book-id> -v
 ```
 
@@ -127,3 +143,21 @@ the first — check whether the row is simply retired:
 select id, title, deleted_at from public.books where deleted_at is not null;
 update public.books set deleted_at = null where id = '…';   -- undo
 ```
+
+## Adding an off-site mirror, later
+
+Everything above lives inside the production project, so it cannot survive
+losing that project. When that matters, the change is small: add a second
+rclone remote and one more sync step. Two options that fit 2 GB:
+
+- **Cloudflare R2** — 10 GB free, no egress charge, but wants a card on file
+  even for the free tier.
+- **Google Drive** — 15 GB free, no card. Wrap it in `rclone crypt` so the
+  customer PII is encrypted before it leaves.
+
+```bash
+rclone sync supabase:kanes-backups offsite:kanes-backups --fast-list -v
+```
+
+Until then, be clear-eyed: this is protection against our own mistakes, which
+is the thing that has actually gone wrong, and not against losing Supabase.

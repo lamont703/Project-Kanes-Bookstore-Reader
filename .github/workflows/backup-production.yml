@@ -1,25 +1,34 @@
-# Nightly backup of the production database and Storage.
+# Nightly backup of the production database and Storage, into Supabase itself.
 #
-# Supabase's own daily backups are physical (WAL-G): they can only be restored
-# whole-project, in place, by Supabase, and they do NOT include Storage objects.
-# On 2026-09-15 two books were deleted and recovering them meant a support
-# ticket, because there was nothing on hand that could give back two rows.
+# Supabase's own daily backups are physical (WAL-G): they restore
+# whole-project, in place, only by Supabase, and they do NOT include Storage
+# objects. On 2026-09-15 two books were deleted by a bug and recovering them
+# meant a support ticket, while their cover images were gone outright.
 #
-# This exists so the answer to "can we get that one thing back" is yes, by
-# ourselves, in minutes. See docs/backups.md for how to restore.
+# This exists so "can we get that one thing back" is answerable by us, in
+# minutes. See docs/backups.md for how to restore.
 #
-# Cost: nothing. The dump is a couple of MB, Storage is ~2 GB and syncs
-# incrementally, and both fit inside Cloudflare R2's 10 GB free tier. The job
-# takes about two minutes, against 2,000 free Actions minutes a month.
+# ── What this does and does not protect against ────────────────────────────
+#
+# The destination is the kanes-backups bucket in the SAME project. That is a
+# deliberate trade: it needs no second vendor, no card and no new account, and
+# it fully covers the failure that actually happened — our own code deleting
+# rows and files, which never touches this bucket.
+#
+# It does NOT survive losing the project itself: deletion, suspension, a
+# billing lapse. For that the copy has to leave Supabase. docs/backups.md
+# records how to add an off-site mirror when that is worth doing.
+#
+# Staging is not an option, despite appearances: it is a NON-PERSISTENT BRANCH
+# of production (parent kpafjhkrjipiyfjizyaw), so it shares the blast radius
+# and Supabase may tear it down.
 
 name: Backup production
 
 on:
   schedule:
-    # 07:40 UTC — after Supabase's own ~08:25 UTC snapshot would be stale, and
-    # well clear of the evening editing window.
     - cron: "40 7 * * *"
-  workflow_dispatch:  # so it can be run by hand before anything risky
+  workflow_dispatch:  # run by hand before anything risky
 
 concurrency:
   group: backup-production
@@ -30,6 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
+    env:
+      BACKUP_BUCKET: kanes-backups
+
     steps:
       - uses: actions/checkout@v4
 
@@ -37,8 +49,8 @@ jobs:
         id: stamp
         run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
-      # pg_dump must be at least as new as the server (17.6). The runner ships
-      # an older client, so use the official image rather than fighting apt.
+      # pg_dump must be at least as new as the 17.6 server. The runner ships an
+      # older client, so use the official image rather than fighting apt.
       - name: Dump the database
         env:
           DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
@@ -51,88 +63,86 @@ jobs:
             > "out/db-${{ steps.stamp.outputs.date }}.dump"
           ls -lh out/
 
-      # An unverified backup is not a backup. Fail loudly rather than upload
-      # something that cannot be read back.
+      # An unverified backup is not a backup. Fail the build rather than upload
+      # something nobody discovers is empty until they need it.
       - name: Verify the dump is restorable
         run: |
           set -euo pipefail
-          F="out/db-${{ steps.stamp.outputs.date }}.dump"
           docker run --rm -v "$PWD/out:/out" postgres:17-alpine \
-            pg_restore --list "/out/$(basename "$F")" > /tmp/toc.txt
+            pg_restore --list "/out/db-${{ steps.stamp.outputs.date }}.dump" > /tmp/toc.txt
           TABLES=$(grep -c 'TABLE DATA' /tmp/toc.txt || true)
           echo "tables with data: $TABLES"
           test "$TABLES" -ge 15 || { echo "::error::only $TABLES tables in the dump — refusing"; exit 1; }
-          grep -qE 'TABLE DATA public books'  /tmp/toc.txt || { echo "::error::no books table"; exit 1; }
+          grep -qE 'TABLE DATA public books'  /tmp/toc.txt || { echo "::error::no books table";  exit 1; }
           grep -qE 'TABLE DATA public orders' /tmp/toc.txt || { echo "::error::no orders table"; exit 1; }
 
       - name: Install rclone
         run: curl -fsSL https://rclone.org/install.sh | sudo bash
 
-      - name: Configure remotes
+      # One remote: source buckets and the backup bucket live in the same
+      # project. rclone will then use S3 server-side copy for the mirror, so
+      # 2 GB of images never travels to the runner and back.
+      - name: Configure rclone
         env:
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          SB_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_S3_ACCESS_KEY_ID }}
-          SB_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_S3_SECRET_ACCESS_KEY }}
-          SB_PROJECT_REF: ${{ secrets.SUPABASE_PROD_PROJECT_REF }}
+          SB_KEY: ${{ secrets.SUPABASE_S3_ACCESS_KEY_ID }}
+          SB_SECRET: ${{ secrets.SUPABASE_S3_SECRET_ACCESS_KEY }}
+          SB_REF: ${{ secrets.SUPABASE_PROD_PROJECT_REF }}
           SB_REGION: ${{ secrets.SUPABASE_PROD_REGION }}
         run: |
           set -euo pipefail
           mkdir -p ~/.config/rclone
           cat > ~/.config/rclone/rclone.conf <<EOF
-          [r2]
-          type = s3
-          provider = Cloudflare
-          access_key_id = ${R2_ACCESS_KEY_ID}
-          secret_access_key = ${R2_SECRET_ACCESS_KEY}
-          endpoint = https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
-          acl = private
-
           [supabase]
           type = s3
           provider = Other
-          access_key_id = ${SB_S3_ACCESS_KEY_ID}
-          secret_access_key = ${SB_S3_SECRET_ACCESS_KEY}
-          endpoint = https://${SB_PROJECT_REF}.storage.supabase.co/storage/v1/s3
+          access_key_id = ${SB_KEY}
+          secret_access_key = ${SB_SECRET}
+          endpoint = https://${SB_REF}.storage.supabase.co/storage/v1/s3
           region = ${SB_REGION}
+          force_path_style = true
+          no_check_bucket = true
           EOF
+          rclone lsd supabase: || { echo "::error::cannot reach Supabase S3 — check the access keys"; exit 1; }
 
       - name: Upload the dump
         run: |
           set -euo pipefail
           rclone copy "out/db-${{ steps.stamp.outputs.date }}.dump" \
-            "r2:kanes-backups/database/" --s3-no-check-bucket -v
+            "supabase:${BACKUP_BUCKET}/database/" -v
 
-      # Storage is the half Supabase's own backups do not cover. Incremental:
-      # only changed objects move after the first run.
+      # The half Supabase's own backups do not cover. Incremental: only changed
+      # objects move. kanes-backups is deliberately absent from this list, so
+      # the backup never starts backing itself up.
       - name: Mirror Storage buckets
         run: |
           set -euo pipefail
           for b in book-covers book-pages book-pdfs book-illustrations book-docs page-images; do
             echo "::group::$b"
-            rclone sync "supabase:$b" "r2:kanes-backups/storage/$b" \
-              --s3-no-check-bucket --fast-list --transfers 16 --checkers 32 \
-              --backup-dir "r2:kanes-backups/storage-deleted/$b/${{ steps.stamp.outputs.date }}" \
+            rclone sync "supabase:$b" "supabase:${BACKUP_BUCKET}/storage/$b" \
+              --fast-list --transfers 16 --checkers 32 \
+              --backup-dir "supabase:${BACKUP_BUCKET}/storage-deleted/$b/${{ steps.stamp.outputs.date }}" \
               -v
             echo "::endgroup::"
           done
 
-      # --backup-dir above means a file deleted in Supabase is MOVED aside here
-      # rather than dropped, so a mistaken storage delete stays recoverable for
-      # as long as the pruning below keeps it.
+      # --backup-dir above MOVES a vanished file aside rather than dropping it,
+      # so deleting a file in Supabase leaves a copy here. That is the part
+      # that would have saved the two book covers lost on 2026-09-15.
       - name: Prune old backups
         run: |
           set -euo pipefail
-          # Dumps: keep 30 days, plus every 1st of the month for a year.
-          rclone delete "r2:kanes-backups/database/" --min-age 30d \
-            --exclude "db-*-01.dump" --s3-no-check-bucket -v
-          rclone delete "r2:kanes-backups/database/" --min-age 365d --s3-no-check-bucket -v
-          # Files deleted from Storage: keep the sidelined copies for 90 days.
-          rclone delete "r2:kanes-backups/storage-deleted/" --min-age 90d --s3-no-check-bucket -v
-          rclone rmdirs "r2:kanes-backups/storage-deleted/" --leave-root --s3-no-check-bucket || true
+          # Dumps: 30 days, plus the 1st of each month for a year.
+          rclone delete "supabase:${BACKUP_BUCKET}/database/" --min-age 30d \
+            --exclude "db-*-01.dump" -v
+          rclone delete "supabase:${BACKUP_BUCKET}/database/" --min-age 365d -v
+          # Sidelined Storage files: 90 days.
+          rclone delete "supabase:${BACKUP_BUCKET}/storage-deleted/" --min-age 90d -v
 
       - name: Report
         run: |
-          echo "### Backup complete" >> "$GITHUB_STEP_SUMMARY"
-          rclone size "r2:kanes-backups" --s3-no-check-bucket >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Backup complete"
+            echo '```'
+            rclone size "supabase:${BACKUP_BUCKET}" 2>&1 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
