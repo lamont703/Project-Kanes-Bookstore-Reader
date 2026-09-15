@@ -241,71 +241,42 @@ export function BookForm({ initialData, isEdit, canDelete = true }: BookFormProp
         if (!canDelete) return
         if (!initialData?.id) return
 
-        const loadingToast = toast.loading(`Commencing cosmic purge for "${formData.title}"...`)
+        const loadingToast = toast.loading(`Retiring "${formData.title}"...`)
 
         try {
-            const bookId = initialData.id
-
-            // 1. Storage Cleanup
-            try {
-                // PDFs
-                const { data: pdfFiles } = await supabase.storage.from("book-pdfs").list(bookId)
-                if (pdfFiles?.length) {
-                    await supabase.storage.from("book-pdfs").remove(pdfFiles.map(f => `${bookId}/${f.name}`))
-                }
-
-                // Cover
-                const { data: coverFiles } = await supabase.storage.from("book-covers").list(bookId)
-                if (coverFiles?.length) {
-                    await supabase.storage.from("book-covers").remove(coverFiles.map(f => `${bookId}/${f.name}`))
-                }
-
-                // Pages
-                const { data: pageFiles } = await supabase.storage.from("book-pages").list(bookId)
-                if (pageFiles?.length) {
-                    await supabase.storage.from("book-pages").remove(pageFiles.map(f => `${bookId}/${f.name}`))
-                }
-
-                // Illustrations
-                const { data: illustrationFiles } = await supabase.storage.from("book-illustrations").list(bookId)
-                if (illustrationFiles?.length) {
-                    await supabase.storage.from("book-illustrations").remove(illustrationFiles.map(f => `${bookId}/${f.name}`))
-                }
-            } catch (storageErr) {
-                console.warn("Partial storage cleanup", storageErr)
-            }
-
-            // 2. Database Purge
-            const { error: deleteError } = await supabase
+            /**
+             * Retire, do not destroy.
+             *
+             * This used to empty the book's Storage folders and then DELETE the
+             * row — which cascades into order_items, user_library, bookmarks,
+             * highlights, reading_progress and cart_items. So removing a book
+             * from the catalogue also rewrote sales history and took the book
+             * out of the library of every customer who had bought it, with no
+             * way back short of a Supabase support restore.
+             *
+             * Setting deleted_at hides it everywhere a shopper or an admin
+             * looks, while the row, its variants, its pages and its Storage
+             * files all stay exactly where they are. Undoing it is one UPDATE.
+             *
+             * The database now refuses a hard delete outright
+             * (trg_books_block_hard_delete, migration 20260915000000), so this
+             * is not merely the polite path — it is the only one that works.
+             */
+            const { error: retireError } = await supabase
                 .from("books")
-                .delete()
-                .eq("id", bookId)
+                .update({ deleted_at: new Date().toISOString() })
+                .eq("id", initialData.id)
 
-            if (deleteError) {
-                if (deleteError.code === '23503' || deleteError.message.includes('Conflict')) {
-                    console.log("RESTRICT violation detected. Attempting manual dependency cleanup...")
-                    await supabase.from("book_club_selections").delete().eq("book_id", bookId)
-                    await supabase.from("user_library").delete().eq("book_id", bookId)
-                    await supabase.from("order_items").delete().eq("book_id", bookId)
-
-                    const { error: secondTryError } = await supabase
-                        .from("books")
-                        .delete()
-                        .eq("id", bookId)
-
-                    if (secondTryError) throw secondTryError
-                } else {
-                    throw deleteError
-                }
-            }
+            if (retireError) throw retireError
 
             toast.dismiss(loadingToast)
-            toast.success("Volume purged from the cosmic records")
+            toast.success("Volume retired from the catalogue. It can be restored.")
             router.push("/admin/books")
+            router.refresh()
         } catch (err: any) {
             toast.dismiss(loadingToast)
-            console.error("Purge failure:", err)
-            toast.error(`Purge protocol failed: ${err.message || "Unknown error"}`)
+            console.error("Retire failed:", err)
+            toast.error(`Could not retire this volume: ${err.message || "Unknown error"}`)
         } finally {
             setIsDeleteDialogOpen(false)
         }

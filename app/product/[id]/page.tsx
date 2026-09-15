@@ -40,6 +40,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             book_variants (id, format, price, is_in_stock, size, stock_quantity)
         `)
         .eq("id", id)
+        // A retired product must 404 rather than sell.
+        .is("deleted_at", null)
         .eq("product_type", "merch")
         .eq("status", "published")
         .single()

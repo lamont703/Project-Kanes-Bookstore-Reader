@@ -48,6 +48,9 @@ export default async function BrowsePage({ searchParams, previewDocument }: Brow
       book_variants (*)
     `, { count: 'exact' })
     .eq('status', 'published')
+    // Retired books stay in the table so they can be brought back;
+    // they must not appear anywhere a shopper or an admin browses.
+    .is('deleted_at', null)
     // `books` is now a general catalog and also holds merchandise; this page
     // renders book-shaped cards, so keep it to books. See migration
     // 20260811000001_extend_books_to_catalog.sql.
