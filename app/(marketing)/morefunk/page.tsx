@@ -75,6 +75,9 @@ export default async function MoreFunkPage({ previewDocument }: {
         .select("id, title, cover_image_url, merch_category, book_variants (id, price, is_in_stock, size)")
         .eq("product_type", "merch")
         .eq("status", "published")
+        // Retired books stay in the table so they can be brought back;
+        // they must not appear anywhere a shopper or an admin browses.
+        .is("deleted_at", null)
         // The arranged order first, then alphabetical for anything never
         // arranged. NULLS LAST is the whole point: a product added after a
         // category was arranged joins the end of its section rather than

@@ -18,6 +18,9 @@ export default async function AdminBooksPage() {
     .from("books")
     .select("*, book_variants(*)")
     .eq("product_type", "book")
+    // Retired books stay in the table so they can be brought back;
+    // they must not appear anywhere a shopper or an admin browses.
+    .is("deleted_at", null)
     .order("title")
 
   if (error) {

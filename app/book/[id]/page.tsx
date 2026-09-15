@@ -23,7 +23,7 @@ export async function generateStaticParams() {
     const supabase = createStaticClient()
     // Books only — `books` also holds merchandise since the catalog migration,
     // and merch has no book detail page.
-    const { data: books } = await supabase.from('books').select('id').eq('product_type', 'book')
+    const { data: books } = await supabase.from('books').select('id').eq('product_type', 'book').is('deleted_at', null)
 
     return books?.map((book) => ({
       id: book.id,
@@ -46,6 +46,9 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
     `)
     .eq('id', id)
     .eq('product_type', 'book')
+    // Retired books stay in the table so they can be brought back;
+    // they must not appear anywhere a shopper or an admin browses.
+    .is('deleted_at', null)
     .single()
 
   if (error || !b) {

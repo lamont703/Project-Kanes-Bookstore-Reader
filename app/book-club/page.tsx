@@ -87,6 +87,9 @@ export default async function BookClubPage({
     .eq('is_book_club_eligible', true)
     .eq('status', 'published')
     .eq('product_type', 'book')
+    // Retired books stay in the table so they can be brought back;
+    // they must not appear anywhere a shopper or an admin browses.
+    .is('deleted_at', null)
     .order('display_order', { ascending: true, nullsFirst: false })
     .order('title', { ascending: true })
 

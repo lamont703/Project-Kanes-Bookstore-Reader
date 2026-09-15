@@ -116,6 +116,8 @@ export default function ReadPage() {
           .select("id, title, author, book_file_url")
           .eq("id", bookId)
           .eq("product_type", "book")
+          // A retired book stops opening in the reader too.
+          .is("deleted_at", null)
           .single()
 
         if (bookErr) throw new Error("Book not found")

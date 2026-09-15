@@ -87,6 +87,9 @@ export default async function AdminProductsPage({
             "id, title, status, merch_category, cover_image_url, created_at, book_variants (id, price, is_in_stock, size, stock_quantity)",
         )
         .eq("product_type", "merch")
+        // Retired books stay in the table so they can be brought back;
+        // they must not appear anywhere a shopper or an admin browses.
+        .is("deleted_at", null)
         .order("title")
         .range(0, 999)
 

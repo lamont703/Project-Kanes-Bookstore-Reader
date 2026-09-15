@@ -376,10 +376,30 @@ export async function handleUploadBook(
             console.error(`[upload-book] Storage cleanup partial: ${cleanupErr.message}`);
         }
 
-        // Cascade delete the book record (removes variants, pages, illustrations).
-        // Only reachable when this request created it — see the guard above.
-        await adminClient.from("books").delete().eq("id", bookId);
-        console.log(`[upload-book] Rolled back newly created book record ${bookId}`);
+        /**
+         * Retire the half-created book rather than deleting it.
+         *
+         * Only reachable when this request created it — see the guard above —
+         * so a hard delete would be defensible here. It is still not what
+         * happens: the database refuses one outright
+         * (trg_books_block_hard_delete, migration 20260915000000), because
+         * deleting a book cascades into order_items and user_library and no
+         * code path is trusted with that any more.
+         *
+         * deleted_at hides it from every listing, which is all this rollback
+         * ever needed. The leftover row is a record of a failed upload, and
+         * costs nothing.
+         */
+        const { error: retireError } = await adminClient
+            .from("books")
+            .update({ deleted_at: new Date().toISOString() })
+            .eq("id", bookId);
+
+        if (retireError) {
+            console.error(`[upload-book] Could not retire ${bookId}: ${retireError.message}`);
+        } else {
+            console.log(`[upload-book] Retired the newly created book record ${bookId}`);
+        }
 
         throw err;
     }
