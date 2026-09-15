@@ -169,8 +169,23 @@ export async function handleUploadBook(
                     book_id: bookId,
                     format,
                     price,
-                    is_in_stock
-                }, { onConflict: 'book_id,format' });
+                    is_in_stock,
+                    // Always NULL here — these three are book formats, and only
+                    // apparel is sized. Stated rather than omitted because it is
+                    // part of the conflict target below.
+                    size: null
+                }, {
+                    // MUST match book_variants_unique_sku. The original schema
+                    // had UNIQUE (book_id, format); migration 20260811000001
+                    // dropped it and created a unique index on
+                    // (book_id, format, size) NULLS NOT DISTINCT, so merch can
+                    // carry one variant per size. This conflict target was never
+                    // updated, so every save raised
+                    //   42P10 there is no unique or exclusion constraint
+                    //         matching the ON CONFLICT specification
+                    // NULLS NOT DISTINCT is what makes a NULL size still match.
+                    onConflict: 'book_id,format,size'
+                });
 
             if (variantError) throw variantError;
         }
@@ -312,8 +327,34 @@ export async function handleUploadBook(
         };
 
     } catch (err: any) {
-        // ─── Rollback: cascade delete cleans up variants, pages, illustrations ──
         console.error(`[upload-book] ❌ Processing failed for "${title}": ${err.message}`);
+
+        /**
+         * Roll back ONLY a book this request created.
+         *
+         * The cleanup below deletes the book row — which cascades to
+         * book_variants, book_pages, book_illustrations, order_items,
+         * user_library and book_club_selections — and empties its Storage
+         * folders. That is right for a failed upload, where the row was created
+         * seconds ago and nobody has it yet.
+         *
+         * It was running on EDITS too, where bookId is a book that has been on
+         * sale. Combined with the 42P10 above, which made every save throw, the
+         * effect was that editing a book's price deleted the book: it vanished
+         * from the public catalogue, its cover and page images were removed from
+         * Storage, and any customer holding it lost it from their library.
+         *
+         * On an edit there is nothing safe to roll back to from here — the books
+         * row was already updated before this try block, and the original values
+         * are not held anywhere. Leaving the book alone and surfacing the error
+         * is both the safe option and the honest one.
+         */
+        if (existingId) {
+            console.error(
+                `[upload-book] Edit of existing book ${bookId} failed; leaving the record and its files untouched.`,
+            );
+            throw err;
+        }
 
         // Clean up Storage files
         try {
@@ -335,9 +376,10 @@ export async function handleUploadBook(
             console.error(`[upload-book] Storage cleanup partial: ${cleanupErr.message}`);
         }
 
-        // Cascade delete the book record (removes variants, pages, illustrations)
+        // Cascade delete the book record (removes variants, pages, illustrations).
+        // Only reachable when this request created it — see the guard above.
         await adminClient.from("books").delete().eq("id", bookId);
-        console.log(`[upload-book] Rolled back book record ${bookId}`);
+        console.log(`[upload-book] Rolled back newly created book record ${bookId}`);
 
         throw err;
     }
