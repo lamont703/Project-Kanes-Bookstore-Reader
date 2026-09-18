@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 import { createClient } from "@/lib/supabase/server"
+import { selectAll } from "@/lib/supabase/select-all"
 import { redirect } from "next/navigation"
 import { AdminBooksContent } from "@/components/admin/admin-books-content"
 import { getEffectiveRole } from "@/lib/current-role"
@@ -13,15 +14,29 @@ export default async function AdminBooksPage() {
     redirect("/login?redirect=/admin/books")
   }
 
-  // Fetch initial books on the server to ensure identity sync
-  const { data, error } = await supabase
-    .from("books")
-    .select("*, book_variants(*)")
-    .eq("product_type", "book")
-    // Retired books stay in the table so they can be brought back;
-    // they must not appear anywhere a shopper or an admin browses.
-    .is("deleted_at", null)
-    .order("title")
+  /**
+   * Every book, not the first thousand.
+   *
+   * Supabase caps a single REST response at 1,000 rows and says so only in a
+   * Content-Range header nobody reads — so this page quietly showed 1,000 of
+   * 1,057 books, and would have hidden more with every title added. selectAll
+   * walks the pages. See lib/supabase/select-all.ts.
+   *
+   * Ordered by title AND id: offset paging needs a total order, and titles are
+   * not unique, so ties could otherwise shuffle between requests and drop or
+   * duplicate a row at a page boundary.
+   */
+  const { data, error } = await selectAll<any>(() =>
+    supabase
+      .from("books")
+      .select("*, book_variants(*)")
+      .eq("product_type", "book")
+      // Retired books stay in the table so they can be brought back;
+      // they must not appear anywhere a shopper or an admin browses.
+      .is("deleted_at", null)
+      .order("title")
+      .order("id"),
+  )
 
   if (error) {
     console.error("Failed to fetch books for admin:", error)
