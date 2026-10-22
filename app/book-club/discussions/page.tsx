@@ -25,6 +25,29 @@ export default async function DiscussionListPage() {
 
   const topicList = topics ?? []
 
+  // post_count/member_count on discussion_topics are maintained by a trigger
+  // that runs as the posting member, who has no UPDATE right on topics, so the
+  // stored numbers stay at 0. Count from the posts themselves instead.
+  const { data: posts, error: postsError } = topicList.length
+    ? await supabase
+        .from("discussion_posts")
+        .select("topic_id, author_id")
+        .in("topic_id", topicList.map((t) => t.id))
+        .is("deleted_at", null)
+    : { data: [], error: null }
+
+  if (postsError) {
+    console.error("Error fetching discussion post counts:", postsError)
+  }
+
+  const statsByTopic = new Map<string, { posts: number; authors: Set<string> }>()
+  for (const post of posts ?? []) {
+    const stats = statsByTopic.get(post.topic_id) ?? { posts: 0, authors: new Set<string>() }
+    stats.posts += 1
+    stats.authors.add(post.author_id)
+    statsByTopic.set(post.topic_id, stats)
+  }
+
   return (
     <div className="min-h-screen">
       <SiteHeader />
@@ -98,10 +121,10 @@ export default async function DiscussionListPage() {
                         <div className="flex items-center gap-6 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1.5">
                             <MessageSquare className="w-3.5 h-3.5" />
-                            <span>{topic.post_count ?? 0} Posts</span>
+                            <span>{postsError ? topic.post_count ?? 0 : statsByTopic.get(topic.id)?.posts ?? 0} Posts</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span>{topic.member_count ?? 0} Explorers</span>
+                            <span>{postsError ? topic.member_count ?? 0 : statsByTopic.get(topic.id)?.authors.size ?? 0} Explorers</span>
                           </div>
                         </div>
                       </div>
