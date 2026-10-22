@@ -17,7 +17,7 @@ export default async function DiscussionListPage() {
     .select("*")
     .is("deleted_at", null)
     .order("is_pinned", { ascending: false })
-    .order("last_activity_at", { ascending: false })
+    .order("last_activity_at", { ascending: false, nullsFirst: false })
 
   if (error) {
     console.error("Error fetching discussion topics:", error)

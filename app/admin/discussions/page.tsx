@@ -94,7 +94,7 @@ export default function AdminDiscussionsPage() {
             .select("*")
             .is("deleted_at", null)
             .order("is_pinned", { ascending: false })
-            .order("last_activity_at", { ascending: false })
+            .order("last_activity_at", { ascending: false, nullsFirst: false })
 
         if (error) {
             toast.error("Failed to load discussion topics")
